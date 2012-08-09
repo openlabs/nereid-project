@@ -1,0 +1,106 @@
+{%- macro state_color_css(state, type='label') -%}
+{%- if type=='label' -%}
+  {%- if state == 'opened' -%}
+  success
+  {%- elif state == 'done' -%}
+  important
+  {%- else -%}
+  info
+  {%- endif -%}
+{%- else -%}
+  {%- if state == 'opened' -%}
+  success
+  {%- elif state == 'done' -%}
+  danger
+  {%- else -%}
+  info
+  {%- endif -%}
+{%- endif -%}
+{%- endmacro -%}
+
+{% macro render_timesheet_line(line) %}
+<div class="row-fluid">
+  <div class="breadcrumb">
+    <i class="icon-time"></i> 
+    <strong>{{ line.employee.name }}</strong> worked for <strong>{{ ngettext('%(num).2f hour', '%(num).2f hours', line.hours) }}</strong> on <strong>{{ line.date|dateformat('long') }}</strong>
+    <small class="pull-right">
+      <abbr class="timeago" title="{{ line.create_date }}">{{ line.create_date|dateformat }}</abbr>
+    </small>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro render_attachment(attachment) %}
+<div class="row-fluid">
+  <div class="breadcrumb">
+    <i class="icon-file"></i> 
+    <strong>USER NAME</strong> uploaded file 
+    <strong><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}" rel="tooltip" title="Download file">{{ attachment.name }}</a></strong>
+    <small class="pull-right">
+      <abbr class="timeago" title="{{ attachment.create_date }}">{{ attachment.create_date|dateformat }}</abbr>
+    </small>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro render_comment(comment) %}
+<div class="row-fluid comment">
+  <div class="span1">
+    {% if comment.updated_by %}
+    <img class="profile-picture" src="{{ comment.updated_by.get_profile_picture(comment.updated_by, size="50") }}"/>
+    {% endif %}
+  </div>
+  <div class="span11 btn-edit-comment-area comment-border">
+    <div class="arrow-w"></div>
+    <div class="row-fluid">
+      <div class="breadcrumb">
+        <i class="icon-comment"></i> 
+        <strong>{{ comment.updated_by and comment.updated_by.name or comment.create_uid.name }}</strong>
+        {% if comment.previous_state %}
+        <span class="label label-{{ state_color_css(comment.previous_state) }}">{{ comment.previous_state }}</span>
+        {% endif %}
+        {% if comment.new_state %}
+        <i class="icon-arrow-right"></i> 
+        <span class="label label-{{ state_color_css(comment.new_state) }}">{{ comment.new_state }}</span>
+        {% endif %}
+        {% if comment.new_assigned_to and not comment.previous_assigned_to %}
+        <em>Assigned to </em><span class="label"> {{ comment.new_assigned_to.name }}</span>
+        {% endif %}
+        {% if comment.previous_assigned_to and not comment.project.assigned_to %}
+        <em> {{ _('Cleared the assigned user') }}</em>
+        {% endif %}
+        {% if comment.previous_constraint_start_time %}
+        <span class="label">{{ comment.previous_constraint_start_time }}<i class="icon-arrow-right"></i>{{ comment.new_constraint_start_time }}</span>
+        {% endif %}
+
+        <small class="pull-right">
+          <abbr class="timeago" title="{{ comment.create_date }}">{{ comment.create_date|dateformat }}</abbr>
+        </small>
+      </div>
+    </div>
+
+    {% if comment.comment %}
+    <div class="row-fluid">
+      {% if request.nereid_user.is_project_admin(request.nereid_user) or comment.updated_by == request.nereid_user %}
+      <a class="btn pull-right btn-edit-comment" displayed-div="#comment-display-{{ comment.id }}"
+        textarea="#comment-{{ comment.id }}"
+        style="display:none"><i class="icon-edit"></i> Edit</a>
+      {% endif %}
+      <a class="btn pull-right btn-save-comment" displayed-div="#comment-display-{{ comment.id }}" 
+        textarea="#comment-{{ comment.id }}" comment-url="{{ url_for('project.work.history.update_comment', task_id=comment.project.id, comment_id=comment.id) }}"
+        style="display:none"><i class="icon-ok-circle"></i> Save</a>
+      <a class="btn pull-right btn-cancel-comment" displayed-div="#comment-display-{{ comment.id }}" 
+        textarea="#comment-{{ comment.id }}"
+        style="display:none"><i class="icon-remove-circle"></i> Cancel</a>
+      <div id="comment-display-{{ comment.id }}">{{ comment.comment|rst|safe }}</div>
+      <textarea id="comment-{{ comment.id }}" 
+        class="input-xlarge span12" style="display:none">{{ comment.comment }}</textarea>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{% if comment %}
+{{ render_comment(comment) }}
+{% endif %}

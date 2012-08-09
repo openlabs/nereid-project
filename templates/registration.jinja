@@ -1,0 +1,68 @@
+{% extends 'base.jinja' %}
+
+{% from '_helpers.jinja' import render_field %}
+
+{% block extra_head %}
+<script type="text/javascript" charset="utf-8">
+  $(document).ready(function(){
+
+
+  // Use client side validation on the form
+  $("form#registration").validate({
+    errorElement: "span",
+    wrapper: "li",
+    errorPlacement: function(error, element) {
+      error.insertAfter(element);
+      console.log(error);
+      console.log(element);
+      element.parents("div.clearfix").addClass("error");
+    },
+    submitHandler: function(form) {
+      $("form#registration button.cont").button('loading');
+      form.submit();
+    }
+  });
+  $("form#registration input[name='confirm']").rules("add", {
+    equalTo: "#password"
+  });
+});
+</script>
+{% endblock %}
+
+{% block container %}
+<div class="page-header">
+  <h1>{% trans %}Registration{% endtrans %}</h1>
+</div>
+<div class="row-fluid">
+  <div class="span5">
+    <div class="well register-box">
+      <form action="{{ url_for('nereid.user.registration', next=request.args.get('next', url_for('nereid.website.home'))) }}" 
+          method="post" id="registration">
+        <fieldset>
+          {{ render_field(form.name, placeholder=_("John Doe"), ) }}
+          {{ render_field(form.email, ) }}
+          {{ render_field(form.password) }}
+          {{ render_field(form.confirm) }}
+
+          <div class="clearfix">
+            <button class="btn success register cont" value="" type="submit">
+              <b>{% trans %}Register Now{% endtrans %}</b>
+            </button>
+          </div>
+        </fieldset>
+      </form>
+    </div>
+  </div>
+  <div class="span1">
+    <br><br><br><br><br><br>
+    <h1>{% trans %}OR{% endtrans %}</h1>
+  </div>
+  <div class="span5">
+    <div class="well register-box">
+      <h3>{% trans %}Sign up instantly using Facebook{% endtrans %}</h3>
+      <p>{% trans %}Use your Facebook account to sign in{% endtrans %}</p>
+      <a href="{#{ url_for('nereid.user.facebook_login', next=request.args.get('next', url_for('nereid.website.home'))) }#}">Connect to facebook</a> 
+    </div>
+  </div>
+</div>
+{% endblock %}

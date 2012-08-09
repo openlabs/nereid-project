@@ -1,0 +1,150 @@
+{% extends 'home.jinja' %}
+
+{% block breadcrumb %}
+<li><a href="{{ url_for('nereid.website.home') }}">{{ _('Dashboard') }}</a></li>
+<li class="divider">/</li>
+<li>
+  <a href="{{ url_for('project.work.render_project', project_id=project.id) }}">
+    {{ project.rec_name }}
+  </a>
+</li>
+{% endblock %}
+
+{% block title %}
+{{ _("Project: ") + project.name }}
+{% endblock %}
+
+{% block sidebar %}
+<ul class="nav nav-tabs nav-stacked">
+  <li {% if active_type_name == 'recent' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-eye-open"></i> {{ _('Recent Activity') }}</a>
+  </li>
+  <li>
+    <a href="#"><i class="icon-comment"></i> {{ _('Conversations') }}</a>
+  </li>
+  <li {% if active_type_name == 'render_task_list' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}">
+    <i class="icon-tasks"></i> {{ _('Tasks') }}</a>
+  </li>
+  <li {% if active_type_name == 'timesheet' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_timesheet', project_id=project.id) }}"><i class="icon-time"></i> {{ _('Time Sheets') }}</a>
+  </li>
+  <li {% if active_type_name == 'plan' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_plan', project_id=project.id) }}"><i class="icon-calendar"></i> {{ _('Planning') }}</a>
+  </li>
+  <li>
+    <a href=""><i class="icon-file"></i> {{ _('Wiki (Coming Soon)') }}</a>
+  </li>
+  <li  {% if active_type_name == 'files' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_files', project_id=project.id) }}"><i class="icon-folder-close"></i> {{ _('Files') }}</a>
+  </li>
+  {% if request.nereid_user.is_project_admin(request.nereid_user) %}
+  <li>
+    <a href="#"><i class="icon-wrench"></i> {{ _('Settings') }}</a>
+  </li>
+  <li {% if active_type_name == 'permissions' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.permissions', project_id=project.id) }}"><i class="icon-user"></i> {{ _('People & Permissions') }}</a>
+  </li>
+  {% endif %}
+</ul>
+
+<div class="clear">&nbsp;</div>
+<div class="row-fluid">
+  {% if request.nereid_user.is_project_admin(request.nereid_user) %} 
+    <h4 class="pull-left span12"><small><i class="icon-tags"></i></small> {{ _('Tags') }} </h4>
+
+    {% if project.tags_for_projects %} 
+      {% for tag in project.tags_for_projects %}
+        <div class="btn-group span12" id="{{ tag.id }}">
+          <a class="btn btn-{{ tag.color }} btn-mini" 
+            title="View all tasks with {{ tag.name }} tag" rel="tooltip" 
+            href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id) }}">
+            {{ tag.name }}
+          </a>
+          <span class="label label-{{ tag.color if tag.color != 'danger' else 'important' }} pull-right">
+            {{ tag.project.get_tasks_by_tag(tag.id)|length }}
+          </span>
+          <a class="btn btn-{{ tag.color }} btn-mini btn-remove-tag"
+            title="Remove tag {{ tag.name }}" rel="tooltip" id="{{ tag.id }}"
+            data-url="{{ url_for('project.work.tag.delete_tag', tag_id=tag.id) }}">
+            <i class="icon-remove icon-white"></i>
+          </a>
+        </div>
+      {% endfor %}
+      <script>
+        $(document).ready(function(){
+          // Remove a tag
+          $('.btn-remove-tag').click(function(){
+            tag_id = $(this).attr('id')
+            $.ajax({
+              url: $(this).attr('data-url'),
+              type: 'POST'
+            })
+            .done(function() {
+              $("div#" + tag_id).hide();
+            });
+          });
+        });
+      </script>
+    {% endif %}
+
+    <form class="form-vertical" id="new-tag-form" method="POST"
+        action="{{ url_for('project.work.tag.create_tag', project_id=project.id) }}">
+      <input class="span12" type="text" placeholder="New tag name"
+          name="name" required="required" id="name"/>
+      <input type="hidden" name="color" id="color"/>
+      <div class="btn-toolbar">
+        <div class="btn-group" id="color_palette" data-toggle="buttons-radio">
+          <a class="btn btn-primary span2 color" color="primary">&nbsp;</a>
+          <a class="btn btn-info span2 color" color="info">&nbsp;</a>
+          <a class="btn btn-warning span2 color" color="warning">&nbsp;</a>
+          <a class="btn btn-success span2 color" color="success">&nbsp;</a>
+          <a class="btn btn-danger span2 color" color="danger">&nbsp;</a>
+          <a class="btn btn-inverse span2 color" color="inverse">&nbsp;</a>
+        </div>
+      </div>
+      <button type="submit" class="btn pull-right"
+        id="create_new_tag" data-loading-text="Creating new Tag">
+        <i class="icon-plus"></i> {{ _('Add a new tag') }}
+      </button>
+
+      <script>
+        $(document).ready(function(){
+          $(".color").click(function(){
+            $(this).parent().children().removeClass('active');
+            $(this).addClass('active');
+
+            // This is UGLY. On post the value should be picked up from the 
+            // active button
+            $("input#color").attr('value', $(this).attr('color'));
+          });
+
+          // Make edit buttons visible on hovers
+          $(".btn-edit-tag-area").hover(
+            function(){$(this).find(".btn-edit-tag").show();},
+            function(){$(this).find(".btn-edit-tag").hide();}
+          );
+
+          // Display option to delete a tag on click of edit tag
+          $('.btn-edit-tag').click(function(){
+            $($(this).siblings('a.btn-done-edit-tag')).show();
+            $(this).hide();
+            $(this).removeClass('btn-edit-tag').addClass('btn-edit-tag-disabled');
+            $('.count-tag').hide();
+            $('.remove-tag').show();
+          });
+
+          // Go back to normal state if done button is clicked
+          $('.btn-done-edit-tag').click(function(){
+            $(this).hide();
+            $($(this).siblings('a.btn-edit-tag-disabled')).removeClass('btn-edit-tag-disabled').addClass('btn-edit-tag').show();
+            $('.count-tag').show();
+            $('.remove-tag').hide();
+          });
+        });
+      </script>
+
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% macro render_field(field, class_="") %}
+<div class="clearfix {% if field.errors %}error{% endif %}">
+  <label for="{{ field.name }}">{{ field.label.text }}
+    {% if field.flags.required %}<span>*</span>{% endif %}:
+  </label>
+  <div class="input">
+    {% if field.flags.required %}
+      {% set class_ = class_ + " required" %}
+    {% endif %}
+    {{ field(class_=class_, **kwargs) }}
+    {% if field.description %}
+    <br/><span class="help-inline">{{ field.description }}</span>
+    {% endif %}
+    {% for error in field.errors %}
+    <br/><span class="help-inline">{{ error|string }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{%- macro status_label(task, class_="") -%}
+{% set states={'opened': _('Open'), 'done': _('Done')} %}
+<span class="label {% if task.state == 'opened' %}label-info{% else %}label-success{% endif %} {{ class_ }}">{{ states[task.state] }}</span>
+{%- endmacro -%}
+
+
+{% macro render_pagination(pagination, uri, endpoint) %}
+<div class="pagination pagination-right">
+  <ul>
+    {% if pagination.has_prev -%}
+    <li>
+      <a href="{{ url_for(endpoint, uri=uri, page=pagination.prev_num, **kwargs) }}">
+        &laquo; {% trans %}Previous{% endtrans %}
+      </a>
+    </li>
+    {% else %}
+    <li class="disabled">
+      <a>
+      &laquo; {% trans %}Previous{% endtrans %}
+      </a>
+    </li>
+    {% endif %}
+
+    {%- for page in pagination.iter_pages(left_edge=0, left_current=5, right_current=5, right_edge=0) %}
+      {% if loop.first and page !=1 %}
+      <li class="disabled">...</li>
+      {% endif %}
+
+      {% if page %}
+      <li {% if page == pagination.page %}class="active"{% endif %}>
+        <a href="{{ url_for(endpoint, uri=uri, page=page, **kwargs) }}">{{ page }}</a>
+      </li>
+      {% endif %}
+
+      {% if loop.last and page != pagination.pages %}
+      <li class="disabled">...</li>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.has_next -%}
+    <li>
+      <a class="" href="{{ url_for(endpoint, uri=uri, page=pagination.next_num, **kwargs) }}">
+        {% trans %}Next{% endtrans %} &raquo;
+      </a>
+    </li>
+    {% else %}
+    <li class="disabled">
+      <a>{% trans %}Next{% endtrans %} &raquo;</a>
+    </li>
+    {% endif %}
+
+  </ul>
+</div>
+{% endmacro %}

@@ -1,0 +1,32 @@
+{% extends 'project.jinja' %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li>
+  <a href="{{ url_for('project.work.permissions', project_id=project.id) }}">
+    {{ _('People & Permissions') }} 
+  </a>
+</li>
+{% endblock %}
+
+
+{% block main %}
+<div class="page-header">
+  <h4> {{ _("People & Permissions") }}</h4>
+</div>
+{% for user in project.participants %}
+<div class="row-fluid">
+  <div class="span1">
+    <img src="{{ user.get_profile_picture(user, size="50") }}" alt="{{ user.name }}" class="profile-picture"/>
+  </div>
+  <div class="span9">
+    <strong>{{ user.name }}</strong>
+  </div>
+  <div class="span2">
+    <a class="btn btn-warning"><i class="icon-minus-sign icon-white"></i> {{ _('Remove') }}</a>
+  </div>
+</div>
+<hr/>
+{% endfor %}
+{% endblock %}

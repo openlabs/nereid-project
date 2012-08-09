@@ -1,0 +1,70 @@
+{% extends 'base.jinja' %}
+
+{% from '_helpers.jinja' import render_field %}
+
+{% block extra_head %}
+<script type="text/javascript" charset="utf-8">
+  $(document).ready(function(){
+
+
+  // Use client side validation on the form
+  $("form#login-form").validate({
+    errorElement: "span",
+    wrapper: "li",
+    errorPlacement: function(error, element) {
+      error.insertAfter(element);
+      console.log(error);
+      console.log(element);
+      element.parents("div.clearfix").addClass("error");
+    },
+    submitHandler: function(form) {
+      $("form#login-form button.cont").button('loading');
+      form.submit();
+    }
+  });
+});
+</script>
+{% endblock %}
+
+{% block container %}
+<div class="page-header">
+  <h1>{% trans %}Log in to your Account{% endtrans %}</h1>
+</div>
+<div class="row-fluid">
+  <div class="span5">
+    <div id="login" class="well">
+      <form action="{{ url_for('nereid.website.login') }}" method="POST" autocomplete="off" class="clearfix" id="login-form">
+        <div style="display:none">
+        </div>
+
+        <div class="all-errors">
+            
+        </div>
+        <fieldset>
+
+          {{ render_field(login_form.email, placeholder=_("john.doe@email.com")) }}
+          {{ render_field(login_form.password, placeholder="") }}
+
+          <button class="btn success login cont" value="" type="submit">
+            <b>{% trans %}Log In{% endtrans %}</b>
+          </button>
+        </fieldset>
+      </form>
+    </div>
+  </div>
+  <div class="span1">
+    <br><br><br><br><br><br>
+    <h1>{% trans %}OR{% endtrans %}</h1>
+  </div>
+  <div class="span5">
+    <div class="well register-box">
+      <h3>{% trans %}Sign in with Facebook{% endtrans %}</h3>
+      <p>{% trans %}Use your Facebook account to sign in{% endtrans %}</p>
+      <a href="{#{ url_for('nereid.user.facebook_login', next=request.args.get('next', url_for('nereid.website.home'))) }#}">Connect to facebook</a> 
+    </div>
+  </div>
+</div>
+<div class="page-header">
+  <h4>{% trans %}Don't have an account ? {% endtrans %}<a href="{{ url_for('nereid.user.registration', next=request.args.get('next', url_for('nereid.website.home'))) }}">Sign up now</a>!</h4>
+</div>
+{% endblock %}

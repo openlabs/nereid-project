@@ -1,0 +1,57 @@
+{% extends 'project.jinja' %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_plan', project_id=project.id) }}">Planning</a></li>
+{% endblock %}
+
+{% block main %}
+<div class="span12">
+  <div id='calendar'></div>
+</div>
+<script>
+  $(document).ready(function(){
+    var fetchFromTryton = function(start, end, callback, event_type) {
+      $.ajax({
+          url: "{{ url_for('project.work.render_plan', project_id=project.id) }}",
+          data: {
+              start: Math.round(start.getTime() / 1000),
+              end: Math.round(end.getTime() / 1000),
+              event_type: event_type
+          }
+      })
+      .done(function(data){
+        callback(data.result);
+      });
+    }
+           
+    $('#calendar').fullCalendar({
+      eventSources: [
+        {
+          events: function(start, end, callback) {
+            fetchFromTryton(start, end, callback, 'constraint');
+          },
+          color: 'grey'
+        },
+        {
+          events: function(start, end, callback) {
+            fetchFromTryton(start, end, callback, 'actual');
+
+          },
+        }
+      ]
+    });
+  });
+</script>
+{% endblock %}
+
+{% block morejs %}
+{{ super() }}
+<script type='text/javascript' src='{{ STATIC }}js/fullcalendar.min.js'></script>
+{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel='stylesheet' type='text/css' href='{{ STATIC }}css/fullcalendar.css' />
+{% endblock %}

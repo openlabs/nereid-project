@@ -1,0 +1,561 @@
+{% extends 'project.jinja' %}
+
+{% from 'comment.jinja' import render_comment, state_color_css, render_timesheet_line, render_attachment with context %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}">{{ _('Tasks') }}</a></li>
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}">{{ task.name }}</a></li>
+{% endblock %}
+
+{% block title %}
+{{ _("Task #%d: " % task.id) + task.name }}
+{% endblock %}
+
+{% block sidebar %}
+<ul class="nav nav-tabs nav-stacked">
+  <li>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}"><i class="icon-arrow-left"></i> Back to tasks list</a>
+  </li>
+</ul>
+
+<hr/>
+<h4>{{ _('Tags') }}
+  <div class="btn-group pull-right add-tag-to-task">
+    <button class="btn pull-right dropdown-toggle" data-toggle="dropdown" title="Add Tags" rel="tooltip">
+      <i class="icon-tags"></i>
+    </button>
+    <ul class="dropdown-menu" id="add_tag_to_tasks_block">
+      {% for new_tag in task.parent.tags_for_projects if new_tag not in task.tags%}
+      <li id="add-{{ new_tag.id }}">
+        <a title="Add tag {{ new_tag.name }}" rel="tooltip" class="add action-tag-btn" id="{{ new_tag.id }}"
+          data-url="{{ url_for('project.work.add_tag', task_id=task.id, tag_id=new_tag.id) }}">
+          <i class="icon-tag"></i> 
+          <span class="label label-{{ new_tag.color if new_tag.color != 'danger' else 'important' }}">
+             {{ new_tag.name }}
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% if not task.tags %}<br><small>{{ _('No tags added yet.') }}</small>{% endif %}
+</h4>
+<br>
+
+{% if task.tags %} 
+    {% for tag in task.tags %}
+    <div class="btn-group span12 remove-tag-from-task" id="remove-{{ tag.id }}">
+      <a class="btn btn-{{ tag.color }} btn-mini"
+        title="View all tasks with {{ tag.name }} tag" rel="tooltip"
+        href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id) }}">
+        {{ tag.name }}
+      </a>
+      <a class="btn btn-{{ tag.color }} btn-mini remove action-tag-btn"
+        title="Remove tag {{ tag.name }}" rel="tooltip" id="{{ tag.id }}"
+        data-url="{{ url_for('project.work.remove_tag', task_id=task.id, tag_id=tag.id) }}">
+        <i class="icon-remove icon-white"></i>  
+      </a>
+    </div>
+    {% endfor %}
+  <div class="clear">&nbsp;</div>
+{% endif %}
+
+<script>
+  $(document).ready(function(){
+
+    // Add/Remove tag from task
+    $(".action-tag-btn").click(function(){
+      tag_id = $(this).attr('id');
+      var me = $(this);
+      $.ajax({
+        url: $(this).attr('data-url'),
+        type: 'POST'
+      })
+      .done(function(data) {
+        window.location = window.location.href;
+      });
+    });
+
+  });
+</script>
+
+<hr/>
+<h4>{{ _('Files') }}
+
+  <!-- Modal for attaching files to task -->
+  <div class="modal fade" id="attach-file">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h3>{{ _('Attach a file to the task task') }}</h3>
+    </div>
+    <div class="modal-body">
+      <script>
+        $(document).ready(function(){
+
+          function toggle_fields() {
+            if ($('select option:selected').attr('value') == 'link') {
+              $('label#label-file').hide();
+              $('input#file').attr('required', false).hide();
+              $('label#label-url').show();
+              $('input#url').attr('required', true).show();
+            } else {
+              $('label#label-url').hide();
+              $('input#url').attr('required', false).hide();
+              $('label#label-file').show();
+              $('input#file').attr('required', true).show();
+            }
+          };
+
+          toggle_fields();
+
+          // popover
+          $("input").popover({
+            placement: 'bottom',
+            trigger: 'focus'
+          });
+
+          // Toggle fields as per type
+          $('#file_type').change(function(){
+            toggle_fields();
+          });
+
+        });
+      </script>
+      <form class="form-vertical well" id="attach-file-form" method="POST"
+        action="{{ url_for("project.work.upload_file") }}" enctype="multipart/form-data">
+
+        <input type="hidden" name="task" value="{{ task.id }}"/>
+
+        <label for="file_type">Type:</label>
+        <select id="file_type" name="file_type" required='required'>
+          <option value="link">Link (From Internet)</option>
+          <option value="data">Local (From your Computer)</option>
+        </select>
+
+        <label for="url" id="label-url">URL:</label>
+        <input class="span12" type="text" placeholder="http://www.google.com" rel="popover"
+          data-content="URL of the file to be attached" data-original-title="URL"
+          name="url" required="required" id="url"/>
+
+        <label for="file" id="label-file">Local File:</label>
+        <input class="span12" type="file" rel="popover"
+          data-content="Select local file to be attached" data-original-title="File"
+          name="file" required="required" id="file"/>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-info pull-right span6 offset3" 
+            id="btn-attach-file" data-loading-text="Uploading...">
+            <i class="icon-plus icon-white"></i> {{ _('Save') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="btn-group pull-right add-file-to-task">
+    <a class="btn pull-right" data-toggle="modal" href="#attach-file"><i class="icon-plus"></i></a>
+  </div>
+  {% if not task.attachments %}<br><small>{{ _('No files attached yet.') }}</small>{% endif %}
+</h4>
+<br/>
+
+{% if task.attachments %}
+  <ul class="nav nav-tabs nav-stacked">
+  
+    {% for attachment in task.attachments %}
+      <li {% if active_type_name == 'recent' %}class="active"{% endif %}>
+        <a>
+          {{ attachment.name|truncate(15) }}
+          {% if attachment.type == 'data' %}
+          <button data-url="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}"
+            class="btn pull-right attachment" title="Download File", rel="tooltip" style="line-height:10px;">
+              <i class="icon-download"></i>
+          </button> 
+          {% elif attachment.type == 'link' %}
+          <button data-url="{{ attachment.link }}" target="new" class="btn pull-right attachment" title="Download File"
+            rel="tooltip" style="line-height:10px;"><i class="icon-share-alt"></i>
+          </button>
+          {% endif %}
+        </a>
+      </li>
+    {% endfor %}
+    <script>
+      $(document).ready(function(){
+        $('button.attachment').click(function(){
+          window.location = $(this).attr('data-url')
+        });
+      });
+    </script>
+  </ul>
+  <div class="clear">&nbsp;</div>
+{% endif %}
+
+<hr/>
+
+{% if task.timesheet_lines %}
+<h4>{{ _('Time Spent') }}
+  {% if request.nereid_user.employee %}
+
+  <!-- Modal for marking time on  task -->
+  <div class="modal fade" id="mark-time">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h3>{{ _('Mark your time on task') }}</h3>
+    </div>
+    <div class="modal-body">
+      <script>
+        $(document).ready(function(){
+          // popover
+          $("input").popover({
+            placement: 'bottom',
+            trigger: 'focus'
+          });
+        });
+        function checkform() {
+          var hours = document.marktimeform.hours.value
+          if (parseFloat(hours)==hours) {
+            return true;
+          } else {
+            alert("Time to be marked in Numeric/Decimal Values only")
+            return false;
+          };
+        };
+      </script>
+      <form class="form-vertical well" id="mark-time-form" method="POST" 
+          action="{{ url_for('project.work.mark_time', task_id=task.id) }}"
+          onSubmit="return checkform()" name="marktimeform">
+        <label for="hours">Hours:</label>
+        <input class="span12" type="text" placeholder="2" rel="popover"
+          data-content="Time to be marked in Numeric/Decimal Values only" data-original-title="Hours"
+          name="hours" required="required" id="hours"/>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-info pull-right span6 offset3" 
+            id="btn-mark-time" data-loading-text="Marking Time">
+            <i class="icon-plus icon-white"></i> {{ _('Save') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <a class="btn pull-right" data-toggle="modal" href="#mark-time"><i class="icon-plus"></i></a>
+  {% endif %}
+  <br/><small> by employee</small>
+</h4>
+<ul class="nav nav-tabs nav-stacked">
+  <li><a><div id="chart_div" ></div></a></li>
+  <script>
+    $(document).ready(function(){
+      var data = google.visualization.arrayToDataTable([
+          ['Task', 'Hours per Day']
+          {% for employee, lines in timesheet_summary %}
+          ,["{{ employee.name }}", {{ lines|sum(attribute='hours') }}]
+          {% endfor %}
+      ]);
+      console.log(data);
+      var chart = new google.visualization.PieChart(
+        document.getElementById('chart_div')
+      );
+      chart.draw(data, {
+        legend: {position: 'none'},
+        pieSliceText: 'value',
+      });
+    });
+  </script>
+  <li class="active">
+    <a><strong>
+    <div class="row-fluid">
+      <div class="span10">
+        {{ _('Total hours') }}
+      </div>
+      <div class="span2 pull-right">
+        {{ task.hours }}
+      </div>
+    </div>
+    </strong></a>
+  </li>
+</ul>
+{% endif %}
+{% endblock %}
+
+{% block main %}
+<div class="row-fluid">
+  <div class="span11">
+    <div class="task-bg btn-edit-comment-area" id="comments-content">
+      <p>{{ task.created_by.name or task.create_uid.name }} reported <abbr title="{{ task.create_date }}" class="timeago"> on {{ task.create_date|dateformat }}</abbr><a class="btn pull-right btn-edit-comment" style="display:none"><i class="icon-edit"></i> Edit</a></p>
+      <h2>#{{ task.id }}: {{ task.name }}</h2>
+      <div class="gray-bg row-fluid">
+        <div class="span6">
+          <p>
+            {% if not task.assigned_to %}
+            <span id="span-assign">{% trans %}No one is assigned{% endtrans %}</span>
+            {% else %}
+            <span id="span-assign">
+              <img src="{{ task.assigned_to.get_profile_picture(task.assigned_to, size="30") }}"/> 
+              {% trans %}Assigned to {% endtrans %} {{ task.assigned_to.name }}
+            </span>
+            <a class="btn btn-clear-assigned-user" data-toggle="button" title="Clear assigned user" rel="tooltip" href="">
+              <i class="icon-refresh"></i>
+            </a>
+            {% endif %}
+            <a class="btn btn-assign-user" data-toggle="button"><i class="icon-user"></i></a>
+
+            <ul class="nav nav-tabs nav-stacked span2 assign-list" style="display:none">
+              {% for participant in task.parent.participants %}
+              <li {% if participant.id == task.assigned_to.id %}class="active"{% endif %}>
+                <a class="assign-user" data-user="{{ participant.id }}" href="">
+                <span><img class="profile-picture" src="{{ participant.get_profile_picture(participant, size="20") }}"></span>
+                <span class="name">{{ participant.name }}</span>
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+
+          </div>
+        </p>
+      </div>
+      {% if task.comment %}
+      {{ task.comment|rst|safe }}
+      {% else %}
+      <p>No description given.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="span1">
+    <a class="btn disabled btn-{{ state_color_css(task.state, 'button') }}">
+      <strong>{{ task.state }}</strong>
+    </a>
+  </div>
+</div>
+<div class="clear"><br/></div>
+<div class="row-fluid">
+  <div class="span2">
+    <a href="" class="btn watch" {% if request.nereid_user in task.participants %}style="display:none"{% endif %}><i class="icon-eye-open"></i> Watch</a>
+    <a href="" class="btn unwatch" {% if request.nereid_user not in task.participants %}style="display:none"{% endif %}><i class="icon-eye-close"></i> Un-Watch</a>
+  </div>
+
+  <div class="span10 pull-right">
+    {% for participant in task.participants %}
+    <a href="" rel="tooltip" title="{{ participant.name }}"><img src="{{ participant.get_profile_picture(participant, size="30") }}" alt="{{ participant.name }}" class="profile-picture"/></a>
+    {% endfor %}
+    <h5>{{ ngettext('%(num)d participant', '%(num)d participants', task.participants|length) }}</h5>
+  </div>
+</div>
+
+<hr/>
+
+<div class="clearfix"></div>
+
+<div class="row-fluid">
+  <div class="span11"> 
+    <div id="comments">
+      {% for comment in comments %}
+        {% if comment._name == 'project.work.history' %}
+          {{ render_comment(comment) }}
+        {% elif comment._name == 'timesheet.line' %}
+          {{ render_timesheet_line(comment) }}
+        {% elif comment._name == 'ir.attachment' %}
+          {{ render_attachment(comment) }}
+        {% endif %}
+        <br/>
+      {% endfor %}
+    </div>
+    {{ new_comment_box(task) }}
+  </div>
+
+</div>
+{% endblock %}
+
+
+{% macro new_comment_box(task) %}
+<div class="row-fluid">
+  <div class="span12">
+    <div class="control-group">
+      <textarea placeholder="Reply or change status" 
+        class="input-xlarge span12" id="comment" rows="3" 
+        name="comment"></textarea>
+    </div>
+  </div>
+  <div class="span12">
+    
+    <a class="btn btn-info btn-comment-save span2" data-action="opened"
+      data-loading-text="Updating task..." name="#new-comment"
+      data-state="opened" 
+      {% if task.state != 'opened' %}style="display:none"{% endif %}
+      href="#new-comment"><i class="icon-edit icon-white"></i> Save</a>
+    <a class="btn btn-comment-save span2" data-action="done"
+      data-loading-text="Updating task..." name="#new-comment" 
+      data-state="opened" 
+      {% if task.state != 'opened' %}style="display:none"{% endif %}
+      href="#new-comment"><i class="icon-check "></i> Save &amp; Close</a>
+    <a class="btn btn-comment-save span2" data-action="opened"
+      {% if task.state != 'done' %}style="display:none"{% endif %}
+      data-loading-text="Updating task..." name="#new-comment" 
+      data-state="done" 
+      href="#new-comment"><i class="icon-folder-open"></i> Save &amp; Reopen</a>
+  </div>
+</div>
+<script>
+  $(document).ready(function() {
+    $('a.btn-comment-save').click(function() {
+      var btn = $(this);
+      var textbox = $("textarea#comment");
+      var comment = textbox.val();
+      if (comment.length == 0) {
+        alert('Oops! Seems like an empty comment');
+      } else {
+        btn.button('loading');
+        var data = {
+          comment: comment
+        };
+        if (btn.attr('data-action') == 'opened') {
+          data['state'] = 'opened'
+        } else if (btn.attr('data-action') == 'done') {
+          data['state'] = 'done'
+        }
+        $.ajax({
+          url: '{{ url_for("project.work.update_task", task_id=task.id) }}',
+          type: 'POST',
+          data: data
+        })
+        .done(function(data){
+            if (data.success) {
+              textbox.val('');
+              $("div#comments").append(data.html + "<hr/>");
+              $("abbr.timeago").timeago();
+              console.log(data);
+              if (data.state == 'opened') {
+                $("a[data-state='opened']").show();
+                $("a[data-state='done']").hide();
+              } else {
+                $("a[data-state='opened']").hide();
+                $("a[data-state='done']").show();
+              }
+
+            } else {
+              alert(data.error);
+            }
+          })
+        .fail(function(){ alert('Update Failed!'); })
+        .always(function(){ btn.button('reset'); });
+      }
+    });
+
+    // Code for editing the comments
+    var bind_edit = function() {
+      if ($(this).attr('textarea')) {
+        $($(this).attr('textarea')).show();
+        $($(this).siblings('a.btn-save-comment')).show();
+        $($(this).siblings('a.btn-cancel-comment')).show();
+        $(this).removeClass('btn-edit-comment').addClass('btn-edit-comment-disabled').hide();
+        $($(this).attr('displayed-div')).hide();
+      }
+    }
+    $('.btn-edit-comment').click(bind_edit);
+
+    // On cancelling change back to old comment
+    var bind_cancel = function() {
+        $($(this).attr('textarea')).hide();
+        $($(this).attr('displayed-div')).show();
+        $(this).siblings('a.btn-save-comment').hide();
+        $(this).hide();
+        $(this).siblings('.btn-edit-comment-disabled').removeClass('btn-edit-comment-disabled').addClass('btn-edit-comment').show();
+    }
+    $('a.btn-cancel-comment').click(bind_cancel);
+
+    // Bind save behavior
+    var bind_save = function() {
+      var btn=$(this);
+      $.ajax({
+        url: $(this).attr('comment-url'),
+        type: 'POST',
+        data: {
+          comment: $($(this).attr('textarea')).val()
+        }
+      })
+      .done(function(data){
+        console.log(data);
+        btn.parents("div.comment").replaceWith(data.html);
+        // Set the hover behaviour on areas with edit buttons again
+        $('.btn-edit-comment').click(bind_edit);
+        $('a.btn-save-comment').click(bind_save);
+        $('a.btn-cancel-comment').click(bind_cancel);
+        $(".btn-edit-comment-area").hover(
+          function(){$(this).find(".btn-edit-comment").show();}, 
+          function(){$(this).find(".btn-edit-comment").hide();}
+        );
+      })
+      .fail(function() {alert("Update failed")})
+      .always();
+    }
+    $('a.btn-save-comment').click(bind_save);
+
+    // Make edit buttons visible on hovers
+    $(".btn-edit-comment-area").hover(
+      function(){$(this).find(".btn-edit-comment").show();}, 
+      function(){$(this).find(".btn-edit-comment").hide();}
+    );
+
+    $("a.watch").click(function() {
+      $.ajax({
+        url: "{{ url_for('project.work.watch', task_id=task.id) }}",
+        type: 'POST'
+      })
+      .done(function() {
+        $("a.watch").hide();
+        $("a.unwatch").show();
+      });
+    });
+    $("a.unwatch").click(function() {
+      $.ajax({
+        url: "{{ url_for('project.work.unwatch', task_id=task.id) }}",
+        type: 'POST'
+      })
+      .done(function() {
+        $("a.watch").show();
+        $("a.unwatch").hide();
+      });
+    });
+
+    $("a.btn-assign-user").click(function() {
+      $("ul.assign-list").toggle();
+    });
+
+    $("a.assign-user").click(function() {
+      var me = $(this)
+      $.ajax({
+        url: "{{ url_for('project.work.assign_task', task_id=task.id) }}",
+        type: "POST",
+        data: { 
+          user: $(this).attr('data-user')
+        }
+      })
+      .done(function(data) {
+        window.location = window.location.href;
+      });
+    });
+
+    $("a.btn-clear-assigned-user").click(function() {
+      var me = $(this)
+      $.ajax({
+        url: "{{ url_for('project.work.clear_assigned_user', task_id=task.id) }}",
+        type: "POST",
+      })
+      .done(function(data) {
+        window.location = window.location.href;
+      });
+    });
+  });
+</script>
+{% endmacro %}
+
+{% block morejs %}
+{{ super() }}
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script>
+  google.load("visualization", "1", {packages:["corechart"]});
+</script>
+{% endblock %}

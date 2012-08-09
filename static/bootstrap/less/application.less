@@ -1,0 +1,192 @@
+/*!
+ *
+ *
+ *
+ */
+
+@import "bootstrap.less";
+
+li.task {
+  .border-radius(5px);
+  border: 1px solid @grayLighter;
+
+  span.task {
+     height: 15px;
+  }
+}
+
+img.profile-picture {
+  .border-radius(5px);
+}
+
+img.profile-picture-small {
+  .border-radius(3px);
+}
+
+h6{font-size:11px;color:#999999;text-transform:uppercase;}
+
+/* Reset the search box as a search box */
+input[type="search"] {
+  -webkit-appearance: searchfield;
+}
+
+.project-info {
+	margin:0px 0px 0px 0px;
+  background-color:@white; 
+  padding:10px 10px 3px 10px;
+	border-top: solid 1px @grayLighter;
+	border-right: solid 1px @grayLighter;
+	border-left: solid 1px @grayLighter;
+}
+.project-info:hover {
+	margin:0px 0px 0px 0px;
+  background:#FFC;
+}
+.project-lightgray-bg {
+  background-color:#f3f3f3;
+}
+.project-info p {
+  color:@grayDark; 
+  font-weight:normal; 
+  padding:0px 0px 0px 0px;
+  margin: 0 0 0px;
+}
+.project-info a {
+	color:@grayDarker; 
+  font-weight:normal;  
+  text-decoration:none;
+}
+.project-info a:hover {
+	color:@grayDark; 
+  font-weight:normal; 
+  text-decoration:underline;
+}
+
+.project-info p span {
+	color:@grayLight; 
+  font-weight:normal; 
+  padding:5px 20px 0px 0px; 
+  text-decoration:none; 
+  font-size:12px;
+}
+.project-info p span a {
+	color:@gray; 
+  font-weight:normal; 
+  padding:5px 0px 0px 0px; 
+  text-decoration:none; 
+  font-size:12px;
+}
+.project-info p span a:hover {
+	font-weight:normal; 
+  text-decoration:underline;
+}
+.tab-content {
+ border-bottom: solid 1px @grayLighter;
+ border-left: solid 1px @grayLighter;
+ border-right: solid 1px @grayLighter; 
+ padding:10px 10px 10px 10px;
+}
+.nav {
+  margin-left: 0;
+  margin-bottom: 0px;
+  list-style: none;
+}
+.task-bg
+{ 
+  padding:6px 20px 12px 20px;
+  background-color: white;
+  border: solid 1px @grayLight; 
+  outline: @grayLighter solid medium; 
+  margin: 6px 0px 0px 0px;
+}
+.comment-border {
+  border: solid 1px @grayLight; 
+  background-color: @grayLighter;
+  .border-radius(5px);
+  padding:6px 6px 6px 6px;
+}
+.arrow-w {
+  border-style: dashed;
+  border-color: transparent;
+  border-width: 0.53em;
+  display: -moz-inline-box;
+  display: inline-block;
+  font-size: 20px;
+  height: 0;
+  line-height: 0;
+  position: relative;
+  vertical-align: middle;
+  width: 0;
+	position: initial;
+	float: left;
+
+  border-right-width: 15px;
+  border-right-style: solid;
+  border-right-color: @grayLighter;
+	margin: 5px 0px 0px -32px;
+
+}
+#comments-content
+{ 
+  padding:10px 0px 10px 0px;
+  background-color:@white;
+  border: solid 1px @grayLight;
+  outline:@grayLighter solid thick;
+  margin: 6px 0px 0px 0px;
+}
+
+#comments-content h2 { 
+  font-size:20px; 
+  color:@gray; 
+  font-family:@sansFontFamily; 
+  padding:0px 10px 10px 10px;
+}
+
+#comments-content p {
+  color:@gray;
+  font-family:@sansFontFamily;
+  padding:10px 10px 0px 10px;
+}
+
+#comments-content p a { 
+  color:@gray;
+  font-family:@sansFontFamily;
+}
+
+#comments-content p a:hover { 
+  color:@gray; 
+  text-decoration:underline;
+}
+
+
+#comments-content .gray-bg {
+  background-color:@grayLighter; 
+  padding:0px 0px 2px 0px; 
+  border: solid 0px @grayLight;}
+
+#comments-content .gray-gradient {
+ #gradient > .vertical(@btnBorder, @btnBackgroundHighlight); 
+ padding:0px 0px 3px 0px;
+}
+
+
+#comments-content .blue-link {
+  color:@blue; 
+  font-family:@sansFontFamily;
+}
+
+#comments-content .blue-link a {
+  color:@blue; 
+  font-family:@sansFontFamily;
+}
+
+#comments-content .blue-link a:hover {
+  color:@gray; 
+  text-decoration:underline;
+}
+
+ul.assign-list {
+  position: absolute;
+  background-color: @white;
+  .border-radius(3px);
+}

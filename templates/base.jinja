@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% set STATIC = url_for('static', filename='').split('?')[0] %}
+  <head>
+    <meta charset="utf-8">
+    <title>Nereid Project</title>
+    <meta name="description" content="Nereid Project">
+    <meta name="keywords" content="Nereid Project">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <script src="{{ STATIC }}js/jquery-1.7.2.min.js"></script>
+    {% if config['DEBUG'] %}
+      <link rel="stylesheet/less" href="{{ STATIC }}bootstrap/less/application.less" media="all" />
+      <script src="{{ STATIC }}js/less-1.3.0.min.js"></script>
+    {% else %}
+      <link rel="stylesheet" href="{{ STATIC }}bootstrap/css/application.css" type="text/css" />
+    {% endif %}
+
+    <style type="text/css">
+      body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+      }
+    </style>
+    <link rel="stylesheet" href="{{ STATIC }}css/jquery.meow.css" type="text/css" media="screen" title="no title" charset="utf-8">
+
+    <link href="{{ STATIC }}css/prettify.css" type="text/css" rel="stylesheet" />
+    <link href="{{ STATIC }}css/chosen.css" type="text/css" rel="stylesheet" />
+    <link href="{{ STATIC }}css/ui-lightness/jquery-ui-1.8.21.custom.css" type="text/css" rel="stylesheet" />
+    <script type="text/javascript" src="{{ STATIC }}js/prettify/prettify.js"></script>
+    <script type="text/javascript" src="{{ STATIC }}js/jquery.timeago.js" ></script>
+
+    {% block extra_head %}
+    {% endblock %}
+
+    <script>
+      $(document).ready(function(){
+        {# Message flashin #}
+        {% for category, message in get_flashed_messages(with_categories=True) %}
+          $.meow({
+            title: '{{ category }}', 
+            message: '{{ message }}', 
+            class_name: '{{ category }}'
+          });
+        {% endfor %}
+
+        // Jquery chosen
+        $(".chzn-select").chosen();
+
+        // Activate toltips
+        $("a[rel='tooltip']").tooltip();
+
+        // Change all timeago dates
+        jQuery("abbr.timeago").timeago();
+      });
+    </script>
+  </head>
+  <body onload="prettyPrint()">
+
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container-fluid">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">Project name</a>
+          <ul class="nav pull-right">
+            {% if request.is_guest_user %}
+              <li><a href="{{ url_for('nereid.website.login') }}">Login</a></li>
+            {% else %}
+              <div class="btn-group pull-right">
+                <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                  <i class="icon-user"></i> {{ request.nereid_user.name }}
+                  <span class="caret"></span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="#">Profile</a></li>
+                  <li class="divider"></li>
+                  <li><a href="{{ url_for('nereid.website.logout') }}">Sign Out</a></li>
+                </ul>
+              </div>
+              <li class="dropdown">
+                <a class="dropdown-toggle pull-right" data-toggle="modal" href="#new-project">
+                  <i class="icon-plus icon-white"></i> {{ _("New Project") }}
+                </a>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid">
+    {% include 'new-project-modal.jinja' %}
+    {% block container %}
+    <div class="span9">
+      {% block main %}
+      {% endblock %}
+    </div>
+    <div class="span3">
+      {% block right %}
+      {% endblock %}
+    </div>
+    {% endblock %}
+    </div>
+ 
+     <!-- Bootstrap -->
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-transition.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-alert.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-modal.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-dropdown.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-scrollspy.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-tab.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-tooltip.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-popover.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-button.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-collapse.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-carousel.js"></script>
+    <script src="{{ STATIC }}bootstrap/js/bootstrap-typeahead.js"></script>
+    <!-- Other JS -->
+    <script src="{{ STATIC }}js/jquery.validate.min.js"></script>
+    <script src="{{ STATIC }}js/jquery.meow.js"></script>
+    <script src="{{ STATIC }}js/chosen.jquery.min.js"></script> 
+    <!--<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.21/jquery-ui.min.js"></script> -->
+    {% block morejs %}
+    {% endblock %}
+  </body>
+</html>

@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!-- This file is part of nereid-project. The COPYRIGHT file at the top level
+of this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data>
+        <record model="ir.ui.view" id="nereid_user_form">
+            <field name="model">nereid.user</field>
+            <field name="inherit" ref="nereid.nereid_user_form2"/>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <data>
+                    <xpath expr="/form/field[@name='password']" position="after">
+                        <newline/>
+                        <label name="employee"/>
+                        <field name="employee"/>
+                        <newline/>
+                    </xpath>
+                </data>
+                ]]>
+            </field>
+        </record>
+        <record model="ir.ui.view" id="company_admin_form">
+            <field name="model">company.company</field>
+            <field name="type">form</field>
+            <field name="inherit" ref="company.company_view_form"/>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <data>
+                    <xpath expr="/form/notebook" position="inside">
+                        <page string="Project Admins" id="project_admins">
+                            <field name="project_admins" colspan="4"/>
+                        </page>
+                    </xpath>
+                </data>
+                ]]>
+            </field>
+        </record>
+    </data>
+</tryton>

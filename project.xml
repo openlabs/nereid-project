@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- This file is part of nereid-project. The COPYRIGHT file at the top level
+of this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data>
+        <record id="nereid_work_view_form" model="ir.ui.view">
+            <field name="model">project.work</field>
+            <field name="inherit" ref="project.work_view_form"/>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <data>
+                    <xpath expr="/form/notebook/page[@id=&quot;general&quot;]/separator[@name=&quot;comment&quot;]"
+                        position="before">
+                      <label name="assigned_to"/>
+                      <field name="assigned_to"/>
+                    </xpath>
+                    <xpath expr="/form/notebook" position="inside">
+                        <page string="Participants" id="project_participants">
+                            <separator name="participants" colspan="4"/>
+                            <field name="participants" colspan="4"/>
+                        </page>
+                        <page string="Tags" id="project_tags">
+                            <separator name="tags" colspan="4"/>
+                            <field name="tags_for_projects" colspan="4"/>
+                            <field name="tags" colspan="4"/>
+                        </page>
+                    </xpath>
+                </data>
+                ]]>
+            </field>
+        </record>
+    </data>
+</tryton>
+

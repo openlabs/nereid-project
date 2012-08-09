@@ -1,0 +1,131 @@
+{% extends 'project.jinja' %}
+
+{% from "_helpers.jinja" import status_label, render_pagination %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}">Tasks</a></li>
+{% endblock %}
+
+{% block main %}
+
+<div class="span12">
+
+  <!-- Modal for new task -->
+  <div class="modal fade" id="new-task">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h3>{{ _('Create a New Task') }}</h3>
+    </div>
+    <div class="modal-body">
+      <form class="form-vertical well" id="new-task-form" method="POST" 
+          action="{{ url_for('project.work.create_task', project_id=project.id) }}">
+        <label for="name">Name:</label>
+        <input class="span12" type="text" placeholder="Do Something"
+          name="name" required="required" id="name"/>
+        <textarea class="span12" id="description" name="description" 
+          placeholder="Description" rows="5"></textarea>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-info pull-right span6 offset3" 
+            id="create_new_project" data-loading-text="Creating New Project">
+            <i class="icon-plus icon-white"></i> {{ _('Save') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <a class="btn" data-toggle="modal" href="#new-task"><i class="icon-plus"></i> New Task</a>
+
+  <hr/>
+  <ul id="task-list-tab" class="nav nav-tabs">
+    <li class="{% if state_filter == None %}active{% endif %} ">
+      <a href="{{ url_for('project.work.render_task_list', project_id=project.id, q=request.args.get('q', None)) }}">All Tasks</a>
+    </li>
+    <li class="{% if state_filter == 'opened' %}active{% endif %} ">
+      <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', q=request.args.get('q', None)) }}">{{ counts['opened_tasks_count'] }} Open Tasks</a>
+    </li>
+    <li class="{% if state_filter == 'done' %}active{% endif %} ">
+      <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='done', q=request.args.get('q', None)) }}">{{ counts['done_tasks_count'] }} Done Tasks</a>
+    </li>           
+  </ul>
+
+  <div id="myTabContent" class="tab-content">
+    <div class="row-fluid">
+      <div class="span7 pull-right">
+        <form>
+          <div class="control-group">
+            <div class="controls">
+              <div class="input-append">
+              <input type="hidden" name="state" value="{{ state_filter }}"/>
+                <input class="span4" id="search-tasks" name="q"
+                  size="16" type="text" placeholder="Search Tasks"
+                  value="{{ request.args.get('q', '') }}">
+                <button class="btn" type="button">
+                  <i class="icon-search"></i>
+                </button>
+                <a class="btn" title="Clear Search" href="{{ url_for('project.work.render_task_list', project_id=project.id, state=state_filter) }}">
+                  <i class="icon-refresh"></i> Clear
+                </a>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {% if tasks.pages > 1 %}
+      <div class="span5">
+        {{ render_pagination(tasks, None, 'project.work.render_task_list', project_id=project.id) }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% for task in tasks %}
+  <div class="project-info {{ loop.cycle('project-lightgray-bg', '') }}">
+    <div class="row-fluid">
+      {#<div class="span1"><span class="badge badge-info"></span></div>#}
+      <div class="span1">
+        <p>
+          <a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}">#{{ task.id }}</a>
+        </p>
+      </div>
+      <div class="span11">
+        <p><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}"><strong>{{ task.name }}</strong></a></p>
+        <div class="row-fluid">
+          <div class="span7">
+            <p><span>by <a href="#">{{ task.created_by.name }}</a> <abbr class="timeago" title="{{ task.create_date }}">{{ task.create_date }}</abbr></span></p>
+          </div>
+          <div class="span5">
+            <p>
+              {#<i class="icon-file"></i><span><a href="#">Code Attached</a></span>#} 
+              <i class="icon-comment"></i> <span><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}"> {{ ngettext('%(num)d comment', '%(num)d comments', task.history|length) }}</a></span>
+              <i class="icon-user"></i> <span><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}"> {{ ngettext('%(num)d participant', '%(num)d participants', task.participants|length) }}</a></span>
+              {% if task.hours %}
+              <i class="icon-time"></i> <span><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}"> {{ ngettext('%(num)d hour', '%(num)d hours', task.hours) }}</a></span>
+              {% endif %}
+              {% if task.attachments %}
+              <i class="icon-file"></i> <span><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}"> {{ ngettext('%(num)d file', '%(num)d files', task.attachments|length) }}</a></span>
+              {% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  $(document).ready(function(){
+    $('a.log-hours').click(function() {
+      $(this).parents("form").find("tr.hours-input").show();
+      $(this).parents("form").find("tr.hours-input input").focus();
+    });
+    $('a.notify-people').click(function() {
+      $(this).parents("form").find("tr.people-to-notify").show();
+      $(this).parents("form").find("tr.people-to-notify select").focus();
+    });
+  });
+</script>
+{% endblock %}
