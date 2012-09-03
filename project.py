@@ -55,29 +55,6 @@ class WebSite(ModelSQL, ModelView):
 WebSite()
 
 
-class IrAttachment(ModelSQL, ModelView):
-    "Ir Attachment"
-    _name = 'ir.attachment'
-
-    uploaded_by = fields.Many2One('nereid.user', 'Uploaded By')
-
-    def create(self, values):
-        """
-        Update create to save uploaded by
-
-        :param values: A dictionary
-        """
-        if has_request_context():
-            values['uploaded_by'] = request.nereid_user.id
-        #else:
-            # TODO: try to find the nereid user from the employee
-            # if an employee made the update
-
-        return super(IrAttachment, self).create(values)
-
-IrAttachment()
-
-
 class ProjectUsers(ModelSQL):
     _name = 'project.work-nereid.user'
     _table = 'project_work_nereid_user_rel'
