@@ -157,6 +157,29 @@ class Project(ModelSQL, ModelView):
         'get_attachments'
     )
 
+    @login_required
+    def home(self):
+        """
+        Put recent projects into the home
+        """
+        user_obj = Pool().get('nereid.user')
+        project_obj = Pool().get('project.work')
+
+        # TODO: Limit to the last 5 projects
+        if user_obj.is_project_admin(request.nereid_user):
+            project_ids = project_obj.search([
+                ('type', '=', 'project'),
+                ('parent', '=', False),
+            ])
+        else:
+            project_ids = project_obj.search([
+                ('participants', '=', request.nereid_user.id),
+                ('type', '=', 'project'),
+                ('parent', '=', False),
+            ])
+        projects = project_obj.browse(project_ids)
+        return render_template('project/home.jinja', projects=projects)
+
     def get_attachments(self, ids, name=None):
         """
         Return all the attachments in the object
@@ -290,7 +313,7 @@ class Project(ModelSQL, ModelView):
         """
         project = self.get_project(project_id)
         return render_template(
-            'project.jinja', project=project, active_type_name="recent"
+            'project/project.jinja', project=project, active_type_name="recent"
         )
 
     @login_required
@@ -366,7 +389,7 @@ class Project(ModelSQL, ModelView):
     @login_required
     def watch(self, task_id):
         """
-        Add the current user from the participants of the task 
+        Add the current user from the participants of the task
 
         :param task_id: Id of the task
         """
@@ -389,7 +412,7 @@ class Project(ModelSQL, ModelView):
         """
         project = self.get_project(project_id)
         return render_template(
-            'project-permissions.jinja', project=project,
+            'project/permissions.jinja', project=project,
             active_type_name='permissions'
         )
 
@@ -401,7 +424,7 @@ class Project(ModelSQL, ModelView):
         projects = self.search([
             ('party', '=', request.nereid_user.party),
         ])
-        return render_template('projects.jinja', projects=projects)
+        return render_template('project/projects.jinja', projects=projects)
 
     @login_required
     def render_task_list(self, project_id):
@@ -444,7 +467,7 @@ class Project(ModelSQL, ModelView):
             filter_domain.append(('state', '=', state))
         tasks = Pagination(self, filter_domain, page, 10)
         return render_template(
-            'project-task-list.jinja', project=project,
+            'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
             state_filter=state, tasks=tasks
         )
@@ -467,7 +490,7 @@ class Project(ModelSQL, ModelView):
         timesheet_summary = groupby(timesheet_rows, key=lambda x: x.employee)
 
         return render_template(
-            'task.jinja', task=task, active_type_name='render_task_list',
+            'project/task.jinja', task=task, active_type_name='render_task_list',
             project=task.parent, comments=comments,
             timesheet_summary=timesheet_summary
         )
@@ -479,7 +502,7 @@ class Project(ModelSQL, ModelView):
             [list(task.attachments) for task in project.children if task.attachments]
         )
         return render_template(
-            'project-files.jinja', project=project, active_type_name='files',
+            'project/files.jinja', project=project, active_type_name='files',
             guess_type=guess_type, other_attachments=other_attachments
         )
 
@@ -487,7 +510,7 @@ class Project(ModelSQL, ModelView):
     def render_timesheet(self, project_id):
         project = self.get_project(project_id)
         return render_template(
-            'project.jinja', project=project, active_type_name="recent"
+            'project/project.jinja', project=project, active_type_name="recent"
         )
 
     @login_required
@@ -556,14 +579,14 @@ class Project(ModelSQL, ModelView):
             )
 
         return render_template(
-            'project-plan.jinja', project=project, 
+            'project/plan.jinja', project=project,
             active_type_name='plan'
         )
 
     @login_required
     def download_file(self, attachment_id):
         """
-        Returns the file for download. The wonership of the task or the 
+        Returns the file for download. The wonership of the task or the
         project is checked automatically.
         """
         attachment_obj = Pool().get('ir.attachment')
@@ -692,7 +715,7 @@ class Project(ModelSQL, ModelView):
 
         if request.is_xhr:
             comment_record = history_obj.browse(comment_id)
-            html = render_template('comment.jinja', comment=comment_record)
+            html = render_template('project/comment.jinja', comment=comment_record)
             return jsonify({
                 'success': True,
                 'html': html,
@@ -1025,7 +1048,7 @@ class ProjectHistory(ModelSQL, ModelView):
 
         if request.is_xhr:
             comment_record = self.browse(comment_id)
-            html = render_template('comment.jinja', comment=comment_record)
+            html = render_template('project/comment.jinja', comment=comment_record)
             return jsonify({
                 'success': True,
                 'html': html,
