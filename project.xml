@@ -3,6 +3,10 @@
 of this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
+        <record id="nereid_project_email_mailbox" model="electronic_mail.mailbox">
+            <field name="name">Nereid Project Mailbox</field>
+        </record>
+
         <record id="nereid_work_view_form" model="ir.ui.view">
             <field name="model">project.work</field>
             <field name="inherit" ref="project.work_view_form"/>

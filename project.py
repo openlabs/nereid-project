@@ -8,18 +8,26 @@
     :license: GPLv3, see LICENSE for more details.
 """
 import tempfile
+import random
+import string
+import warnings
 from datetime import datetime
 from itertools import groupby, chain
 from mimetypes import guess_type
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from nereid import (request, abort, render_template, login_required, url_for,
-    redirect, flash, jsonify)
+    redirect, flash, jsonify, current_app)
 from flask import send_file
 from nereid.ctx import has_request_context
+from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
 from trytond.model import ModelView, ModelSQL, fields
 from trytond.pool import Pool
 from trytond.pyson import And, Not, Or, Bool, Equal, Eval
+from trytond.config import CONFIG
+from trytond.tools import get_smtp_server
 
 
 class WebSite(ModelSQL, ModelView):
@@ -27,7 +35,6 @@ class WebSite(ModelSQL, ModelView):
     Website
     """
     _name = "nereid.website"
-
 
     @login_required
     def home(self):
@@ -91,6 +98,47 @@ class ProjectUsers(ModelSQL):
     )
 
 ProjectUsers()
+
+
+class ProjectInvitation(ModelSQL, ModelView):
+    "Project Invitation store"
+    _name = 'project.work.invitation'
+    _description = __doc__
+
+    email = fields.Char('Email', required=True)
+    invitation_code = fields.Char('Invitation Code', required=True)
+    nereid_user = fields.Many2One('nereid.user', 'Nereid User')
+    project = fields.Many2One('project.work', 'Project')
+
+    def create(self, vals):
+        existing_invite = self.search([
+            ('invitation_code', '=', vals['invitation_code'])
+        ])
+        if existing_invite:
+            vals['invitation_code'] = ''.join(
+                random.sample(string.letters + string.digits, 20)
+            )
+
+        return super(ProjectInvitation, self).create(vals)
+
+ProjectInvitation()
+
+
+class ProjectWorkinvitation(ModelSQL):
+    "Project Work Invitation"
+    _name = 'project.work-project.invitation'
+    _description = __doc__
+
+    invitation = fields.Many2One(
+        'project.work.invitation', 'Invitation',
+        ondelete='CASCADE', select=1, required=True
+    )
+    project = fields.Many2One(
+        'project.work.invitation', 'Project',
+        ondelete='CASCADE', select=1, required=True
+    )
+
+ProjectWorkinvitation()
 
 
 class Project(ModelSQL, ModelView):
@@ -253,7 +301,7 @@ class Project(ModelSQL, ModelView):
 
     def get_project(self, project_id):
         """
-        Common base for fetching the project while validating if the user 
+        Common base for fetching the project while validating if the user
         can use it.
 
         :param project_id: ID of the project
@@ -425,6 +473,148 @@ class Project(ModelSQL, ModelView):
             ('party', '=', request.nereid_user.party),
         ])
         return render_template('project/projects.jinja', projects=projects)
+
+    def render_email_message(self, templates, subject, recepients, project,
+            obj=None):
+        """Read the templates for email messages, format them, construct
+        the email from them and return the multipart email instance
+
+        :param templates: A dictionary in format:
+            'text': <Text email template path>
+            'html': <HTML email template path>
+        :param subject: Email subject
+        :param recepients: Email IDs to recepients
+
+        :return: Email multipart instance
+        """
+        msg = MIMEMultipart('alternative')
+        msg['subject'] = subject
+        msg['from'] = CONFIG['smtp_user']
+        msg['to'] = recepients
+
+        # Create the body of the message (a plain-text and an HTML version).
+        # text is your plain-text email
+        # html is your html version of the email
+        # if the reciever is able to view html emails then only the html
+        # email will be displayed
+        if templates.get('text'):
+            text = render_template(templates['text'], project=project, obj=obj)
+            part1 = MIMEText(text, 'plain')
+            msg.attach(part1)
+        if templates.get('html'):
+            html = render_template(templates['html'], project=project, obj=obj)
+            part2 = MIMEText(html, 'html')
+            msg.attach(part2)
+
+        return msg
+
+    def split_emails(email_ids):
+        """Email IDs could be separated by ';' or ','
+
+        >>> email_list = '1@x.com;2@y.com , 3@z.com '
+        >>> emails = split_emails(email_list)
+        >>> emails
+        ['1@x.com', '2@y.com', '3@z.com']
+
+        :param email_ids: email id
+        :type email_ids: str or unicode
+        """
+        if not email_ids:
+            return [ ]
+        email_ids = email_ids.replace(' ', '').replace(',', ';')
+        return email_ids.split(';')
+
+    def send_email(self, email_id):
+        """
+        Send out the given email using the SMTP_CLIENT if configured in the
+        Tryton Server configuration
+
+        :param email_id: ID of the email to be sent
+        """
+        email_obj = Pool().get('electronic_mail')
+
+        email_record = email_obj.browse(email_id)
+        recepients = [ ]
+        for field in ('to', 'cc', 'bcc'):
+            recepients.extend(self.split_emails(getattr(email_record, field)))
+
+        server = get_smtp_server()
+        server.sendmail(email_record.from_, recepients,
+            email_obj._get_email(email_record))
+        server.quit()
+        return True
+
+    @login_required
+    def invite(self, project_id):
+        """Invite a user via email to the project
+
+        :param project_id: ID of Project
+        """
+        nereid_user_obj = Pool().get('nereid.user')
+        project_invitation_obj = Pool().get('project.work.invitation')
+        email_object = Pool().get('electronic_mail')
+        data_obj = Pool().get('ir.model.data')
+
+        if not request.method == 'POST':
+            return abort(404)
+
+        project = self.get_project(project_id)
+
+        email = request.form['email']
+
+        existing_user_id = nereid_user_obj.search([
+            ('email', '=', email),
+            ('company', '=', request.nereid_website.company.id),
+        ])
+        subject = 'You have been invited to join the project [%s]' \
+            % project.name
+        mailbox_id = data_obj.get_id(
+            'nereid_project', 'nereid_project_email_mailbox'
+        )
+
+        if existing_user_id:
+            existing_user = nereid_user_obj.browse(existing_user_id)
+            email_templates = {
+                'text': 'project/emails/inform_addition_2_project_text.html',
+                'html': 'project/emails/inform_addition_2_project_html.html'
+            }
+            email = self.render_email_message(
+                email_templates, subject, email, project, obj=existing_user
+            )
+            flash_message = "%s has been invited to the project" \
+                % existing_user.display_name
+
+        else:
+            invitation_code = ''.join(
+                random.sample(string.letters + string.digits, 20)
+            )
+
+            new_invite_id = project_invitation_obj.create({
+                'email': email,
+                'project': project.id,
+                'invitation_code': invitation_code
+            })
+            new_invite = project_invitation_obj.browse(new_invite_id)
+            email_templates = {
+                'text': 'project/emails/invite_2_project_text.html',
+                'html': 'project/emails/invite_2_project_html.html'
+            }
+            email = self.render_email_message(
+                email_templates, subject, email, project, obj=new_invite
+            )
+            flash_message = "%s has been invited to the project" % email
+
+        email_id = email_object.create_from_email(
+            email, mailbox_id
+        )
+        self.send_email(email_id)
+
+        if request.is_xhr:
+            return jsonify({
+                'success': True,
+            })
+        flash(flash_message)
+        return redirect(request.referrer)
 
     @login_required
     def render_task_list(self, project_id):
@@ -1058,3 +1248,47 @@ class ProjectHistory(ModelSQL, ModelView):
 
 
 ProjectHistory()
+
+
+@registration.connect
+def invitation_new_user_handler(nereid_user_id):
+    """When the invite is sent to a new user, he is sent an invitation key
+    with the url which guides the user to registration page
+
+        This method checks if the invitation key is present in the url
+        If yes, search for the invitation with this key, attache the user
+            to the invitation and project to the user
+        If not, perform normal operation
+    """
+    try:
+        invitation_obj = Pool().get('project.work.invitation')
+        project_obj = Pool().get('project.work')
+    except KeyError:
+        # Just return silently. This KeyError is cause if the module is not
+        # installed for a specific database but exists in the python path
+        # and is loaded by the tryton module loader
+        current_app.logger.warning(
+            "nereid-project module installed but not in database"
+        )
+        return
+
+    invitation_code = request.args.get('invitation_code', None)
+    if not invitation_code:
+        return
+    ids = invitation_obj.search({
+        'invitation_code': invitation_code,
+    })
+
+    if not ids:
+        return
+
+    invitation = invitation_obj.browse(ids[0])
+    invitation_obj.write(invitation.id, {
+        'nereid_user': nereid_user_id
+    })
+
+    project_obj.write(
+        invitation.project.id, {
+            'participants': [('add', [nereid_user_id])]
+        }
+    )
