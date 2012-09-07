@@ -165,10 +165,11 @@
             <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
-        <record id="project_accept_invite" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/invite-accept/&lt;int:user_id&gt;/&lt;activation_code&gt;</field>
-            <field name="endpoint">project.work.accept_invite</field>
+        <record id="project_remove_participant" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/participant-&lt;int:participant_id&gt;/-remove</field>
+            <field name="endpoint">project.work.remove_participant</field>
             <field name="sequence" eval="60" />
+            <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
     </data>

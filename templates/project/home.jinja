@@ -1,0 +1,78 @@
+{% extends 'base.jinja' %}
+
+{% block extra_head %}
+<script type="text/javascript" charset="utf-8">
+$(document).ready(function(){
+
+  // Client side validation for the form
+  $("form#new-project-form").validate();
+});
+</script>
+{% endblock %}
+
+{% block container %}
+<div class="row-fluid">
+  <div class="span12">
+    <h3>{% block title %}{% endblock %}</h3>
+  </div>
+</div>
+<div class="row-fluid">
+<section id="page-header" class="toolbar">
+  <ul class="breadcrumb">
+    {% block breadcrumb %}
+    <li><a href="{{ url_for('nereid.website.home') }}">{{ _('Dashboard') }}</a></li>
+    {% endblock %}
+  </ul>
+</section>
+<div class="span2" style="margin-left:0px;">
+  {% block sidebar %}
+  <div class="well" style="padding: 8px 0; ">
+    <ul class="nav nav-list">
+
+      <li class="nav-header">
+        {{ _('Projects') }}
+      </li>
+      <li class="">
+          <input type="search" results="5" name="s" placeholder="Search"
+            class="input-medium">
+      </li>
+      {% for project in projects %}
+      <li>
+        <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-tasks"></i> {{ project.name }}</a>
+      </li>
+      {% endfor %}
+
+      {% if tasks %}
+      <li class="nav-header">
+        {{ _('My tasks') }}
+      </li>
+      {% for task in tasks %}
+      <li>
+        <a href="#"><i class="icon-tasks"></i> {{ task.name }}</a>
+      </li>
+      {% endfor %}
+      {% endif %}
+
+      {% if request.nereid_user.is_project_admin(request.nereid_user) %}
+      {# admin only area #}
+      <hr/>
+      <li>
+        <a data-toggle="modal" href="#new-project">
+          <i class="icon-plus"></i> {{ _("New Project") }}
+        </a>
+      </li>
+      {% endif %}
+      <hr/>
+      <li>
+        <a href="#"><i class="icon-question-sign"></i> {{ _("Help") }}</a>
+      </li>
+    </ul>
+  </div>
+  {% endblock %}
+</div>
+<div class="span10">
+  {% block main %}
+  {% endblock %}
+</div>
+</div>
+{% endblock %}

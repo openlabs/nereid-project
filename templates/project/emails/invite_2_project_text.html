@@ -1,0 +1,8 @@
+Howdy, friend,
+
+You have been invited to collaborate on Project **{{ context['project'].name }}**
+
+Please click on the link below to join the project.
+{{ url_for('nereid.user.registration') }}?invitation_code={{ context['invitation'].invitation_code }}
+
+If you are not able to click on the link, copy and paste the same to your browser to continue.

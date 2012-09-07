@@ -14,11 +14,9 @@ import warnings
 from datetime import datetime
 from itertools import groupby, chain
 from mimetypes import guess_type
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 from nereid import (request, abort, render_template, login_required, url_for,
-    redirect, flash, jsonify, current_app)
+    redirect, flash, jsonify, current_app, render_email)
 from flask import send_file
 from nereid.ctx import has_request_context
 from nereid.signals import registration
@@ -82,8 +80,10 @@ class ProjectInvitation(ModelSQL, ModelView):
     _name = 'project.work.invitation'
     _description = __doc__
 
-    email = fields.Char('Email', required=True)
-    invitation_code = fields.Char('Invitation Code', required=True)
+    email = fields.Char('Email', required=True, select=True)
+    invitation_code = fields.Char(
+        'Invitation Code', select=True
+    )
     nereid_user = fields.Many2One('nereid.user', 'Nereid User')
     project = fields.Many2One('project.work', 'Project')
 
@@ -101,7 +101,7 @@ class ProjectInvitation(ModelSQL, ModelView):
 ProjectInvitation()
 
 
-class ProjectWorkinvitation(ModelSQL):
+class ProjectWorkInvitation(ModelSQL):
     "Project Work Invitation"
     _name = 'project.work-project.invitation'
     _description = __doc__
@@ -115,7 +115,7 @@ class ProjectWorkinvitation(ModelSQL):
         ondelete='CASCADE', select=1, required=True
     )
 
-ProjectWorkinvitation()
+ProjectWorkInvitation()
 
 
 class Project(ModelSQL, ModelView):
@@ -162,7 +162,7 @@ class Project(ModelSQL, ModelView):
 
     all_participants = fields.Function(
         fields.Many2Many(
-            'project.work-nereid.user', None, None,
+            'project.work-nereid.user', 'project', 'user',
             'All Participants', depends=['company']
         ), 'get_all_participants'
     )
@@ -451,76 +451,6 @@ class Project(ModelSQL, ModelView):
         ])
         return render_template('project/projects.jinja', projects=projects)
 
-    def render_email_message(self, templates, subject, recepients, project,
-            obj=None):
-        """Read the templates for email messages, format them, construct
-        the email from them and return the multipart email instance
-
-        :param templates: A dictionary in format:
-            'text': <Text email template path>
-            'html': <HTML email template path>
-        :param subject: Email subject
-        :param recepients: Email IDs to recepients
-
-        :return: Email multipart instance
-        """
-        msg = MIMEMultipart('alternative')
-        msg['subject'] = subject
-        msg['from'] = CONFIG['smtp_user']
-        msg['to'] = recepients
-
-        # Create the body of the message (a plain-text and an HTML version).
-        # text is your plain-text email
-        # html is your html version of the email
-        # if the reciever is able to view html emails then only the html
-        # email will be displayed
-        if templates.get('text'):
-            text = render_template(templates['text'], project=project, obj=obj)
-            part1 = MIMEText(text, 'plain')
-            msg.attach(part1)
-        if templates.get('html'):
-            html = render_template(templates['html'], project=project, obj=obj)
-            part2 = MIMEText(html, 'html')
-            msg.attach(part2)
-
-        return msg
-
-    def split_emails(email_ids):
-        """Email IDs could be separated by ';' or ','
-
-        >>> email_list = '1@x.com;2@y.com , 3@z.com '
-        >>> emails = split_emails(email_list)
-        >>> emails
-        ['1@x.com', '2@y.com', '3@z.com']
-
-        :param email_ids: email id
-        :type email_ids: str or unicode
-        """
-        if not email_ids:
-            return [ ]
-        email_ids = email_ids.replace(' ', '').replace(',', ';')
-        return email_ids.split(';')
-
-    def send_email(self, email_id):
-        """
-        Send out the given email using the SMTP_CLIENT if configured in the
-        Tryton Server configuration
-
-        :param email_id: ID of the email to be sent
-        """
-        email_obj = Pool().get('electronic_mail')
-
-        email_record = email_obj.browse(email_id)
-        recepients = [ ]
-        for field in ('to', 'cc', 'bcc'):
-            recepients.extend(self.split_emails(getattr(email_record, field)))
-
-        server = get_smtp_server()
-        server.sendmail(email_record.from_, recepients,
-            email_obj._get_email(email_record))
-        server.quit()
-        return True
-
     @login_required
     def invite(self, project_id):
         """Invite a user via email to the project
@@ -529,7 +459,6 @@ class Project(ModelSQL, ModelView):
         """
         nereid_user_obj = Pool().get('nereid.user')
         project_invitation_obj = Pool().get('project.work.invitation')
-        email_object = Pool().get('electronic_mail')
         data_obj = Pool().get('ir.model.data')
 
         if not request.method == 'POST':
@@ -542,21 +471,23 @@ class Project(ModelSQL, ModelView):
         existing_user_id = nereid_user_obj.search([
             ('email', '=', email),
             ('company', '=', request.nereid_website.company.id),
-        ])
-        subject = 'You have been invited to join the project [%s]' \
+        ], limit=1)
+        subject = '[%s] You have been invited to join the project' \
             % project.name
-        mailbox_id = data_obj.get_id(
-            'nereid_project', 'nereid_project_email_mailbox'
-        )
 
         if existing_user_id:
-            existing_user = nereid_user_obj.browse(existing_user_id)
-            email_templates = {
-                'text': 'project/emails/inform_addition_2_project_text.html',
-                'html': 'project/emails/inform_addition_2_project_html.html'
-            }
-            email = self.render_email_message(
-                email_templates, subject, email, project, obj=existing_user
+            existing_user = nereid_user_obj.browse(existing_user_id[0])
+            email_message = render_email(
+                text_template='project/emails/inform_addition_2_project_text.html',
+                subject=subject, to=email, from_email=CONFIG['smtp_from'],
+                context={
+                    'project': project, 'user': existing_user
+                }
+            )
+            self.write(
+                project.id, {
+                    'participants': [('add', existing_user_id)]
+                }
             )
             flash_message = "%s has been invited to the project" \
                 % existing_user.display_name
@@ -572,25 +503,52 @@ class Project(ModelSQL, ModelView):
                 'invitation_code': invitation_code
             })
             new_invite = project_invitation_obj.browse(new_invite_id)
-            email_templates = {
-                'text': 'project/emails/invite_2_project_text.html',
-                'html': 'project/emails/invite_2_project_html.html'
-            }
-            email = self.render_email_message(
-                email_templates, subject, email, project, obj=new_invite
+            email_message = render_email(
+                text_template='project/emails/invite_2_project_text.html',
+                subject=subject, to=email, from_email=CONFIG['smtp_from'],
+                context={
+                    'project': project, 'invitation': new_invite
+                }
             )
             flash_message = "%s has been invited to the project" % email
 
-        email_id = email_object.create_from_email(
-            email, mailbox_id
-        )
-        self.send_email(email_id)
+        server = get_smtp_server()
+        server.sendmail(CONFIG['smtp_from'], [email],
+            email_message.as_string())
+        server.quit()
 
         if request.is_xhr:
             return jsonify({
                 'success': True,
             })
         flash(flash_message)
+        return redirect(request.referrer)
+
+    @login_required
+    def remove_participant(self, project_id, participant_id):
+        """Remove the participant form project
+        """
+        # Check if user is among the project admins
+        if not request.nereid_user.is_project_admin(request.nereid_user):
+            flash("Sorry! You are not allowed to remove participants. \
+                Contact your project admin for the same.")
+            return redirect(request.referrer)
+
+        if request.method == 'POST' and request.is_xhr:
+            project = self.get_project(project_id)
+            records_to_update = [project.id]
+            records_to_update.extend([child.id for child in project.children])
+            self.write(
+                records_to_update, {
+                    'participants': [('unlink', [participant_id])]
+                }
+            )
+
+            return jsonify({
+                'success': True,
+            })
+
+        flash("Could not remove participant! Try again.")
         return redirect(request.referrer)
 
     @login_required
@@ -610,7 +568,7 @@ class Project(ModelSQL, ModelView):
 
         query = request.args.get('q', None)
         if query:
-            # This search is probably the suckiest search in the 
+            # This search is probably the suckiest search in the
             # history of mankind in terms of scalability and utility
             # TODO: Figure out something better
             filter_domain.append(('name', 'ilike', '%%%s%%' % query))
@@ -1244,17 +1202,18 @@ def invitation_new_user_handler(nereid_user_id):
         # Just return silently. This KeyError is cause if the module is not
         # installed for a specific database but exists in the python path
         # and is loaded by the tryton module loader
-        current_app.logger.warning(
-            "nereid-project module installed but not in database"
+        warnings.warn(
+            "nereid-project module installed but not in database",
+            DeprecationWarning, stacklevel=2
         )
         return
 
-    invitation_code = request.args.get('invitation_code', None)
+    invitation_code = request.args.get('invitation_code')
     if not invitation_code:
         return
-    ids = invitation_obj.search({
-        'invitation_code': invitation_code,
-    })
+    ids = invitation_obj.search([
+        ('invitation_code', '=', invitation_code)
+    ])
 
     if not ids:
         return
@@ -1269,3 +1228,4 @@ def invitation_new_user_handler(nereid_user_id):
             'participants': [('add', [nereid_user_id])]
         }
     )
+    invitation_obj.delete(invitation.id)
