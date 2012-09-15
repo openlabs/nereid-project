@@ -134,11 +134,7 @@ class Project(ModelSQL, ModelView):
         'History', readonly=True)
     participants = fields.Many2Many(
         'project.work-nereid.user', 'project', 'user',
-        'Participants', depends=['parent', 'type'],
-        states={
-            'invisible': Bool(Eval('parent')) or Eval('type') != 'project',
-            'readonly': Bool(Eval('parent')) or Eval('type') != 'project',
-        }
+        'Participants'
     )
 
     tags_for_projects = fields.One2Many('project.work.tag', 'project',
@@ -225,12 +221,14 @@ class Project(ModelSQL, ModelView):
         the admins
         """
         vals = {}
-        for task in self.browse(ids):
-            vals[task.id] = []
-            if task.type != 'task':
-                continue
-            vals[task.id].extend([p.id for p in task.participants])
-            vals[task.id].extend([p.id for p in task.company.project_admins])
+        for work in self.browse(ids):
+            vals[work.id] = []
+            vals[work.id].extend([p.id for p in work.participants])
+            vals[work.id].extend([p.id for p in work.company.project_admins])
+            if work.parent:
+                vals[work.id].extend(
+                    [p.id for p in work.parent.all_participants]
+                )
         return vals
 
     def create(self, values):

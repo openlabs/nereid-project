@@ -18,6 +18,8 @@ of this repository contains the full copyright notices and license terms. -->
                         <page string="Participants" id="project_participants">
                             <separator name="participants" colspan="4"/>
                             <field name="participants" colspan="4"/>
+                            <separator name="all_participants" colspan="4"/>
+                            <field name="all_participants" colspan="4"/>
                         </page>
                         <page string="Tags" id="project_tags">
                             <separator name="tags" colspan="4"/>
