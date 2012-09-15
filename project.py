@@ -945,6 +945,10 @@ class Project(ModelSQL, ModelView):
 
         new_assignee = nereid_user_obj.browse(int(request.form['user']))
 
+        if task.assigned_to.id == new_assignee.id:
+            flash("Task already assigned to %s" % new_assignee.name)
+            return redirect(request.referrer)
+
         if self.can_write(task.parent, new_assignee):
             self.write(task.id, {
                 'assigned_to': new_assignee.id,
