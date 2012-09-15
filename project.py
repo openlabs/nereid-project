@@ -229,7 +229,7 @@ class Project(ModelSQL, ModelView):
                 vals[work.id].extend(
                     [p.id for p in work.parent.all_participants]
                 )
-        return vals
+        return list(set(vals))
 
     def create(self, values):
         if has_request_context():
