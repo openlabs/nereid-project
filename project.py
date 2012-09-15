@@ -16,14 +16,14 @@ from itertools import groupby, chain
 from mimetypes import guess_type
 
 from nereid import (request, abort, render_template, login_required, url_for,
-    redirect, flash, jsonify, current_app, render_email)
+    redirect, flash, jsonify, render_email)
 from flask import send_file
 from nereid.ctx import has_request_context
 from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
 from trytond.model import ModelView, ModelSQL, fields
 from trytond.pool import Pool
-from trytond.pyson import And, Not, Or, Bool, Equal, Eval
+from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server
 
@@ -370,6 +370,7 @@ class Project(ModelSQL, ModelView):
 
         POST will create a new task
         """
+        nereid_user_obj = Pool().get('nereid.user')
         project = self.get_project(project_id)
         # Check if user is among the participants
         self.can_write(project, request.nereid_user)
@@ -381,14 +382,20 @@ class Project(ModelSQL, ModelView):
                 'type': 'task',
                 'comment': request.form.get('description', False),
             })
+            email_receivers = [p.email for p in project.all_participants]
             if request.form.get('assign_to', False):
+                assignee = nereid_user_obj.browse(
+                    int(request.form.get('assign_to'))
+                )
                 self.write(task_id, {
-                    'assigned_to': int(request.form.get('assign_to')),
+                    'assigned_to': assignee.id,
                     'participants': [
-                        ('add', [int(request.form.get('assign_to'))])
+                        ('add', [assignee.id])
                     ]
                 })
+                email_receivers = [assignee.email]
             flash("Task successfully added to project %s" % project.name)
+            self.send_mail(task_id, email_receivers)
             return redirect(
                 url_for('project.work.render_task',
                     project_id=project_id, task_id=task_id
@@ -397,6 +404,36 @@ class Project(ModelSQL, ModelView):
 
         flash("Could not create task. Try again.")
         return redirect(request.referrer)
+
+    def send_mail(self, task_id, receivers=None):
+        """Send mail when task created.
+
+        :param task_id: ID of task
+        :param receivers: Receivers of email.
+        """
+        task = self.browse(task_id)
+
+        subject = "[%s] - %s" % (task.parent.name, task.name)
+
+        if not receivers:
+            receivers = [s.email for s in task.participants
+                         if s.email]
+
+        message = render_email(
+            from_email=CONFIG['smtp_user'],
+            to='. '.join(receivers),
+            subject=subject,
+            text_template='project/emails/project_text_content.jinja',
+            html_template='project/emails/project_html_content.jinja',
+            task=task,
+            updated_by=request.nereid_user.name
+        )
+
+        #Send mail.
+        server = get_smtp_server()
+        server.sendmail(CONFIG['smtp_from'], receivers,
+            message.as_string())
+        server.quit()
 
     @login_required
     def unwatch(self, task_id):
@@ -834,6 +871,7 @@ class Project(ModelSQL, ModelView):
                 # update. This is to cover to cover cases where two users who
                 # havent refreshed the web page close the ticket
                 comment_id = history_obj.create(history_data)
+            history_obj.send_mail(comment_id)
         else:
             # Just comment, no update to task
             comment_id = history_obj.create(history_data)
@@ -1192,6 +1230,47 @@ class ProjectHistory(ModelSQL, ModelView):
             })
         return redirect(request.referrer)
 
+    def send_mail(self, history_id):
+        """Send mail to all participants whenever there is any update on
+        project.
+
+        :param history_id: ID of history.
+        """
+        history = self.browse(history_id)
+
+        # Get the previous updates than the latest one.
+        history_ids = self.search([
+            ('id', '<', history_id),
+            ('project.id', '=', history.project.id)
+        ], order=[('create_date', 'DESC')])
+
+        last_history = self.browse(history_ids)
+
+        # Prepare the content of email.
+        subject = "[%s] %s" % (
+            history.project.parent.name, history.project.work.name,
+        )
+
+        receivers = [s.email for s in history.project.participants
+                     if s.email]
+
+        message = render_email(
+            from_email=CONFIG['smtp_user'],
+            to='.'.join(receivers),
+            subject=subject,
+            text_template='project/emails/text_content.jinja',
+            html_template='project/emails/html_content.jinja',
+            history=history,
+            last_history=last_history
+        )
+
+        message.add_header('reply-to', request.nereid_user.email)
+
+        # Send mail.
+        server = get_smtp_server()
+        server.sendmail(CONFIG['smtp_from'], receivers,
+            message.as_string())
+        server.quit()
 
 ProjectHistory()
 

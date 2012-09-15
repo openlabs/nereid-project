@@ -1,0 +1,45 @@
+<div class='email' style='font-size: 14px; color: rgb(50,50,50); font-family: Helvetica, Arial; margin: 20px 0'>
+  <div class='header'>
+
+    <h2>
+      <a href="http://my.openlabs.co.in/en_US/" style='text-decoration:none; color:#a01717' ><img alt="Project Management System" /></a>
+    </h2>
+
+    <div style="width:100%; height:auto; padding:10px 0px 20px 0px ;border-bottom:solid 1px #C0C0C0">
+      <div style=" float:left; width:auto;">
+        <b>Project </b><a href="{{ url_for('project.work.render_project', project_id=task.parent.id, _external=True) }}"
+          style=' text-decoration:none; color:#2E9AFE'> {{ task.parent.name }} </a>
+        <b>Task </b><a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }}"
+          style=' text-decoration:none; color:#2E9AFE'> {{ task.name }} </a>  
+      </div>
+      <div style=" float:right; width:auto;">
+        <span style="text-align:right">{{ task.create_date|dateformat }}</span>
+      </div>
+    </div>
+
+    <p> A new task is created by <b>{{ updated_by }}</b> </p>
+
+    <div class='desc' style='background:#F2F5A9; padding:1px 10px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+         border-radius: 10px; border-bottom:solid 1px #CCCC5A'>
+      <p style=" text-align:justify">
+        {{ task.comment }}
+      </p>
+    </div> 
+
+    <div class="info" style="color:#666666; font-size:13px; font-weight:bold">
+      <p>You can <a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }}">
+        view this task online</a> to comment and attach files.
+        You can also reply to this email to post a reply in the conversation.</p>
+    </div>
+
+    <div class="more-info" style="color:#666666; font-size:11px; font-weight:normal; line-height:5px; padding:30px 0px 0px0px;">
+      {% for participant in task.participants %}
+        {% if participant.name %}
+          <b>{{ participant.name }}</b>
+        {% endif %}
+      {% endfor %} are subscribed to this task, and will be notified of future replies.
+      <p>Stop watching this thread to stop receiving email notifications. You can change your notification settings for further emails.</p>
+    </div>
+
+  </div>
+</div>

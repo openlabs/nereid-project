@@ -1,0 +1,21 @@
+Task: {{ history.project.name }}
+{% if history.new_assigned_to.name %}
+Assigned To: {{ history.new_assigned_to.name }}
+{% endif %}
+
+{% if history.new_state %}
+Status: {{ history.new_state }}
+{% endif %}
+
+{{ history.updated_by.name }}, {{ history.date|dateformat }}
+
+{{ history.comment }}
+-----------------------------------------------------------------------------------------
+
+{% for h_line in last_history %}
+  {{ h_line.updated_by.name }}
+  {{ h_line.date }}
+  {{ h_line.comment }}
+  ---------------------------------------------------------------------------------------
+
+{% endfor %}
