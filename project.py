@@ -229,6 +229,7 @@ class Project(ModelSQL, ModelView):
                 vals[work.id].extend(
                     [p.id for p in work.parent.all_participants]
                 )
+            vals[work.id] = list(set(vals[work.id]))
         return vals
 
     def create(self, values):
