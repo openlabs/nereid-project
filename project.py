@@ -420,7 +420,7 @@ class Project(ModelSQL, ModelView):
                          if s.email]
 
         message = render_email(
-            from_email=CONFIG['smtp_user'],
+            from_email=CONFIG['smtp_from'],
             to='. '.join(receivers),
             subject=subject,
             text_template='project/emails/project_text_content.jinja',
@@ -1255,7 +1255,7 @@ class ProjectHistory(ModelSQL, ModelView):
                      if s.email]
 
         message = render_email(
-            from_email=CONFIG['smtp_user'],
+            from_email=CONFIG['smtp_from'],
             to='.'.join(receivers),
             subject=subject,
             text_template='project/emails/text_content.jinja',
