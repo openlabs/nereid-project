@@ -380,6 +380,13 @@ class Project(ModelSQL, ModelView):
                 'type': 'task',
                 'comment': request.form.get('description', False),
             })
+            if request.form.get('assign_to', False):
+                self.write(task_id, {
+                    'assigned_to': int(request.form.get('assign_to')),
+                    'participants': [
+                        ('add', [int(request.form.get('assign_to'))])
+                    ]
+                })
             flash("Task successfully added to project %s" % project.name)
             return redirect(
                 url_for('project.work.render_task',
@@ -939,7 +946,8 @@ class Project(ModelSQL, ModelView):
 
         if self.can_write(task.parent, new_assignee):
             self.write(task.id, {
-                'assigned_to': new_assignee.id
+                'assigned_to': new_assignee.id,
+                'participants': [('add', [new_assignee.id])]
             })
 
             if request.is_xhr:
