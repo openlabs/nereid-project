@@ -1,0 +1,17 @@
+Project: {{ task.parent.name }}
+Task: {{ task.name }}  {{ task.create_date.ctime() }}
+
+A new task is created by {{ updated_by }}
+{{ task.comment }}
+
+<p>You can <a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }}">
+  view this task online</a> to comment and attach files.
+  You can also reply to this email to post a reply in the conversation.
+</p>
+
+{% for participant in task.participants %}
+  {% if participant.name %}
+    <b>{{ participant.name }}</b>
+  {% endif %}
+{% endfor %} are subscribed to this task, and will be notified of future replies.
+<p>Stop watching this thread to stop receiving email notifications. You can change your notification settings for further emails.</p>
