@@ -421,7 +421,7 @@ class Project(ModelSQL, ModelView):
 
         message = render_email(
             from_email=CONFIG['smtp_from'],
-            to='. '.join(receivers),
+            to=', '.join(receivers),
             subject=subject,
             text_template='project/emails/project_text_content.jinja',
             html_template='project/emails/project_html_content.jinja',
