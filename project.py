@@ -1264,7 +1264,7 @@ class ProjectHistory(ModelSQL, ModelView):
             last_history=last_history
         )
 
-        message.add_header('reply-to', request.nereid_user.email)
+        #message.add_header('reply-to', request.nereid_user.email)
 
         # Send mail.
         server = get_smtp_server()
