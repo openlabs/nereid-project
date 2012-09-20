@@ -178,6 +178,8 @@ class Project(ModelSQL, ModelView):
         'get_attachments'
     )
 
+    #TODO: Add a field for computed state
+
     @login_required
     def home(self):
         """
@@ -806,7 +808,7 @@ class Project(ModelSQL, ModelView):
 
         data = {
             'resource': '%s,%d' % (self._name, work.id),
-            'description': request.form.get('description', False)
+            'description': request.form.get('description', '')
         }
 
         if request.form.get('file_type') == 'link':
