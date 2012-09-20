@@ -11,6 +11,7 @@
         'nereid',
         'project',
         'project_revenue',
+        'project_plan',
     ],
     'xml': [
         'urls.xml',
