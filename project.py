@@ -873,10 +873,10 @@ class Project(ModelSQL, ModelView):
                 # update. This is to cover to cover cases where two users who
                 # havent refreshed the web page close the ticket
                 comment_id = history_obj.create(history_data)
-            history_obj.send_mail(comment_id)
         else:
             # Just comment, no update to task
             comment_id = history_obj.create(history_data)
+        history_obj.send_mail(comment_id)
 
         if request.nereid_user.id not in (p.id for p in task.participants):
             # Add the user to the participants if not already in the list
@@ -980,6 +980,7 @@ class Project(ModelSQL, ModelView):
         :param task_id: Id of Task
         """
         nereid_user_obj = Pool().get('nereid.user')
+        history_obj = Pool().get('project.work.history')
 
         task = self.get_task(task_id)
 
@@ -994,6 +995,9 @@ class Project(ModelSQL, ModelView):
                 'assigned_to': new_assignee.id,
                 'participants': [('add', [new_assignee.id])]
             })
+
+            comment_id = self.browse(task.id).history[-1].id
+            history_obj.send_mail(comment_id)
 
             if request.is_xhr:
                 return jsonify({
