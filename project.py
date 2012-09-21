@@ -525,9 +525,7 @@ class Project(ModelSQL, ModelView):
             email_message = render_email(
                 text_template='project/emails/inform_addition_2_project_text.html',
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
-                context={
-                    'project': project, 'user': existing_user
-                }
+                project=project, user=existing_user
             )
             self.write(
                 project.id, {
@@ -551,9 +549,7 @@ class Project(ModelSQL, ModelView):
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
-                context={
-                    'project': project, 'invitation': new_invite
-                }
+                project=project, invitation=new_invite
             )
             flash_message = "%s has been invited to the project" % email
 
