@@ -180,6 +180,10 @@ class Project(ModelSQL, ModelView):
 
     #TODO: Add a field for computed state
 
+    def __init__(self):
+        super(Project, self).__init__()
+        self._order.insert(0, ('id', 'DESC'))
+
     @login_required
     def home(self):
         """
