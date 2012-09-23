@@ -587,14 +587,16 @@ class Project(ModelSQL, ModelView):
             # that user cannot be removed as tryton's domain does not permit
             # this.
             # So removing assigned user from those tasks as well.
-            # TODO: Find a better way to do it, this is memore intensive
-            self.search([
+            # TODO: Find a better way to do it, this is memory intensive
+            assigned_to_participant = self.search([
                 ('id', 'in', records_to_update),
                 ('assigned_to', '=', participant_id)
             ])
+            self.write(assigned_to_participant, {
+                'assigned_to': False,
+            })
             self.write(
                 records_to_update, {
-                    'assigned_to': False,
                     'participants': [('unlink', [participant_id])]
                 }
             )
