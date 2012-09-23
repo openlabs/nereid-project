@@ -583,8 +583,18 @@ class Project(ModelSQL, ModelView):
             project = self.get_project(project_id)
             records_to_update = [project.id]
             records_to_update.extend([child.id for child in project.children])
+            # If this participant is assigned to any task in this project,
+            # that user cannot be removed as tryton's domain does not permit
+            # this.
+            # So removing assigned user from those tasks as well.
+            # TODO: Find a better way to do it, this is memore intensive
+            self.search([
+                ('id', 'in', records_to_update),
+                ('assigned_to', '=', participant_id)
+            ])
             self.write(
                 records_to_update, {
+                    'assigned_to': False,
                     'participants': [('unlink', [participant_id])]
                 }
             )
