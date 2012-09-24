@@ -332,7 +332,8 @@ class Project(ModelSQL, ModelView):
         """
         task_tag_obj = Pool().get('project.work-project.work.tag')
         tasks = task_tag_obj.search([
-            ('tag', '=', tag_id)
+            ('tag', '=', tag_id),
+            ('task.state', '=', 'opened'),
         ])
         return tasks
 
