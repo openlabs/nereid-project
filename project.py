@@ -383,12 +383,26 @@ class Project(ModelSQL, ModelView):
         self.can_write(project, request.nereid_user)
 
         if request.method == 'POST':
-            task_id = self.create({
+            data = {
                 'parent': project_id,
                 'name': request.form['name'],
                 'type': 'task',
                 'comment': request.form.get('description', False),
-            })
+            }
+
+            constraint_start_time = request.form.get(
+                'constraint_start_time', False)
+            constraint_finish_time = request.form.get(
+                'constraint_finish_time', False)
+            if constraint_start_time:
+                data['constraint_start_time'] = datetime.strptime(
+                    constraint_start_time, '%m/%d/%Y')
+            if constraint_finish_time:
+                data['constraint_finish_time'] = datetime.strptime(
+                    constraint_finish_time, '%m/%d/%Y')
+
+            task_id = self.create(data)
+
             email_receivers = [p.email for p in project.all_participants]
             if request.form.get('assign_to', False):
                 assignee = nereid_user_obj.browse(
