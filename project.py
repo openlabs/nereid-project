@@ -634,6 +634,10 @@ class Project(ModelSQL, ModelView):
         if tag:
             filter_domain.append(('tags', '=', tag))
 
+        user = request.args.get('user', None, int)
+        if user:
+            filter_domain.append(('assigned_to', '=', user))
+
         counts = {}
         counts['opened_tasks_count'] = self.search(
             filter_domain + [('state', '=', 'opened')], count=True
