@@ -426,6 +426,23 @@ class Project(ModelSQL, ModelView):
         flash("Could not create task. Try again.")
         return redirect(request.referrer)
 
+    @login_required
+    def edit_task(self, task_id):
+        """Edit the task
+        """
+        task = self.get_task(task_id)
+
+        self.write(task.id, {
+            'name': request.form.get('name')
+        })
+
+        if request.is_xhr:
+            return jsonify({
+                'success': True,
+                'name': task.name
+            })
+        return redirect(request.referrer)
+
     def send_mail(self, task_id, receivers=None):
         """Send mail when task created.
 
