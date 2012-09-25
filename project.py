@@ -691,6 +691,51 @@ class Project(ModelSQL, ModelView):
         )
 
     @login_required
+    def my_tasks(self):
+        """
+        Renders all tasks of the user in all projects
+        """
+        tag_task_obj = Pool().get('project.work-project.work.tag')
+        state = request.args.get('state', None)
+        page = request.args.get('page', 1, int)
+
+        filter_domain = [
+            ('type', '=', 'task'),
+            ('assigned_to', '=', request.nereid_user.id)
+        ]
+
+        query = request.args.get('q', None)
+        if query:
+            # This search is probably the suckiest search in the
+            # history of mankind in terms of scalability and utility
+            # TODO: Figure out something better
+            filter_domain.append(('name', 'ilike', '%%%s%%' % query))
+
+        tag = request.args.get('tag', None, int)
+        if tag:
+            filter_domain.append(('tags', '=', tag))
+
+        counts = {}
+        counts['opened_tasks_count'] = self.search(
+            filter_domain + [('state', '=', 'opened')], count=True
+        )
+        counts['done_tasks_count'] = self.search(
+            filter_domain + [('state', '=', 'done')], count=True
+        )
+        counts['all_tasks_count'] = self.search(
+            filter_domain, count=True
+        )
+
+        if state and state in ('opened', 'done'):
+            filter_domain.append(('state', '=', state))
+        tasks = Pagination(self, filter_domain, page, 10)
+        return render_template(
+            'project/global-task-list.jinja',
+            active_type_name='render_task_list', counts=counts,
+            state_filter=state, tasks=tasks
+        )
+
+    @login_required
     def render_task(self, task_id, project_id=None):
         """
         Renders the task in a project
