@@ -179,5 +179,12 @@
             <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_edit_task" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-edit</field>
+            <field name="endpoint">project.work.edit_task</field>
+            <field name="sequence" eval="60" />
+            <field name="methods">("POST",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>
