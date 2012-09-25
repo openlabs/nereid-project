@@ -1109,6 +1109,30 @@ class Project(ModelSQL, ModelView):
         flash("The constraint dates have been changed for this task.")
         return redirect(request.referrer)
 
+    @login_required
+    def delete_task(self, task_id):
+        """Delete the task from project
+        """
+        # Check if user is among the project admins
+        if not request.nereid_user.is_project_admin(request.nereid_user):
+            flash("Sorry! You are not allowed to delete tags. \
+                Contact your project admin for the same.")
+            return redirect(request.referrer)
+
+        task = self.get_task(task_id)
+
+        self.write(task.id, {'active': False})
+
+        if request.is_xhr:
+            return jsonify({
+                'success': True,
+            })
+
+        flash("The task has been deleted")
+        return redirect(
+            url_for('project.work.render_project', project_id=task.parent.id)
+        )
+
 Project()
 
 

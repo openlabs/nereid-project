@@ -186,5 +186,11 @@
             <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_delete_task" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-delete</field>
+            <field name="endpoint">project.work.delete_task</field>
+            <field name="sequence" eval="60" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>
