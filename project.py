@@ -1061,6 +1061,37 @@ class Project(ModelSQL, ModelView):
         flash("Removed the assigned user from task")
         return redirect(request.referrer)
 
+    @login_required
+    def change_constraint_dates(self, task_id):
+        """Change the constraint dates
+        """
+        task = self.get_task(task_id)
+
+        data = {
+            'constraint_start_time': False,
+            'constraint_finish_time': False
+        }
+
+        constraint_start = request.form.get('constraint_start_time', None)
+        constraint_finish = request.form.get('constraint_finish_time', None)
+
+        if constraint_start:
+            data['constraint_start_time'] = datetime.strptime(
+                constraint_start, '%m/%d/%Y')
+        if constraint_finish:
+            data['constraint_finish_time'] = datetime.strptime(
+                constraint_finish, '%m/%d/%Y')
+
+        self.write(task.id, data)
+
+        if request.is_xhr:
+            return jsonify({
+                'success': True,
+            })
+
+        flash("The constraint dates have been changed for this task.")
+        return redirect(request.referrer)
+
 Project()
 
 
