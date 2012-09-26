@@ -87,6 +87,20 @@ class ProjectInvitation(ModelSQL, ModelView):
     nereid_user = fields.Many2One('nereid.user', 'Nereid User')
     project = fields.Many2One('project.work', 'Project')
 
+    joining_date = fields.Function(
+        fields.DateTime('Joining Date', depends=['nereid_user']),
+        'get_joining_date'
+    )
+
+    def get_joining_date(self, ids, name=None):
+        """Joining Date of User
+        """
+        vals = {}
+        for invite in self.browse(ids):
+            if invite.nereid_user:
+                vals[invite.id] = invite.nereid_user.create_date
+        return vals
+
     def create(self, vals):
         existing_invite = self.search([
             ('invitation_code', '=', vals['invitation_code'])
@@ -97,6 +111,62 @@ class ProjectInvitation(ModelSQL, ModelView):
             )
 
         return super(ProjectInvitation, self).create(vals)
+
+    @login_required
+    def remove_invite(self, invitation_id):
+        """Remove the invite to a participant from project
+        """
+        # Check if user is among the project admins
+        if not request.nereid_user.is_project_admin(request.nereid_user):
+            flash("Sorry! You are not allowed to remove invited users. \
+                Contact your project admin for the same.")
+            return redirect(request.referrer)
+
+        if request.method == 'POST':
+            self.delete(invitation_id)
+
+            if request.is_xhr:
+                return jsonify({
+                    'success': True,
+                })
+
+            flash("Invitation to the user has been voided."
+                "The user can no longer join the project unless reinvited")
+        return redirect(request.referrer)
+
+    @login_required
+    def resend_invite(self, invitation_id):
+        """Resend the invite to a participant
+        """
+        # Check if user is among the project admins
+        if not request.nereid_user.is_project_admin(request.nereid_user):
+            flash("Sorry! You are not allowed to resend invites. \
+                Contact your project admin for the same.")
+            return redirect(request.referrer)
+
+        if request.method == 'POST':
+            invitation = self.browse(invitation_id)
+
+            subject = '[%s] You have been re-invited to join the project' \
+                % invitation.project.name
+            email_message = render_email(
+                text_template='project/emails/invite_2_project_text.html',
+                subject=subject, to=invitation.email,
+                from_email=CONFIG['smtp_from'], project=invitation.project,
+                invitation=invitation
+            )
+            server = get_smtp_server()
+            server.sendmail(CONFIG['smtp_from'], [invitation.email],
+                email_message.as_string())
+            server.quit()
+
+            if request.is_xhr:
+                return jsonify({
+                    'success': True,
+                })
+
+            flash("Invitation has been resent to %s." % invitation.email)
+        return redirect(request.referrer)
 
 ProjectInvitation()
 
@@ -516,10 +586,17 @@ class Project(ModelSQL, ModelView):
         """
         Permissions for the project
         """
+        project_invitation_obj = Pool().get('project.work.invitation')
         project = self.get_project(project_id)
+
+        invitation_ids = project_invitation_obj.search([
+            ('project', '=', project.id),
+            ('nereid_user', '=', False)
+        ])
+        invitations = project_invitation_obj.browse(invitation_ids)
         return render_template(
             'project/permissions.jinja', project=project,
-            active_type_name='permissions'
+            invitations=invitations, active_type_name='permissions'
         )
 
     @login_required
@@ -1487,7 +1564,8 @@ def invitation_new_user_handler(nereid_user_id):
 
     invitation = invitation_obj.browse(ids[0])
     invitation_obj.write(invitation.id, {
-        'nereid_user': nereid_user_id
+        'nereid_user': nereid_user_id,
+        'invitation_code': None
     })
 
     project_obj.write(
@@ -1495,4 +1573,3 @@ def invitation_new_user_handler(nereid_user_id):
             'participants': [('add', [nereid_user_id])]
         }
     )
-    invitation_obj.delete(invitation.id)

@@ -198,5 +198,19 @@
             <field name="sequence" eval="60" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_reinvite_participant" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/invitation-&lt;int:invitation_id&gt;/-resend</field>
+            <field name="endpoint">project.work.invitation.resend_invite</field>
+            <field name="sequence" eval="60" />
+            <field name="methods">("POST",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
+        <record id="project_remove_invite" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/invitation-&lt;int:invitation_id&gt;/-remove</field>
+            <field name="endpoint">project.work.invitation.remove_invite</field>
+            <field name="sequence" eval="60" />
+            <field name="methods">("POST",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>
