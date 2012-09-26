@@ -6,6 +6,13 @@
     -->
 <tryton>
     <data>
+        <record id="rst_to_html" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/rst-to-html</field>
+            <field name="endpoint">project.work.rst_to_html</field>
+            <field name="methods">("POST",)</field>
+            <field name="sequence" eval="05" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
         <record id="project" model="nereid.url_rule">
             <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;</field>
             <field name="endpoint">project.work.render_project</field>

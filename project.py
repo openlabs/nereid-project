@@ -277,6 +277,13 @@ class Project(ModelSQL, ModelView):
         projects = project_obj.browse(project_ids)
         return render_template('project/home.jinja', projects=projects)
 
+    def rst_to_html(self):
+        """
+        Return the response as rst converted to html
+        """
+        text = request.form['text']
+        return render_template('project/rst_to_html.jinja', text=text)
+
     def get_attachments(self, ids, name=None):
         """
         Return all the attachments in the object
@@ -1034,8 +1041,10 @@ class Project(ModelSQL, ModelView):
                     task_changes[attr] = request.form[attr]
 
             new_assignee = request.form.get('assigned_to', None, int)
-            if new_assignee and \
-                    (not task.assigned_to or new_assignee != task.assigned_to.id):
+            print new_assignee, request.form
+            if (new_assignee and \
+                    (not task.assigned_to or new_assignee != task.assigned_to.id)) \
+                    or (request.form.get('assigned_to', None) == ""): # Clear the user
                 history_data['previous_assigned_to'] = task.assigned_to and task.assigned_to.id or None
                 history_data['new_assigned_to'] = new_assignee
                 task_changes['assigned_to'] = new_assignee
