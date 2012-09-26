@@ -1578,11 +1578,6 @@ def invitation_new_user_handler(nereid_user_id):
         'invitation_code': None
     })
 
-    project_obj.write(
-        invitation.project.id, {
-            'participants': [('add', [nereid_user_id])]
-        }
-    )
     nereid_user = nereid_user_obj.browse(nereid_user_id)
 
     subject = '[%s] %s Accepted the invitation to join the project' \
@@ -1600,3 +1595,9 @@ def invitation_new_user_handler(nereid_user_id):
     server = get_smtp_server()
     server.sendmail(CONFIG['smtp_from'], receivers, email_message.as_string())
     server.quit()
+
+    project_obj.write(
+        invitation.project.id, {
+            'participants': [('add', [nereid_user_id])]
+        }
+    )
