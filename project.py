@@ -12,6 +12,7 @@ import random
 import string
 import warnings
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from itertools import groupby, chain
 from mimetypes import guess_type
 
@@ -26,7 +27,7 @@ from trytond.pool import Pool
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
-from trytond.tools import get_smtp_server
+from trytond.tools import get_smtp_server, datetime_strftime
 
 
 class WebSite(ModelSQL, ModelView):
@@ -197,6 +198,10 @@ class WorkPeriod(ModelSQL, ModelView):
     name = fields.Char('Name', required=True)
     start_date = fields.Date('Starting Date', required=True, select=True)
     end_date = fields.Date('Ending Date', required=True, select=True)
+    active = fields.Boolean('Active')
+
+    def default_active(self):
+        return True
 
     def __init__(self):
         super(WorkPeriod, self).__init__()
@@ -224,6 +229,48 @@ class WorkPeriod(ModelSQL, ModelView):
             if cursor.fetchone():
                 return False
         return True
+
+    @login_required
+    def create_work_periods(self):
+        """Create weekly work periods between the dates provided
+        """
+        if not request.nereid_user.is_project_admin(request.nereid_user):
+            flash("Sorry! You are not allowed to create new periods. \
+                Contact your project admin for the same.")
+            return redirect(request.referrer)
+
+        if request.method == 'POST':
+            period_start_date = start_date = datetime.strptime(
+                request.form.get('start_date'), '%m/%d/%Y')
+            end_date = datetime.strptime(
+                request.form.get('end_date'), '%m/%d/%Y')
+            while period_start_date < end_date:
+                period_end_date = period_start_date + \
+                    relativedelta(days=7)
+                if period_end_date > end_date:
+                    period_end_date = end_date
+                name = datetime_strftime(period_start_date, '%d/%b')
+                if name != datetime_strftime(period_end_date, '%d/%b'):
+                    name += ' - ' + datetime_strftime(period_end_date, '%d/%b')
+                self.create({
+                    'name': name,
+                    'start_date': period_start_date,
+                    'end_date': period_end_date,
+                })
+                period_start_date = period_end_date + relativedelta(days=1)
+            flash("Periods successfully created.")
+            return redirect(url_for('project.work.period.render_periods'))
+
+    @login_required
+    def render_periods(self):
+        """Render list of all work periods
+        """
+        if not request.nereid_user.is_project_admin(request.nereid_user):
+            abort(404)
+
+        period_ids = self.search([])
+        periods = self.browse(period_ids)
+        return render_template('project/periods.jinja', periods=periods)
 
 WorkPeriod()
 

@@ -32,6 +32,19 @@
             <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="create_work_periods" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/project/work-periods/-new</field>
+            <field name="endpoint">project.work.period.create_work_periods</field>
+            <field name="sequence" eval="10" />
+            <field name="methods">("POST",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
+        <record id="render_periods" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/project/work-periods</field>
+            <field name="endpoint">project.work.period.render_periods</field>
+            <field name="sequence" eval="10" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
         <record id="global_task_list" model="nereid.url_rule">
             <field name="rule">/&lt;language&gt;/my-tasks</field>
             <field name="endpoint">project.work.my_tasks</field>
