@@ -1542,6 +1542,7 @@ def invitation_new_user_handler(nereid_user_id):
     try:
         invitation_obj = Pool().get('project.work.invitation')
         project_obj = Pool().get('project.work')
+        nereid_user_obj = Pool().get('nereid.user')
     except KeyError:
         # Just return silently. This KeyError is cause if the module is not
         # installed for a specific database but exists in the python path
@@ -1573,3 +1574,20 @@ def invitation_new_user_handler(nereid_user_id):
             'participants': [('add', [nereid_user_id])]
         }
     )
+    nereid_user = nereid_user_obj.browse(nereid_user_id)
+
+    subject = '[%s] %s Accepted the invitation to join the project' \
+        % (invitation.project.name, nereid_user.display_name)
+
+    receivers = [
+        p.email for p in invitation.project.company.project_admins if p.email
+    ]
+
+    email_message = render_email(
+        text_template='project/emails/invite_2_project_accepted_text.html',
+        subject=subject, to=', '.join(receivers),
+        from_email=CONFIG['smtp_from'], invitation=invitation
+    )
+    server = get_smtp_server()
+    server.sendmail(CONFIG['smtp_from'], receivers, email_message.as_string())
+    server.quit()
