@@ -23,6 +23,7 @@ from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
 from trytond.model import ModelView, ModelSQL, fields
 from trytond.pool import Pool
+from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server
@@ -188,6 +189,45 @@ class ProjectWorkInvitation(ModelSQL):
 ProjectWorkInvitation()
 
 
+class WorkPeriod(ModelSQL, ModelView):
+    'Work Period'
+    _name= 'project.work.period'
+    _description = __doc__
+
+    name = fields.Char('Name', required=True)
+    start_date = fields.Date('Starting Date', required=True, select=True)
+    end_date = fields.Date('Ending Date', required=True, select=True)
+
+    def __init__(self):
+        super(WorkPeriod, self).__init__()
+        self._constraints += [
+            ('check_dates', 'periods_overlaps'),
+        ]
+        self._order.insert(0, ('start_date', 'ASC'))
+        self._error_messages.update({
+            'periods_overlaps': 'You can not have two overlapping periods!',
+        })
+
+    def check_dates(self, ids):
+        cursor = Transaction().cursor
+        for period in self.browse(ids):
+            cursor.execute('SELECT id ' \
+                'FROM "' + self._table + '" ' \
+                'WHERE ((start_date <= %s AND end_date >= %s) ' \
+                        'OR (start_date <= %s AND end_date >= %s) ' \
+                        'OR (start_date >= %s AND end_date <= %s)) ' \
+                    'AND id != %s',
+                (period.start_date, period.start_date,
+                    period.end_date, period.end_date,
+                    period.start_date, period.end_date,
+                    period.id))
+            if cursor.fetchone():
+                return False
+        return True
+
+WorkPeriod()
+
+
 class Project(ModelSQL, ModelView):
     """
     Tryton itself is very flexible in allowing multiple layers of Projects and
@@ -239,7 +279,6 @@ class Project(ModelSQL, ModelView):
             'invisible': Eval('type') != 'task',
             'readonly': Eval('type') != 'task',
         }
-
     )
 
     #: Get all the attachments on the object and return them
@@ -248,7 +287,24 @@ class Project(ModelSQL, ModelView):
         'get_attachments'
     )
 
-    #TODO: Add a field for computed state
+    progress_state = fields.Selection([
+            ('Backlog', 'Backlog'),
+            ('Planning', 'Planning'),
+            ('In Progress', 'In Progress'),
+        ], 'Progress State', depends=['state', 'type'], select=True,
+        states={
+            'invisible': (Eval('type') != 'task') | (Eval('state') != 'opened'),
+            'readonly': (Eval('type') != 'task') | (Eval('state') != 'opened'),
+        }
+    )
+
+    work_period = fields.Many2One(
+        'project.work.period', 'Work Period',
+        states={
+            'invisible': Eval('type') != 'task',
+            'readonly': Eval('type') != 'task',
+        }, select=True
+    )
 
     def __init__(self):
         super(Project, self).__init__()
