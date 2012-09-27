@@ -624,7 +624,9 @@ class Project(ModelSQL, ModelView):
         """
         task = self.browse(task_id)
 
-        subject = "[%s] - %s" % (task.parent.name, task.name)
+        subject = "[#%s %s] - %s" % (
+            task.parent.id, task.parent.name, task.name
+        )
 
         if not receivers:
             receivers = [s.email for s in task.participants
@@ -1601,8 +1603,9 @@ class ProjectHistory(ModelSQL, ModelView):
         last_history = self.browse(history_ids)
 
         # Prepare the content of email.
-        subject = "[%s] %s" % (
-            history.project.parent.name, history.project.work.name,
+        subject = "[#%s %s] - %s" % (
+            history.project.parent.id, history.project.parent.name,
+            history.project.work.name,
         )
 
         receivers = [s.email for s in history.project.participants
