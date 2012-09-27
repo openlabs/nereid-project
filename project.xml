@@ -30,6 +30,9 @@ of this repository contains the full copyright notices and license terms. -->
                             <field name="tags_for_projects" colspan="4"/>
                             <field name="tags" colspan="4"/>
                         </page>
+                        <page string="Commits" id="project_repo_commits">
+                            <field name="repo_commits" colspan="4"/>
+                        </page>
                     </xpath>
                 </data>
                 ]]>

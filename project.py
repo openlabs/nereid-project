@@ -353,6 +353,10 @@ class Project(ModelSQL, ModelView):
         }, select=True
     )
 
+    repo_commits = fields.One2Many(
+        'project.work.commit', 'project', 'Repo Commits'
+    )
+
     def __init__(self):
         super(Project, self).__init__()
         self._order.insert(0, ('id', 'DESC'))
@@ -1642,6 +1646,26 @@ class ProjectHistory(ModelSQL, ModelView):
         server.quit()
 
 ProjectHistory()
+
+
+class ProjectWorkCommit(ModelSQL, ModelView):
+    "Repository commits"
+    _name = 'project.work.commit'
+    _description = __doc__
+    _rec_name = 'commit_message'
+
+    project = fields.Many2One(
+        'project.work', 'Project', required=True, select=True
+    )
+    nereid_user = fields.Many2One(
+        'nereid.user', 'User', required=True, select=True
+    )
+    repository = fields.Char('Repository Name', required=True, select=True)
+    repository_url = fields.Char('Repository URL', required=True)
+    commit_message = fields.Char('Commit Message', required=True)
+    commit_url = fields.Char('Commit URL', required=True)
+
+ProjectWorkCommit()
 
 
 @registration.connect
