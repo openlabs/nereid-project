@@ -642,6 +642,10 @@ class Project(ModelSQL, ModelView):
         if not receivers:
             receivers = [s.email for s in task.participants
                          if s.email]
+        receivers.remove(task.created_by.email)
+
+        if not receivers:
+            return
 
         message = render_email(
             from_email=CONFIG['smtp_from'],
@@ -1623,6 +1627,7 @@ class ProjectHistory(ModelSQL, ModelView):
 
         receivers = [s.email for s in history.project.participants
                      if s.email]
+        receivers.remove(history.updated_by.email)
 
         if not receivers:
             return
