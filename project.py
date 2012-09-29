@@ -1143,6 +1143,8 @@ class Project(ModelSQL, ModelView):
         }
 
         updatable_attrs = ['state']
+        new_participants = []
+        current_participants = [p.id for p in task.participants]
         post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
 
         if any(post_attrs):
@@ -1158,9 +1160,12 @@ class Project(ModelSQL, ModelView):
             if (new_assignee and \
                     (not task.assigned_to or new_assignee != task.assigned_to.id)) \
                     or (request.form.get('assigned_to', None) == ""): # Clear the user
-                history_data['previous_assigned_to'] = task.assigned_to and task.assigned_to.id or None
+                history_data['previous_assigned_to'] = \
+                    task.assigned_to and task.assigned_to.id or None
                 history_data['new_assigned_to'] = new_assignee
                 task_changes['assigned_to'] = new_assignee
+                if not new_assignee in current_participants:
+                    new_participants.append(new_assignee)
 
             if task_changes:
                 # Only write change if anything has really changed
@@ -1176,15 +1181,13 @@ class Project(ModelSQL, ModelView):
             # Just comment, no update to task
             comment_id = history_obj.create(history_data)
 
-        current_participants = [p.id for p in task.participants]
-        new_participants = []
-
         if request.nereid_user.id not in current_participants:
             # Add the user to the participants if not already in the list
             new_participants.append(request.nereid_user.id)
 
         for nereid_user in request.form.getlist('notify[]', int):
-            # Notify more people if there are people who havent been added as participants
+            # Notify more people if there are people
+            # who havent been added as participants
             if nereid_user not in current_participants:
                 new_participants.append(nereid_user)
 
@@ -1198,7 +1201,8 @@ class Project(ModelSQL, ModelView):
 
         if request.is_xhr:
             comment_record = history_obj.browse(comment_id)
-            html = render_template('project/comment.jinja', comment=comment_record)
+            html = render_template(
+                'project/comment.jinja', comment=comment_record)
             return jsonify({
                 'success': True,
                 'html': html,
@@ -1396,6 +1400,23 @@ class Project(ModelSQL, ModelView):
         return redirect(
             url_for('project.work.render_project', project_id=task.parent.id)
         )
+
+    @login_required
+    def change_state(self, task_id):
+        "Change the progress state of a task"
+        if not request.nereid_user.employee:
+            flash("Only employees can change the state of a task!")
+            return redirect(request.referrer)
+
+        task = self.get_task(task_id)
+
+        self.write(task.id, {
+            'progress_state': request.form['progress_state']
+        })
+
+        flash("State of the task has been changed to %s" % \
+            request.form['progress_state'])
+        return redirect(request.referrer)
 
 Project()
 
