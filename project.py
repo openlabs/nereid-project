@@ -642,7 +642,8 @@ class Project(ModelSQL, ModelView):
         if not receivers:
             receivers = [s.email for s in task.participants
                          if s.email]
-        receivers.remove(task.created_by.email)
+        if task.created_by.email in receivers:
+	    receivers.remove(task.created_by.email)
 
         if not receivers:
             return
