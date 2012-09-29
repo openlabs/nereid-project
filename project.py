@@ -1160,16 +1160,17 @@ class Project(ModelSQL, ModelView):
                     task_changes[attr] = request.form[attr]
 
             new_assignee = request.form.get('assigned_to', None, int)
-            print new_assignee, request.form
-            if (new_assignee and \
-                    (not task.assigned_to or new_assignee != task.assigned_to.id)) \
-                    or (request.form.get('assigned_to', None) == ""): # Clear the user
-                history_data['previous_assigned_to'] = \
-                    task.assigned_to and task.assigned_to.id or None
-                history_data['new_assigned_to'] = new_assignee
-                task_changes['assigned_to'] = new_assignee
-                if new_assignee and new_assignee not in current_participants:
-                    new_participants.append(new_assignee)
+            if not new_assignee == None:
+                if (new_assignee and \
+                        (not task.assigned_to or \
+                            new_assignee != task.assigned_to.id)) \
+                        or (request.form.get('assigned_to', None) == ""): # Clear the user
+                    history_data['previous_assigned_to'] = \
+                        task.assigned_to and task.assigned_to.id or None
+                    history_data['new_assigned_to'] = new_assignee
+                    task_changes['assigned_to'] = new_assignee
+                    if new_assignee and new_assignee not in current_participants:
+                        new_participants.append(new_assignee)
 
             if task_changes:
                 # Only write change if anything has really changed
