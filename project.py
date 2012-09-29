@@ -357,6 +357,9 @@ class Project(ModelSQL, ModelView):
         'project.work.commit', 'project', 'Repo Commits'
     )
 
+    def default_progress_state(self):
+        return 'Backlog'
+
     def __init__(self):
         super(Project, self).__init__()
         self._order.insert(0, ('id', 'DESC'))
@@ -1142,7 +1145,7 @@ class Project(ModelSQL, ModelView):
             'comment': request.form['comment']
         }
 
-        updatable_attrs = ['state']
+        updatable_attrs = ['state', 'progress_state']
         new_participants = []
         current_participants = [p.id for p in task.participants]
         post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
@@ -1164,7 +1167,7 @@ class Project(ModelSQL, ModelView):
                     task.assigned_to and task.assigned_to.id or None
                 history_data['new_assigned_to'] = new_assignee
                 task_changes['assigned_to'] = new_assignee
-                if not new_assignee in current_participants:
+                if new_assignee and new_assignee not in current_participants:
                     new_participants.append(new_assignee)
 
             if task_changes:
@@ -1207,6 +1210,7 @@ class Project(ModelSQL, ModelView):
                 'success': True,
                 'html': html,
                 'state': self.browse(task.id).state,
+                'progress_state': self.browse(task.id).progress_state,
             })
         return redirect(request.referrer)
 
@@ -1531,6 +1535,16 @@ class ProjectHistory(ModelSQL, ModelView):
         ('opened', 'Opened'),
         ('done', 'Done'),
         ], 'New State', select=True)
+    previous_progress_state = fields.Selection([
+            ('Backlog', 'Backlog'),
+            ('Planning', 'Planning'),
+            ('In Progress', 'In Progress'),
+        ], 'Prev. Progress State', select=True)
+    new_progress_state = fields.Selection([
+            ('Backlog', 'Backlog'),
+            ('Planning', 'Planning'),
+            ('In Progress', 'In Progress'),
+        ], 'New Progress State', select=True)
 
     # Comment
     comment = fields.Text('Comment')
@@ -1561,7 +1575,7 @@ class ProjectHistory(ModelSQL, ModelView):
             data = {}
 
             # TODO: Also create a line when assigned user is cleared from task
-            for field in ('assigned_to', 'state',
+            for field in ('assigned_to', 'state', 'progress_state',
                     'constraint_start_time', 'constraint_finish_time'):
                 if field not in changed_values or not changed_values[field]:
                     continue
