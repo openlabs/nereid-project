@@ -620,13 +620,15 @@ class Project(ModelSQL, ModelView):
         task = self.get_task(task_id)
 
         self.write(task.id, {
-            'name': request.form.get('name')
+            'name': request.form.get('name'),
+            'comment': request.form.get('comment')
         })
 
         if request.is_xhr:
             return jsonify({
                 'success': True,
-                'name': task.name
+                'name': task.name,
+                'comment': task.comment,
             })
         return redirect(request.referrer)
 
