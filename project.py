@@ -1138,6 +1138,7 @@ class Project(ModelSQL, ModelView):
         :param task_id: The ID of the task which needs to be updated
         """
         history_obj = Pool().get('project.work.history')
+        timesheet_line_obj = Pool().get('timesheet.line')
 
         task = self.get_task(task_id)
 
@@ -1201,6 +1202,14 @@ class Project(ModelSQL, ModelView):
             self.write(
                 task.id, {'participants': [('add', new_participants)]}
             )
+
+        hours = request.form.get('hours', None, type=float)
+        if hours and request.nereid_user.employee:
+            timesheet_line_obj.create({
+                'employee': request.nereid_user.employee.id,
+                'hours': hours,
+                'work': task.id
+            })
 
         # Send the email since all thats required is done
         history_obj.send_mail(comment_id)
@@ -1423,6 +1432,31 @@ class Project(ModelSQL, ModelView):
 
         flash("State of the task has been changed to %s" % \
             request.form['progress_state'])
+        return redirect(request.referrer)
+
+    @login_required
+    def change_estimated_hours(self, task_id):
+        """Change estimated hours.
+
+        :param task_id: ID of the task.
+        """
+        if not request.nereid_user.employee:
+            flash("Sorry! You are not allowed to change estimate hours.")
+            return redirect(request.referrer)
+
+        task = self.browse(task_id)
+
+        estimated_hours = request.form.get(
+            'new_estimated_hours', None, type=float
+        )
+
+        if estimated_hours:
+            self.write(task.id, {
+                'effort': estimated_hours,
+                }
+            )
+
+        flash("The estimated hours have been changed for this task.")
         return redirect(request.referrer)
 
 Project()
