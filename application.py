@@ -1,7 +1,7 @@
 # Activate the virutalenv
 import os
 cwd = os.path.abspath(os.path.dirname(__file__))
-app_root_path = os.path.dirname(os.path.join(cwd, '../'))
+app_root_path = os.path.dirname(os.path.join(cwd, ''))
 activate_this = '%s/bin/activate_this.py' % app_root_path
 execfile(activate_this, dict(__file__=activate_this))
 
@@ -23,7 +23,7 @@ print '%s/static/' % cwd
 CONFIG = dict(
 
     # The name of database
-    DATABASE_NAME = 'project',
+    DATABASE_NAME = 'openlabs_tryton',
 
     EMAIL_FROM = 'info@openlabs.co.in',
     # Static file root. The root location of the static files. The static/ will
@@ -60,9 +60,9 @@ app.jinja_env.globals.update({'json': json, 'sample': random.sample})
 babelized_app = Babel(app)
 application = babelized_app.app.wsgi_app
 
-#application = Sentry(
-    #application, Client('http://sjkdhsadjkwi423y8wkjhwuiy@localhost:9000/7')
-#)
+application = Sentry(
+    application, Client('http://2d6a2e5316fb481993b3eeb6123d7203:80855a8b88354bf5acca271f574b79db@sentry.openlabs.co.in/10')
+)
 
 # If the file is launched from the CLI then launch the app using the debug
 # web server built into werkzeug
@@ -75,9 +75,9 @@ if __name__ == '__main__':
         def __call__(self, environ, start_response):
             environ['HTTP_HOST'] = self.site
             return self.app(environ, start_response)
-    site = 'localhost:5000'
+    site = 'my.openlabs.co.in:5000'
     app.wsgi_app = NereidTestMiddleware(app.wsgi_app, site)
-    app.debug = True
+    app.debug = False
     app.static_folder = '%s/static' % (cwd,)
     app.session_interface.session_store = \
             FilesystemSessionStore('/tmp', session_class=Session)

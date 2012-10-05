@@ -931,7 +931,9 @@ class Project(ModelSQL, ModelView):
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        tasks = Pagination(self, filter_domain, page, 10)
+        tasks = Pagination(
+            self, filter_domain, page, 10, order=[('constraint_finish_time', 'asc')]
+        )
         return render_template(
             'project/global-task-list.jinja',
             active_type_name='render_task_list', counts=counts,
