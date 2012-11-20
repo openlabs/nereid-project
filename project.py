@@ -1050,7 +1050,7 @@ class Project(ModelSQL, ModelView):
     def render_timesheet(self, project_id):
         project = self.get_project(project_id)
         if request.is_xhr:
-            self.get_calendar_data(
+            return self.get_calendar_data(
                 [('work.parent', 'child_of', [project.work.id])]
             )
         return render_template(
