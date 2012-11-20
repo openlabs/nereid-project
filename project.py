@@ -1003,7 +1003,7 @@ class Project(ModelSQL, ModelView):
                         [line.hours for line in g]
                     )
 
-            result=[]
+            day_totals=[]
             color_map = {}
             colors = cycle([
                 'grey', 'RoyalBlue', 'CornflowerBlue', 'DarkSeaGreen',
@@ -1012,7 +1012,7 @@ class Project(ModelSQL, ModelView):
             ])
             for date, employee_hours in data.iteritems():
                 for employee, hours in employee_hours.iteritems():
-                    result.append({
+                    day_totals.append({
                         'id': '%s.%s' % (date, employee.id),
                         'title': '%s (%dh %dm)' % (
                             employee.name, hours, (hours * 60) % 60
@@ -1021,7 +1021,18 @@ class Project(ModelSQL, ModelView):
                         'color': color_map.setdefault(employee, colors.next()),
                     })
 
-            return jsonify(result=result)
+            def get_task_from_work(work):
+                task_id, = self.search([('work', '=', work.id)])
+                return self.browse(task_id)
+
+            lines = [
+                render_template(
+                        'project/timesheet-line.jinja', line=line,
+                        related_task=get_task_from_work(line.work)
+                    ) \
+                    for line in timesheet_obj.browse(line_ids)
+            ]
+            return jsonify(day_totals=day_totals, lines=lines)
 
         return render_template(
             'project/timesheet.jinja', project=project,
