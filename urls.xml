@@ -165,6 +165,12 @@
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_global_timesheet" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/projects/timesheet</field>
+            <field name="endpoint">project.work.render_global_timesheet</field>
+            <field name="sequence" eval="05" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
         <record id="project_plan" model="nereid.url_rule">
             <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-plan</field>
             <field name="endpoint">project.work.render_plan</field>

@@ -17,7 +17,7 @@ from itertools import groupby, chain, cycle
 from mimetypes import guess_type
 
 from nereid import (request, abort, render_template, login_required, url_for,
-    redirect, flash, jsonify, render_email)
+    redirect, flash, jsonify, render_email, permissions_required)
 from flask import send_file
 from nereid.ctx import has_request_context
 from nereid.signals import registration
@@ -973,67 +973,86 @@ class Project(ModelSQL, ModelView):
             guess_type=guess_type, other_attachments=other_attachments
         )
 
+    def get_calendar_data(self, domain=None):
+        """
+        Returns the calendar data
+
+        :param domain: List of tuple to add to the domain expression
+        """
+        timesheet_obj = Pool().get('timesheet.line')
+
+        start = datetime.fromtimestamp(
+            request.args.get('start', type=int)
+        ).date()
+        end = datetime.fromtimestamp(
+            request.args.get('end', type=int)
+        ).date()
+
+        if domain is None:
+            domain = []
+        domain += [
+            ('date', '>=', start),
+            ('date', '<=', end),
+        ]
+        line_ids = timesheet_obj.search(
+            domain, order=[('date', 'asc'), ('employee', 'asc')]
+        )
+
+        # Build an iterable 
+        lines = timesheet_obj.browse(line_ids)
+
+        data = {}
+        for date, g_by_date in groupby(lines, key=lambda line: line.date):
+            for k, g in groupby(g_by_date, key=lambda line: line.employee):
+                data.setdefault(date, {})[k] = sum(
+                    [line.hours for line in g]
+                )
+
+        day_totals=[]
+        color_map = {}
+        colors = cycle([
+            'grey', 'RoyalBlue', 'CornflowerBlue', 'DarkSeaGreen',
+            'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
+            'maroon', 'PaleTurquoise'
+        ])
+        for date, employee_hours in data.iteritems():
+            for employee, hours in employee_hours.iteritems():
+                day_totals.append({
+                    'id': '%s.%s' % (date, employee.id),
+                    'title': '%s (%dh %dm)' % (
+                        employee.name, hours, (hours * 60) % 60
+                    ),
+                    'start': date.isoformat(),
+                    'color': color_map.setdefault(employee, colors.next()),
+                })
+
+        def get_task_from_work(work):
+            task_id, = self.search([('work', '=', work.id)])
+            return self.browse(task_id)
+
+        lines = [
+            render_template(
+                    'project/timesheet-line.jinja', line=line,
+                    related_task=get_task_from_work(line.work)
+                ) \
+                for line in timesheet_obj.browse(line_ids)
+        ]
+        return jsonify(day_totals=day_totals, lines=lines)
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def render_global_timesheet(self):
+        if request.is_xhr:
+            return self.get_calendar_data()
+        return render_template('project/global-timesheet.jinja')
+
     @login_required
     def render_timesheet(self, project_id):
         project = self.get_project(project_id)
-        timesheet_obj = Pool().get('timesheet.line')
-
         if request.is_xhr:
-            # XHTTP request probably from the calendar widget
-            # answer that with JSON
-            start = datetime.fromtimestamp(
-                request.args.get('start', type=int)
-            ).date()
-            end = datetime.fromtimestamp(
-                request.args.get('end', type=int)
-            ).date()
-            line_ids = timesheet_obj.search([
-                ('date', '>=', start),
-                ('date', '<=', end),
-                ('work.parent', 'child_of', [project.work.id]),
-            ], order=[('date', 'asc'), ('employee', 'asc')])
-
-            # Build an iterable 
-            lines = timesheet_obj.browse(line_ids)
-
-            data = {}
-            for date, g_by_date in groupby(lines, key=lambda line: line.date):
-                for k, g in groupby(g_by_date, key=lambda line: line.employee):
-                    data.setdefault(date, {})[k] = sum(
-                        [line.hours for line in g]
-                    )
-
-            day_totals=[]
-            color_map = {}
-            colors = cycle([
-                'grey', 'RoyalBlue', 'CornflowerBlue', 'DarkSeaGreen',
-                'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
-                'maroon', 'PaleTurquoise'
-            ])
-            for date, employee_hours in data.iteritems():
-                for employee, hours in employee_hours.iteritems():
-                    day_totals.append({
-                        'id': '%s.%s' % (date, employee.id),
-                        'title': '%s (%dh %dm)' % (
-                            employee.name, hours, (hours * 60) % 60
-                        ),
-                        'start': date.isoformat(),
-                        'color': color_map.setdefault(employee, colors.next()),
-                    })
-
-            def get_task_from_work(work):
-                task_id, = self.search([('work', '=', work.id)])
-                return self.browse(task_id)
-
-            lines = [
-                render_template(
-                        'project/timesheet-line.jinja', line=line,
-                        related_task=get_task_from_work(line.work)
-                    ) \
-                    for line in timesheet_obj.browse(line_ids)
-            ]
-            return jsonify(day_totals=day_totals, lines=lines)
-
+            self.get_calendar_data(
+                [('work.parent', 'child_of', [project.work.id])]
+            )
         return render_template(
             'project/timesheet.jinja', project=project,
             active_type_name="timesheet"

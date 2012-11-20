@@ -92,6 +92,11 @@ of this repository contains the full copyright notices and license terms. -->
         <menuitem parent="project.menu_project" action="act_work_period_form"
             id="menu_work_period" sequence="100" />
 
+        <record id="permission_project_admin" model="nereid.permission">
+          <field name="name">Project Admin</field>
+          <field name="value">project.admin</field>
+        </record>
+
     </data>
 </tryton>
 
