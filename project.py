@@ -13,7 +13,7 @@ import string
 import warnings
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from itertools import groupby, chain
+from itertools import groupby, chain, cycle
 from mimetypes import guess_type
 
 from nereid import (request, abort, render_template, login_required, url_for,
@@ -976,8 +976,56 @@ class Project(ModelSQL, ModelView):
     @login_required
     def render_timesheet(self, project_id):
         project = self.get_project(project_id)
+        timesheet_obj = Pool().get('timesheet.line')
+
+        if request.is_xhr:
+            # XHTTP request probably from the calendar widget
+            # answer that with JSON
+            start = datetime.fromtimestamp(
+                request.args.get('start', type=int)
+            ).date()
+            end = datetime.fromtimestamp(
+                request.args.get('end', type=int)
+            ).date()
+            line_ids = timesheet_obj.search([
+                ('date', '>=', start),
+                ('date', '<=', end),
+                ('work.parent', 'child_of', [project.work.id]),
+            ], order=[('date', 'asc'), ('employee', 'asc')])
+
+            # Build an iterable 
+            lines = timesheet_obj.browse(line_ids)
+
+            data = {}
+            for date, g_by_date in groupby(lines, key=lambda line: line.date):
+                for k, g in groupby(g_by_date, key=lambda line: line.employee):
+                    data.setdefault(date, {})[k] = sum(
+                        [line.hours for line in g]
+                    )
+
+            result=[]
+            color_map = {}
+            colors = cycle([
+                'grey', 'RoyalBlue', 'CornflowerBlue', 'DarkSeaGreen',
+                'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
+                'maroon', 'PaleTurquoise'
+            ])
+            for date, employee_hours in data.iteritems():
+                for employee, hours in employee_hours.iteritems():
+                    result.append({
+                        'id': '%s.%s' % (date, employee.id),
+                        'title': '%s (%dh %dm)' % (
+                            employee.name, hours, (hours * 60) % 60
+                        ),
+                        'start': date.isoformat(),
+                        'color': color_map.setdefault(employee, colors.next()),
+                    })
+
+            return jsonify(result=result)
+
         return render_template(
-            'project/project.jinja', project=project, active_type_name="recent"
+            'project/timesheet.jinja', project=project,
+            active_type_name="timesheet"
         )
 
     @login_required
