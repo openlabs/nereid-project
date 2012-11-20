@@ -362,7 +362,6 @@ class Project(ModelSQL, ModelView):
 
     def __init__(self):
         super(Project, self).__init__()
-        self._order.insert(0, ('id', 'DESC'))
 
     @login_required
     def home(self):
@@ -641,7 +640,7 @@ class Project(ModelSQL, ModelView):
         task = self.browse(task_id)
 
         subject = "[#%s %s] - %s" % (
-            task.parent.id, task.parent.name, task.name
+            task.id, task.parent.name, task.name
         )
 
         if not receivers:
@@ -1696,7 +1695,7 @@ class ProjectHistory(ModelSQL, ModelView):
 
         # Prepare the content of email.
         subject = "[#%s %s] - %s" % (
-            history.project.parent.id, history.project.parent.name,
+            history.project.id, history.project.parent.name,
             history.project.work.name,
         )
 
