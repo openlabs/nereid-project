@@ -18,6 +18,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from itertools import groupby, chain, cycle
 from mimetypes import guess_type
+from email.utils import parseaddr
 
 from nereid import (request, abort, render_template, login_required, url_for,
     redirect, flash, jsonify, render_email, permissions_required)
@@ -1825,6 +1826,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     repository_url = fields.Char('Repository URL', required=True)
     commit_message = fields.Char('Commit Message', required=True)
     commit_url = fields.Char('Commit URL', required=True)
+    commit_id = fields.Char('Commit Id', required=True)
 
     def commit_github_hook_handler(self):
         """Handle post commit posts from GitHub
@@ -1857,6 +1859,45 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                         'repository_url': payload['repository']['url'],
                         'commit_message': commit['message'],
                         'commit_url': commit['url'],
+                        'commit_id': commit['id']
+                    })
+        return 'OK'
+
+    def commit_bitbucket_hook_handler(self):
+        """Handle post commit posts from bitbucket
+        See https://confluence.atlassian.com/display/BITBUCKET/POST+Service+Management
+        """
+        nereid_user_obj = Pool().get('nereid.user')
+
+        if request.method == "POST":
+            payload = json.loads(request.form['payload'])
+            for commit in payload['commits']:
+                nereid_user_ids = nereid_user_obj.search([
+                    ('email', '=', parseaddr(commit['raw_author'])[1])
+                ])
+                if not nereid_user_ids:
+                    continue
+
+                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
+                for project in projects:
+                    local_commit_time = dateutil.parser.parse(
+                        commit['utctimestamp']
+                    )
+                    commit_timestamp = local_commit_time.astimezone(
+                        dateutil.tz.tzutc()
+                    )
+                    self.create({
+                        'commit_timestamp': commit_timestamp,
+                        'project': project,
+                        'nereid_user': nereid_user_ids[0],
+                        'repository': payload['repository']['name'],
+                        'repository_url': payload['canon_url'] + \
+                            payload['repository']['absolute_url'],
+                        'commit_message': commit['message'],
+                        'commit_url': payload['canon_url'] + \
+                            payload['repository']['absolute_url'] + \
+                            "changeset/" + commit['raw_node'],
+                        'commit_id': commit['raw_node']
                     })
         return 'OK'
 

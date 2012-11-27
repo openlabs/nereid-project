@@ -252,5 +252,12 @@
             <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_work_commit_bitbucket" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/-project/-bitbucket-hook</field>
+            <field name="endpoint">project.work.commit.commit_bitbucket_hook_handler</field>
+            <field name="sequence" eval="60" />
+            <field name="methods">("POST",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>
