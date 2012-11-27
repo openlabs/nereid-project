@@ -951,7 +951,7 @@ class Project(ModelSQL, ModelView):
         task = self.get_task(task_id)
 
         comments = sorted(
-            task.history + task.timesheet_lines + task.attachments,
+            task.history + task.timesheet_lines + task.attachments + task.repo_commits,
             key=lambda x: x.create_date
         )
 
