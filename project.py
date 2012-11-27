@@ -13,6 +13,7 @@ import random
 import string
 import json
 import warnings
+import dateutil
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from itertools import groupby, chain, cycle
@@ -1842,8 +1843,14 @@ class ProjectWorkCommit(ModelSQL, ModelView):
 
                 projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
                 for project in projects:
+                    local_commit_time = dateutil.parser.parse(
+                        commit['timestamp']
+                    )
+                    commit_timestamp = local_commit_time.astimezone(
+                        dateutil.tz.tzutc()
+                    )
                     self.create({
-                        'commit_timestamp': commit['timestamp'],
+                        'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_user_ids[0],
                         'repository': payload['repository']['name'],
