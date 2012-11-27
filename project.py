@@ -7,9 +7,11 @@
     :copyright: (c) 2012 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
+import re
 import tempfile
 import random
 import string
+import json
 import warnings
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -1811,6 +1813,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     _description = __doc__
     _rec_name = 'commit_message'
 
+    commit_timestamp = fields.DateTime('Commit Timestamp')
     project = fields.Many2One(
         'project.work', 'Project', required=True, select=True
     )
@@ -1821,6 +1824,34 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     repository_url = fields.Char('Repository URL', required=True)
     commit_message = fields.Char('Commit Message', required=True)
     commit_url = fields.Char('Commit URL', required=True)
+
+    def commit_github_hook_handler(self):
+        """Handle post commit posts from GitHub
+        See https://help.github.com/articles/post-receive-hooks
+        """
+        nereid_user_obj = Pool().get('nereid.user')
+
+        if request.method == "POST":
+            payload = json.loads(request.form['payload'])
+            for commit in payload['commits']:
+                nereid_user_ids = nereid_user_obj.search([
+                    ('email', '=', commit['author']['email'])
+                ])
+                if not nereid_user_ids:
+                    continue
+
+                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
+                for project in projects:
+                    self.create({
+                        'commit_timestamp': commit['timestamp'],
+                        'project': project,
+                        'nereid_user': nereid_user_ids[0],
+                        'repository': payload['repository']['name'],
+                        'repository_url': payload['repository']['url'],
+                        'commit_message': commit['message'],
+                        'commit_url': commit['url'],
+                    })
+        return 'OK'
 
 ProjectWorkCommit()
 
