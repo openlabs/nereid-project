@@ -14,7 +14,8 @@ import string
 import json
 import warnings
 import dateutil
-from datetime import datetime
+import calendar
+from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from itertools import groupby, chain, cycle
 from mimetypes import guess_type
@@ -32,6 +33,8 @@ from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
+
+calendar.setfirstweekday(calendar.SUNDAY)
 
 
 class WebSite(ModelSQL, ModelView):
@@ -977,6 +980,37 @@ class Project(ModelSQL, ModelView):
             guess_type=guess_type, other_attachments=other_attachments
         )
 
+    def _get_expected_date_range(self):
+        """Return the start and end date based on the GET arguments.
+        Also asjust for the full calendar asking for more information than
+        it actually must show
+
+        The last argument of the tuple returns a boolean to show if the 
+        weekly table/aggregation should be displayed
+        """
+        start = datetime.fromtimestamp(
+            request.args.get('start', type=int)
+        ).date()
+        end = datetime.fromtimestamp(
+            request.args.get('end', type=int)
+        ).date()
+        day_week_map = {}
+        if (end - start).days < 20:
+            # this is not a month call, just some smaller range
+            return start, end, day_week_map
+        # This is a data call for a month, but fullcalendar tries to
+        # fill all the days in the first and last week from the prev
+        # and next month. So just return start and end date of the month
+        mid_date = start + relativedelta(days=((end - start).days / 2))
+        ignore, last_day = calendar.monthrange(mid_date.year, mid_date.month)
+        for week, days in enumerate(calendar.monthcalendar(mid_date.year, mid_date.month), 1):
+            day_week_map.update(dict.fromkeys(days, week))
+        return (
+            date(year=mid_date.year, month=mid_date.month, day=1),
+            date(year=mid_date.year, month=mid_date.month, day=last_day),
+            day_week_map
+        )
+
     def get_calendar_data(self, domain=None):
         """
         Returns the calendar data
@@ -985,12 +1019,7 @@ class Project(ModelSQL, ModelView):
         """
         timesheet_obj = Pool().get('timesheet.line')
 
-        start = datetime.fromtimestamp(
-            request.args.get('start', type=int)
-        ).date()
-        end = datetime.fromtimestamp(
-            request.args.get('end', type=int)
-        ).date()
+        start, end, day_week_map = self._get_expected_date_range()
 
         if domain is None:
             domain = []
@@ -998,6 +1027,11 @@ class Project(ModelSQL, ModelView):
             ('date', '>=', start),
             ('date', '<=', end),
         ]
+        if request.args.get('employee', None) and \
+                request.nereid_user.has_permissions(request.nereid_user, ['project.admin']):
+            domain.append(
+                ('employee', '=', request.args.get('employee', None, int))
+            )
         line_ids = timesheet_obj.search(
             domain, order=[('date', 'asc'), ('employee', 'asc')]
         )
@@ -1006,11 +1040,16 @@ class Project(ModelSQL, ModelView):
         lines = timesheet_obj.browse(line_ids)
 
         data = {}
+        data_by_week = {}
         for date, g_by_date in groupby(lines, key=lambda line: line.date):
             for k, g in groupby(g_by_date, key=lambda line: line.employee):
                 data.setdefault(date, {})[k] = sum(
                     [line.hours for line in g]
                 )
+                if day_week_map:
+                    week = day_week_map[date.day]
+                    data_by_week.setdefault(week, {}).setdefault(line.employee, 0)
+                    data_by_week[week][line.employee] += line.hours
 
         day_totals=[]
         color_map = {}
@@ -1041,25 +1080,45 @@ class Project(ModelSQL, ModelView):
                 ) \
                 for line in timesheet_obj.browse(line_ids)
         ]
-        return jsonify(day_totals=day_totals, lines=lines)
+        total_by_employee = {}
+        for emp_hours_map in data_by_week.values():
+            for employee, hours in emp_hours_map.iteritems():
+                total_by_employee[employee] = total_by_employee.setdefault(
+                    employee, 0
+                ) + hours
+        work_week =  render_template(
+            'project/work-week.jinja', data_by_week=data_by_week,
+            total_by_employee=total_by_employee
+        )
+        return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
 
     @login_required
     @permissions_required(['project.admin'])
     def render_global_timesheet(self):
+        employee_obj = Pool().get('company.employee')
+
         if request.is_xhr:
             return self.get_calendar_data()
-        return render_template('project/global-timesheet.jinja')
+        employee_ids = employee_obj.search([])
+        employees = employee_obj.browse(employee_ids)
+        return render_template(
+            'project/global-timesheet.jinja', employees=employees
+        )
 
     @login_required
     def render_timesheet(self, project_id):
         project = self.get_project(project_id)
+        employees = [
+            p.employee for p in project.all_participants \
+                if p.employee
+        ]
         if request.is_xhr:
             return self.get_calendar_data(
                 [('work.parent', 'child_of', [project.work.id])]
             )
         return render_template(
             'project/timesheet.jinja', project=project,
-            active_type_name="timesheet"
+            active_type_name="timesheet", employees=employees
         )
 
     @login_required
