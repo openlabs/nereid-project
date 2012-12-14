@@ -15,6 +15,7 @@ import json
 import warnings
 import dateutil
 import calendar
+from collections import defaultdict
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from itertools import groupby, chain, cycle
@@ -1103,6 +1104,22 @@ class Project(ModelSQL, ModelView):
         employees = employee_obj.browse(employee_ids)
         return render_template(
             'project/global-timesheet.jinja', employees=employees
+        )
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def render_tasks_by_employee(self):
+        open_task_ids = self.search(
+            [('state', '=', 'opened')], order=[('assigned_to', 'ASC')]
+        )
+        tasks_by_employee_by_state = defaultdict(lambda a: defaultdict(list))
+        for task in self.browse(open_task_ids):
+            tasks_by_employee_by_state[task.assigned_to][
+                task.progress_state
+            ].append(task)
+        return render_template(
+            'project/tasks-by-employee.jinja',
+            tasks_by_employee_by_state=tasks_by_employee_by_state
         )
 
     @login_required
