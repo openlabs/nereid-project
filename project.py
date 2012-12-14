@@ -1109,8 +1109,10 @@ class Project(ModelSQL, ModelView):
     @login_required
     @permissions_required(['project.admin'])
     def render_tasks_by_employee(self):
-        open_task_ids = self.search(
-            [('state', '=', 'opened')], order=[('assigned_to', 'ASC')]
+        open_task_ids = self.search([
+            ('state', '=', 'opened'),
+            ('assigned_to.employee', '!=', None),
+            ], order=[('assigned_to', 'ASC')]
         )
         tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
         for task in self.browse(open_task_ids):
