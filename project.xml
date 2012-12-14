@@ -96,6 +96,10 @@ of this repository contains the full copyright notices and license terms. -->
           <field name="name">Project Admin</field>
           <field name="value">project.admin</field>
         </record>
+        <record id="permission_project_manager" model="nereid.permission">
+          <field name="name">Project Manager</field>
+          <field name="value">project.manager</field>
+        </record>
 
     </data>
 </tryton>
