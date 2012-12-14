@@ -1112,7 +1112,7 @@ class Project(ModelSQL, ModelView):
         open_task_ids = self.search(
             [('state', '=', 'opened')], order=[('assigned_to', 'ASC')]
         )
-        tasks_by_employee_by_state = defaultdict(lambda a: defaultdict(list))
+        tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
         for task in self.browse(open_task_ids):
             tasks_by_employee_by_state[task.assigned_to][
                 task.progress_state
