@@ -36,7 +36,11 @@ from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
 
 calendar.setfirstweekday(calendar.SUNDAY)
-
+PROGRESS_STATES = [
+    ('Backlog', 'Backlog'),
+    ('Planning', 'Planning'),
+    ('In Progress', 'In Progress'),
+]
 
 class WebSite(ModelSQL, ModelView):
     """
@@ -342,11 +346,9 @@ class Project(ModelSQL, ModelView):
         'get_attachments'
     )
 
-    progress_state = fields.Selection([
-            ('Backlog', 'Backlog'),
-            ('Planning', 'Planning'),
-            ('In Progress', 'In Progress'),
-        ], 'Progress State', depends=['state', 'type'], select=True,
+    progress_state = fields.Selection(
+        PROGRESS_STATES, 'Progress State',
+        depends=['state', 'type'], select=True,
         states={
             'invisible': (Eval('type') != 'task') | (Eval('state') != 'opened'),
             'readonly': (Eval('type') != 'task') | (Eval('state') != 'opened'),
@@ -1119,9 +1121,13 @@ class Project(ModelSQL, ModelView):
             tasks_by_employee_by_state[task.assigned_to][
                 task.progress_state
             ].append(task)
+        employees = tasks_by_employee_by_state.keys()
+        employees.sort()
         return render_template(
             'project/tasks-by-employee.jinja',
-            tasks_by_employee_by_state=tasks_by_employee_by_state
+            tasks_by_employee_by_state=tasks_by_employee_by_state,
+            employees=employees,
+            states=PROGRESS_STATES,
         )
 
     @login_required
@@ -1734,16 +1740,12 @@ class ProjectHistory(ModelSQL, ModelView):
         ('opened', 'Opened'),
         ('done', 'Done'),
         ], 'New State', select=True)
-    previous_progress_state = fields.Selection([
-            ('Backlog', 'Backlog'),
-            ('Planning', 'Planning'),
-            ('In Progress', 'In Progress'),
-        ], 'Prev. Progress State', select=True)
-    new_progress_state = fields.Selection([
-            ('Backlog', 'Backlog'),
-            ('Planning', 'Planning'),
-            ('In Progress', 'In Progress'),
-        ], 'New Progress State', select=True)
+    previous_progress_state = fields.Selection(
+        PROGRESS_STATES, 'Prev. Progress State', select=True
+    )
+    new_progress_state = fields.Selection(
+        PROGRESS_STATES, 'New Progress State', select=True
+    )
 
     # Comment
     comment = fields.Text('Comment')
