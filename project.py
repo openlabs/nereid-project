@@ -962,7 +962,7 @@ class Project(ModelSQL, ModelView):
         )
 
         timesheet_rows = sorted(
-            task.timesheet_lines, key=lambda x: x.employee
+            task.timesheet_lines[:], key=lambda x: x.employee
         )
         timesheet_summary = groupby(timesheet_rows, key=lambda x: x.employee)
 
