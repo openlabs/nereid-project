@@ -40,6 +40,7 @@ PROGRESS_STATES = [
     ('Backlog', 'Backlog'),
     ('Planning', 'Planning'),
     ('In Progress', 'In Progress'),
+    ('Review', 'Review/QA'),
 ]
 
 class WebSite(ModelSQL, ModelView):
