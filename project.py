@@ -932,22 +932,18 @@ class Project(ModelSQL, ModelView):
         counts['opened_tasks_count'] = self.search(
             filter_domain + [('state', '=', 'opened')], count=True
         )
-        counts['done_tasks_count'] = self.search(
-            filter_domain + [('state', '=', 'done')], count=True
-        )
-        counts['all_tasks_count'] = self.search(
-            filter_domain, count=True
-        )
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        tasks = Pagination(
-            self, filter_domain, page, 10, order=[('constraint_finish_time', 'asc')]
-        )
+        task_ids = self.search(filter_domain, order=[('progress_state', 'ASC')])
+        tasks_by_state = defaultdict(list)
+        for task in self.browse(task_ids):
+            tasks_by_state[task.progress_state].append(task)
         return render_template(
             'project/global-task-list.jinja',
             active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks=tasks
+            state_filter=state, tasks_by_state=tasks_by_state,
+            states=PROGRESS_STATES
         )
 
     @login_required
