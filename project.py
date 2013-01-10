@@ -1927,8 +1927,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 if not nereid_user_ids:
                     continue
 
-                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
-                for project in projects:
+                projects = set([
+                    int(x) for x in re.findall(
+                        r'#(\d+)', commit['message']
+                    )
+                ])
+                pull_requests = set([
+                    int(x) for x in re.findall(
+                        r'pull request #(\d+)', commit['message']
+                    )
+                ])
+                for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['timestamp']
                     )
@@ -1962,8 +1971,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 if not nereid_user_ids:
                     continue
 
-                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
-                for project in projects:
+                projects = set([
+                    int(x) for x in re.findall(
+                        r'#(\d+)', commit['message']
+                    )
+                ])
+                pull_requests = set([
+                    int(x) for x in re.findall(
+                        r'pull request #(\d+)', commit['message']
+                    )
+                ])
+                for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['utctimestamp']
                     )
