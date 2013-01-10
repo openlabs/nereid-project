@@ -40,6 +40,7 @@ PROGRESS_STATES = [
     ('Backlog', 'Backlog'),
     ('Planning', 'Planning'),
     ('In Progress', 'In Progress'),
+    ('Review', 'Review/QA'),
 ]
 
 class WebSite(ModelSQL, ModelView):
@@ -931,22 +932,18 @@ class Project(ModelSQL, ModelView):
         counts['opened_tasks_count'] = self.search(
             filter_domain + [('state', '=', 'opened')], count=True
         )
-        counts['done_tasks_count'] = self.search(
-            filter_domain + [('state', '=', 'done')], count=True
-        )
-        counts['all_tasks_count'] = self.search(
-            filter_domain, count=True
-        )
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        tasks = Pagination(
-            self, filter_domain, page, 10, order=[('constraint_finish_time', 'asc')]
-        )
+        task_ids = self.search(filter_domain, order=[('progress_state', 'ASC')])
+        tasks_by_state = defaultdict(list)
+        for task in self.browse(task_ids):
+            tasks_by_state[task.progress_state].append(task)
         return render_template(
             'project/global-task-list.jinja',
             active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks=tasks
+            state_filter=state, tasks_by_state=tasks_by_state,
+            states=PROGRESS_STATES
         )
 
     @login_required
@@ -962,7 +959,7 @@ class Project(ModelSQL, ModelView):
         )
 
         timesheet_rows = sorted(
-            task.timesheet_lines, key=lambda x: x.employee
+            task.timesheet_lines[:], key=lambda x: x.employee
         )
         timesheet_summary = groupby(timesheet_rows, key=lambda x: x.employee)
 
@@ -997,22 +994,31 @@ class Project(ModelSQL, ModelView):
         end = datetime.fromtimestamp(
             request.args.get('end', type=int)
         ).date()
-        day_week_map = {}
         if (end - start).days < 20:
             # this is not a month call, just some smaller range
-            return start, end, day_week_map
+            return start, end
         # This is a data call for a month, but fullcalendar tries to
         # fill all the days in the first and last week from the prev
         # and next month. So just return start and end date of the month
         mid_date = start + relativedelta(days=((end - start).days / 2))
         ignore, last_day = calendar.monthrange(mid_date.year, mid_date.month)
-        for week, days in enumerate(calendar.monthcalendar(mid_date.year, mid_date.month), 1):
-            day_week_map.update(dict.fromkeys(days, week))
         return (
             date(year=mid_date.year, month=mid_date.month, day=1),
             date(year=mid_date.year, month=mid_date.month, day=last_day),
-            day_week_map
         )
+
+    def get_week(self, day):
+        """
+        Return the week for any given day
+        """
+        if (day >= 1) and (day <= 7):
+            return '01-07'
+        elif (day >= 8) and (day <= 14):
+            return '08-14'
+        elif (day >= 15) and (day <= 21):
+            return '15-21'
+        else:
+            return '22-END'
 
     def get_calendar_data(self, domain=None):
         """
@@ -1022,7 +1028,7 @@ class Project(ModelSQL, ModelView):
         """
         timesheet_obj = Pool().get('timesheet.line')
 
-        start, end, day_week_map = self._get_expected_date_range()
+        start, end = self._get_expected_date_range()
 
         if domain is None:
             domain = []
@@ -1039,31 +1045,28 @@ class Project(ModelSQL, ModelView):
             domain, order=[('date', 'asc'), ('employee', 'asc')]
         )
 
-        # Build an iterable 
+
+        hours_by_day_employee = defaultdict(lambda: defaultdict(float))
+        hours_by_week_employee = defaultdict(lambda: defaultdict(float))
+        get_week = self.get_week
+
         lines = timesheet_obj.browse(line_ids)
+        for line in lines:
+            hours_by_day_employee[line.date][line.employee] += line.hours
+            hours_by_week_employee[get_week(line.date.day)][line.employee] += line.hours
+            
 
-        data = {}
-        data_by_week = {}
-        for date, g_by_date in groupby(lines, key=lambda line: line.date):
-            for k, g in groupby(g_by_date, key=lambda line: line.employee):
-                data.setdefault(date, {})[k] = sum(
-                    [line.hours for line in g]
-                )
-                if day_week_map:
-                    week = day_week_map[date.day]
-                    data_by_week.setdefault(week, {}).setdefault(line.employee, 0)
-                    data_by_week[week][line.employee] += line.hours
-
-        day_totals=[]
+        day_totals = []
         color_map = {}
         colors = cycle([
             'grey', 'RoyalBlue', 'CornflowerBlue', 'DarkSeaGreen',
             'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
             'maroon', 'PaleTurquoise'
         ])
-        for date, employee_hours in data.iteritems():
+        day_totals_append = day_totals.append # Performance speedup
+        for date, employee_hours in hours_by_day_employee.iteritems():
             for employee, hours in employee_hours.iteritems():
-                day_totals.append({
+                day_totals_append({
                     'id': '%s.%s' % (date, employee.id),
                     'title': '%s (%dh %dm)' % (
                         employee.name, hours, (hours * 60) % 60
@@ -1076,21 +1079,22 @@ class Project(ModelSQL, ModelView):
             task_id, = self.search([('work', '=', work.id)])
             return self.browse(task_id)
 
+        reverse_lines = line_ids[::-1]
         lines = [
             render_template(
                     'project/timesheet-line.jinja', line=line,
                     related_task=get_task_from_work(line.work)
                 ) \
-                for line in timesheet_obj.browse(line_ids)
+                for line in timesheet_obj.browse(reverse_lines)
         ]
-        total_by_employee = {}
-        for emp_hours_map in data_by_week.values():
-            for employee, hours in emp_hours_map.iteritems():
-                total_by_employee[employee] = total_by_employee.setdefault(
-                    employee, 0
-                ) + hours
+        
+        total_by_employee = defaultdict(float)
+        for employee_hours in hours_by_week_employee.values():
+            for employee, hours in employee_hours.iteritems():
+                total_by_employee[employee] += hours
+
         work_week =  render_template(
-            'project/work-week.jinja', data_by_week=data_by_week,
+            'project/work-week.jinja', data_by_week=hours_by_week_employee,
             total_by_employee=total_by_employee
         )
         return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
@@ -1923,8 +1927,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 if not nereid_user_ids:
                     continue
 
-                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
-                for project in projects:
+                projects = set([
+                    int(x) for x in re.findall(
+                        r'#(\d+)', commit['message']
+                    )
+                ])
+                pull_requests = set([
+                    int(x) for x in re.findall(
+                        r'pull request #(\d+)', commit['message']
+                    )
+                ])
+                for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['timestamp']
                     )
@@ -1958,8 +1971,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 if not nereid_user_ids:
                     continue
 
-                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
-                for project in projects:
+                projects = set([
+                    int(x) for x in re.findall(
+                        r'#(\d+)', commit['message']
+                    )
+                ])
+                pull_requests = set([
+                    int(x) for x in re.findall(
+                        r'pull request #(\d+)', commit['message']
+                    )
+                ])
+                for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['utctimestamp']
                     )
