@@ -1076,8 +1076,9 @@ class Project(ModelSQL, ModelView):
                 })
 
         def get_task_from_work(work):
-            task_id, = self.search([('work', '=', work.id)])
-            return self.browse(task_id)
+            with Transaction().set_context(active_test=False):
+                task_id, = self.search([('work', '=', work.id)])
+                return self.browse(task_id)
 
         reverse_lines = line_ids[::-1]
         lines = [
