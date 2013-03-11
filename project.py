@@ -958,15 +958,14 @@ class Project(ModelSQL, ModelView):
             key=lambda x: x.create_date
         )
 
-        timesheet_rows = sorted(
-            task.timesheet_lines[:], key=lambda x: x.employee
-        )
-        timesheet_summary = groupby(timesheet_rows, key=lambda x: x.employee)
+        hours={}
+        for line in task.timesheet_lines:
+            hours[line.employee] = hours.setdefault(line.employee, 0) + line.hours
 
         return render_template(
             'project/task.jinja', task=task, active_type_name='render_task_list',
             project=task.parent, comments=comments,
-            timesheet_summary=timesheet_summary
+            timesheet_summary=hours
         )
 
     @login_required
