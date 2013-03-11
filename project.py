@@ -1100,6 +1100,42 @@ class Project(ModelSQL, ModelView):
         return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
 
     @login_required
+    def get_7_day_performance(self):
+        """
+        Returns the hours worked in the last 7 days.
+        """
+        employee_obj = Pool().get('company.employee')
+        timesheet_obj = Pool().get('timesheet.line')
+        date_obj = Pool().get('ir.date')
+
+        if not request.nereid_user.employee:
+            return jsonify({})
+
+        end_date = date_obj.today()
+        start_date = end_date - relativedelta(days=7)
+
+        timesheet_line_ids = timesheet_obj.search([
+            ('date', '>=', start_date),
+            ('date', '<=', end_date),
+            ('employee', '=', request.nereid_user.employee.id),
+        ])
+        timesheet_lines = timesheet_obj.browse(timesheet_line_ids)
+
+        hours_by_day = {}
+
+        for line in timesheet_lines:
+            hours_by_day[line.date] = \
+                    hours_by_day.setdefault(line.date, 0.0) + line.hours
+
+        days = hours_by_day.keys()
+        days.sort()
+
+        return jsonify({
+            'categories': map(lambda d:d.strftime('%d-%b'), days),
+            'series': ['%.2f' % hours_by_day[day] for day in days]
+        })
+
+    @login_required
     @permissions_required(['project.admin'])
     def render_global_timesheet(self):
         employee_obj = Pool().get('company.employee')

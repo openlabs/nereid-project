@@ -265,5 +265,12 @@
             <field name="methods">("POST",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_work_last_7_days" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/-project/-my-last-7-days</field>
+            <field name="endpoint">project.work.get_7_day_performance</field>
+            <field name="sequence" eval="60" />
+            <field name="methods">("GET",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>
