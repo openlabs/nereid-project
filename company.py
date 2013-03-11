@@ -4,10 +4,13 @@
 
     Add the employee relation ship to nereid user
 
-    :copyright: (c) 2012 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2012-2013 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
+from datetime import datetime
+
 from nereid import request
+from trytond.pool import Pool
 from trytond.model import ModelView, ModelSQL, fields
 from trytond.pyson import Eval, Get
 
@@ -67,5 +70,26 @@ class NereidUser(ModelSQL, ModelView):
             return True
         return False
 
+    def hours_reported_today(self, user):
+        """
+        Returns the number of hours the nereid_user has done on the
+        current date.
+
+        :param user: Browse record of the nereid user
+        """
+        timesheet_obj = Pool().get('timesheet.line')
+
+        if not user.employee:
+            return 0.00
+
+
+        current_date = datetime.utcnow().date()
+        line_ids = timesheet_obj.search([
+            ('date', '=', current_date),
+            ('employee', '=', user.employee.id),
+        ])
+        lines = timesheet_obj.browse(line_ids)
+
+        return sum(map(lambda line: line.hours, lines))
 
 NereidUser()
