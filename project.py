@@ -13,6 +13,7 @@ import random
 import string
 import json
 import warnings
+import time
 import dateutil
 import calendar
 from collections import defaultdict
@@ -22,6 +23,7 @@ from itertools import groupby, chain, cycle
 from mimetypes import guess_type
 from email.utils import parseaddr
 
+from babel.dates import parse_date
 from nereid import (request, abort, render_template, login_required, url_for,
     redirect, flash, jsonify, render_email, permissions_required)
 from flask import send_file
@@ -896,7 +898,7 @@ class Project(ModelSQL, ModelView):
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        tasks = Pagination(self, filter_domain, page, 10)
+        tasks = Pagination(self, filter_domain, page, 20)
         return render_template(
             'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
@@ -1134,6 +1136,169 @@ class Project(ModelSQL, ModelView):
             'categories': map(lambda d:d.strftime('%d-%b'), days),
             'series': ['%.2f' % hours_by_day[day] for day in days]
         })
+
+    def get_comparison_data(self):
+        """
+        Compare the performance of people
+        """
+        date_obj = Pool().get('ir.date')
+        employee_obj = Pool().get('company.employee')
+
+        employee_ids = request.args.getlist('employee', type=int)
+        if not employee_ids:
+            employee_ids = employee_obj.search([])
+        
+        employees = dict(zip(employee_ids, employee_obj.browse(employee_ids)))
+
+        end_date = date_obj.today()
+        if request.args.get('end_date'):
+            end_date = parse_date(
+                    request.args['end_date'],
+                    locale='en_IN',
+                    #locale=Transaction().context.get('language')
+            )
+        start_date = end_date - relativedelta(months=1)
+        if request.args.get('start_date'):
+            start_date = parse_date(
+                    request.args['start_date'],
+                    locale='en_IN',
+                    #locale=Transaction().context.get('language')
+            )
+
+        if start_date > end_date:
+            flash('Invalid date Range')
+            return redirect(request.referrer)
+
+        Transaction().cursor.execute(
+            'SELECT * FROM timesheet_by_employee_by_day '
+            'WHERE "date" >= %s ' 
+            'AND "date" <= %s ' 
+            'AND "employee" in %s ' 
+            'ORDER BY "date"',
+            (start_date, end_date, tuple(employee_ids))
+        )
+        raw_data = Transaction().cursor.fetchall()
+        categories = map(
+            lambda d: start_date + relativedelta(days=d),
+            range(0, (end_date - start_date).days + 1)
+        )
+        hours_by_date_by_employee = {}
+        for employee_id, line_date, hours in raw_data:
+            hours_by_date_by_employee.setdefault(line_date, {})[employee_id] = hours
+        
+
+        series = []
+        for employee_id in employee_ids:
+            employee = employees.get(employee_id)
+            series.append({
+                'name': employee and employee.name or 'Ghost',
+                'type': 'column',
+                'data': map(
+                    lambda d: hours_by_date_by_employee.get(d, {}).get(employee_id, 0),
+                    categories
+                )
+            })
+
+        additional = [{
+            'type': 'pie',
+            'name': 'Total Hours',
+            'data': map(lambda d: {'name': d['name'], 'y': sum(d['data'])}, series),
+            'center': [40, 40],
+            'size': 100,
+            'showInLegend': False,
+            'dataLabels': {
+                'enabled': False
+            }
+        }] 
+        additional.extend([{
+            'type': 'line',
+            'name': '{0} Avg'.format(serie['name']),
+            'data': [sum(serie['data']) / len(serie['data'])] * len(categories),
+        } for serie in series])
+         
+        return jsonify(
+            categories=map(lambda d: d.strftime('%d-%b'), categories),
+            series=series + additional
+        )
+        
+    def get_gantt_data(self):
+        """
+        Get gantt data for the last 1 month.
+        """
+        date_obj = Pool().get('ir.date')
+        employee_obj = Pool().get('company.employee')
+
+        employee_ids = employee_obj.search([])
+        employees = dict(zip(employee_ids, employee_obj.browse(employee_ids)))
+
+        today = date_obj.today()
+        start_date = today - relativedelta(months=2)
+
+        Transaction().cursor.execute(
+            'SELECT * FROM timesheet_by_employee_by_day '
+            'WHERE "date" >= \'%s\'' % (start_date, )
+        )
+        raw_data = Transaction().cursor.fetchall()
+        employee_wise_data = {}
+        get_class = lambda h: (h < 4) and 'ganttRed' or \
+                                (h < 6) and 'ganttOrange' or 'ganttGreen'
+        for employee_id, line_date, hours in raw_data:
+            value = {
+                'from': line_date - relativedelta(days=1), # Gantt has a bug of 1 day off
+                'to': line_date - relativedelta(days=1),
+                'label': '%.1f' % hours,
+                'customClass': get_class(hours)
+            }
+            employee_wise_data.setdefault(employee_id, []).append(value)
+
+        gantt_data = []
+        gantt_data_append = gantt_data.append
+        for employee_id, values in employee_wise_data.iteritems():
+            employee = employees.get(employee_id)
+            gantt_data_append({
+                'name': employee and employee.name or 'Ghost',
+		'desc': '',
+                'values': values,
+            })
+        gantt_data = sorted(gantt_data, key=lambda item: item['name'].lower())
+        date_handler = lambda o: '/Date(%d)/' % (time.mktime(o.timetuple()) * 1000) \
+            if hasattr(o, 'timetuple') else o
+        return json.dumps(gantt_data, default=date_handler)
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def compare_performance(self):
+        """
+        Compare the performance of people
+        """
+        employee_obj = Pool().get('company.employee')
+        date_obj = Pool().get('ir.date')
+
+        if request.is_xhr:
+            return self.get_comparison_data()
+        employee_ids = employee_obj.search([])
+        employees = employee_obj.browse(employee_ids)
+        today = date_obj.today()
+        return render_template(
+            'project/compare-performance.jinja', employees=employees,
+            start_date=today-relativedelta(days=7),
+            end_date=today
+        )
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def render_global_gantt(self):
+        """
+        Renders a global gantt
+        """	
+        employee_obj = Pool().get('company.employee')
+        if request.is_xhr:
+            return self.get_gantt_data()
+        employee_ids = employee_obj.search([])
+        employees = employee_obj.browse(employee_ids)
+        return render_template(
+            'project/global-gantt.jinja', employees=employees
+        )
 
     @login_required
     @permissions_required(['project.admin'])

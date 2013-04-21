@@ -54,10 +54,8 @@ class NereidUser(ModelSQL, ModelView):
     #: Allow the nereid user to be connected to an internal employee. This
     #: indicates that the user is an employee and not a regular participant
     employee = fields.Many2One('company.employee', 'Employee',
-        select=True, domain=[
-            ('company', '=', Get(Eval('context', {}), 'company')),
-            ('party', '=', Eval('party'))
-    ])
+        select=True,
+    )
 
     def is_project_admin(self, user):
         """
