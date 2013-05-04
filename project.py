@@ -397,7 +397,41 @@ class Project(ModelSQL, ModelView):
                 ('parent', '=', False),
             ])
         projects = project_obj.browse(project_ids)
+        if request.is_xhr:
+            return jsonify({
+                'itemCount': len(projects),
+                'items': map(project_obj.serialize, projects),
+            })
         return render_template('project/home.jinja', projects=projects)
+
+    def serialize(self, record):
+        """
+        Serialize a record, which could be a task or project
+
+        :param record: Browse record
+        """
+        assigned_to = None
+        if record.assigned_to:
+            assigned_to = {
+                'id': record.assigned_to.id,
+                'display_name': record.assigned_to.display_name,
+            }
+
+        return {
+            'id': record.id,
+            'name': record.name,
+            'type': record.type,
+            'parent': record.parent and record.parent.id or None,
+            # Task specific
+            'tags': map(lambda t: t.name, record.tags),
+            'assigned_to': assigned_to,
+            'attachments': len(record.attachments),
+            'progress_state': record.progress_state,
+            'comment': record.comment,
+            'effort': record.effort,
+            'total_effort': record.total_effort,
+            'constraint_finish_time': record.constraint_finish_time and record.constraint_finish_time.isoformat() or None,
+        }
 
     def rst_to_html(self):
         """
@@ -898,6 +932,14 @@ class Project(ModelSQL, ModelView):
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
+
+        if request.is_xhr:
+            tasks = self.browse(self.search(filter_domain))
+            return jsonify({
+                'items': map(self.serialize, tasks),
+                'domain': filter_domain,
+            })
+
         tasks = Pagination(self, filter_domain, page, 20)
         return render_template(
             'project/task-list.jinja', project=project,
@@ -938,6 +980,15 @@ class Project(ModelSQL, ModelView):
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
         task_ids = self.search(filter_domain, order=[('progress_state', 'ASC')])
+
+        if request.is_xhr:
+            tasks = self.browse(task_ids)
+            return jsonify({
+                'items': map(self.serialize, tasks),
+                'domain': filter_domain,
+            })
+
+        # Group and return tasks for regular web viewing
         tasks_by_state = defaultdict(list)
         for task in self.browse(task_ids):
             tasks_by_state[task.progress_state].append(task)
@@ -963,6 +1014,10 @@ class Project(ModelSQL, ModelView):
         hours={}
         for line in task.timesheet_lines:
             hours[line.employee] = hours.setdefault(line.employee, 0) + line.hours
+
+        if request.is_xhr:
+            response = self.serialize(task)
+            return jsonify(response)
 
         return render_template(
             'project/task.jinja', task=task, active_type_name='render_task_list',
