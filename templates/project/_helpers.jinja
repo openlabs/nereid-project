@@ -1,3 +1,114 @@
+{%- macro state_color_css(state, type='label') -%}
+{%- if type=='label' -%}
+  {%- if state == 'opened' -%}
+  success
+  {%- elif state == 'Done' -%}
+  important
+  {%- elif state == 'Backlog' -%}
+  inverse
+  {%- elif state == 'Planning' -%}
+  info
+  {%- elif state == 'In Progress' -%}
+  success
+  {%- endif -%}
+{%- else -%}
+  {%- if state == 'opened' -%}
+  success
+  {%- elif state == 'Done' -%}
+  danger
+  {%- elif state == 'Backlog' -%}
+  inverse
+  {%- elif state == 'Planning' -%}
+  info
+  {%- elif state == 'In Progress' -%}
+  success
+  {%- endif -%}
+{%- endif -%}
+{%- endmacro -%}
+
+
+
+
+{% macro render_task(task, assigned_to_picture=True, show_effort=True, show_hours=True, show_attachments=True, show_watch_toggle=True, show_project_tag=False, show_project=True, show_progress_state=True) %}
+<div class="navbar">
+  <div class="navbar-inner"><div class="container">
+    {% if assigned_to_picture and task.assigned_to %}
+    <ul class="nav">
+      <li class="text-align: center">
+        <a rel="tooltip" title="Assigned to {{ task.assigned_to.display_name }}" style="padding: 5px 10px 5px 10px;margin-top:4px;"><img class="img-circle" src="{{ task.assigned_to.get_profile_picture(size="25") }}"/></a>
+      </li>
+    </ul>
+    {% endif %}
+    <a class="brand" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" rel="tooltip" title="created by {{ task.created_by.display_name }}" style="margin-left:-10px; padding: 0 0 0 0; font-size:16px;{% if task.constraint_finish_time and task.constraint_finish_time < datetime.datetime.utcnow() %}color:#BD362F{% endif %}">
+
+      <p class="navbar-text">
+      {% if task.state == "done" %}<del>{% endif %}
+      #{{ task.id }} {{ task.name|truncate(50) }}
+      {% if task.state == "done" %}</del>{% endif %}
+
+      {% for tag in task.tags %} 
+        <button class="btn btn-mini disabled btn-{{ tag.color }}">{{ tag.name }}</button>
+      {% endfor %}
+        {#% if task.constraint_start_time %} <span class="label label-info"> Start by {{ task.constraint_start_time|dateformat }}</span>{% endif %#}
+        {% if task.constraint_finish_time %} <span class="label label-info"> {{ task.constraint_finish_time|dateformat }}</span> {% endif %}
+
+        {% if show_progress_state %}
+          {% set state = "Done" if task.state == "done" else task.progress_state %}
+          <span class="label label-{{ state_color_css(state) }}">{{ state }}</span>
+        {% endif %}
+        {% if show_project_tag %}
+          <span class="label">{{ task.parent and task.parent.name or '' }}</span>
+        {% endif %}
+      </p>
+    </a>
+
+    <ul class="nav pull-right">
+      {% if show_project and not project %}
+      <li>
+        <sup><a class="btn btn-mini pull-right" href="{{ url_for('project.work.render_project', project_id=task.parent.id) }}">{{ task.parent.name }}</a></sup>
+      </li>
+      {% endif %}
+      {% if show_attachments and task.attachments %}
+      <li class="divider-vertical"></li>
+      <li>
+        <a href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" rel="tooltip" title="Attachments">
+          <i class="icon-paper-clip"></i> {{ task.attachments|length }}
+        </a>
+      </li>
+      {% endif %}
+
+      {% if show_effort and task.effort %}
+      <li class="divider-vertical"></li>
+      <li>
+        <a rel="tooltip" title="Estimated Effort"><span class="badge badge-warning">{{ task.effort|float_to_time }}</span></a>
+      </li>
+      {% endif %}
+
+      {% if show_hours and task.hours %}
+      <li class="divider-vertical"></li>
+      <li>
+        <a rel="tooltip" title="Actual Effort so far"><span class="badge badge-info">{{ task.hours|float_to_time }}</span></a>
+      </li>
+      {% endif %}
+
+      {% if show_watch_toggle %}
+      <li class="divider-vertical"></li>
+      <li {% if request.nereid_user in task.participants %}class="active"{% endif %}>
+        <a class="watch" data-url="{{ url_for('project.work.watch', task_id=task.id) }}" {% if request.nereid_user in task.participants %}style="display:none"{% endif %} rel="tooltip" title="{{ _('Watch') }}"><i class="icon-eye-open"></i></a>
+        <a class="unwatch" data-url="{{ url_for('project.work.unwatch', task_id=task.id) }}"{% if request.nereid_user not in task.participants %}style="display:none"{% endif %} rel="tooltip" title="{{ _('Unwatch') }}"><i class="icon-eye-close"></i></a>
+      </li>
+      {% endif %}
+
+    </ul>
+
+
+  </div></div>
+</div>
+{#<p><small>created by {{ task.created_by.name }} <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(task.create_date) }}">{{ request.nereid_user.aslocaltime(task.create_date) }}</abbr></small></p>#}
+{% endmacro %}
+
+
+
 {% macro render_field(field, class_="") %}
 <div class="clearfix {% if field.errors %}error{% endif %}">
   <label for="{{ field.name }}">{{ field.label.text }}

@@ -25,7 +25,7 @@ $(document).ready(function(){
   </ul>
 </section>
 <div class="span2" style="margin-left:0px;">
-  {% block sidebar %}
+  {% block left %}
   <div class="well" style="padding: 8px 0; ">
     <ul class="nav nav-list">
 
@@ -53,7 +53,7 @@ $(document).ready(function(){
       {% endfor %}
       {% endif %}
 
-      {% if request.nereid_user.is_project_admin(request.nereid_user) %}
+      {% if request.nereid_user.is_project_admin() %}
       {# admin only area #}
       <hr/>
       <li>

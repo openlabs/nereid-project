@@ -1,4 +1,4 @@
-{% extends 'project.jinja' %}
+{% extends 'project/project.jinja' %}
 
 {% from "_helpers.jinja" import render_pagination %}
 
@@ -34,7 +34,7 @@
         {% if attachment.type == 'data' %}
         <td><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, project=project.id) }}" class="btn" title="Download File", rel="tooltip"><i class="icon-download"></i></a> ({{ attachment.data_size }} bytes)</td>
         {% elif attachment.type == 'link' %}
-        <td><a href="{{ attachment.link }}" class="btn" title="Download File", rel="tooltip"><i class="icon-share-alt"></i></a></td>
+        <td><a href="{{ attachment.link }}" class="btn" title="Browse File", rel="tooltip"><i class="icon-share-alt"></i></a></td>
         {% endif %}
       </tr>
       {% endfor %}
@@ -70,7 +70,7 @@
         {% if attachment.type == 'data' %}
         <td><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}" class="btn" title="Download File", rel="tooltip"><i class="icon-download"></i></a> ({{ attachment.data_size }} bytes)</td>
         {% elif attachment.type == 'link' %}
-        <td><a href="{{ attachment.link }}" target="new" class="btn" title="Download File", rel="tooltip"><i class="icon-share-alt"></i></a></td>
+        <td><a href="{{ attachment.link }}" target="new" class="btn" title="Browse File", rel="tooltip"><i class="icon-share-alt"></i></a></td>
         {% endif %}
       </tr>
       {% endfor %}

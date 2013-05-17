@@ -9,12 +9,6 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <script src="{{ STATIC }}js/jquery-1.7.2.min.js"></script>
-    {% if config['DEBUG'] %}
-      <link rel="stylesheet/less" href="{{ STATIC }}bootstrap/less/application.less" media="all" />
-      <script src="{{ STATIC }}js/less-1.3.0.min.js"></script>
-    {% else %}
-      <link rel="stylesheet" href="{{ STATIC }}bootstrap/css/application.css" type="text/css" />
-    {% endif %}
 
     <style type="text/css">
       body {
@@ -22,13 +16,16 @@
         padding-bottom: 40px;
       }
     </style>
-    <link rel="stylesheet" href="{{ STATIC }}css/jquery.meow.css" type="text/css" media="screen" title="no title" charset="utf-8">
 
-    <link href="{{ STATIC }}css/prettify.css" type="text/css" rel="stylesheet" />
+    <link href="{{ STATIC }}css/bootstrap.css" rel="stylesheet">
+    <link href="{{ STATIC }}css/font-awesome.css" rel="stylesheet">
+    <link href="{{ STATIC }}css/bootstrap-responsive.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ STATIC }}css/jquery.meow.css" type="text/css" media="screen" title="no title" charset="utf-8">
     <link href="{{ STATIC }}css/chosen.css" type="text/css" rel="stylesheet" />
+    <link href="{{ STATIC }}css/datepicker.css" type="text/css" rel="stylesheet" />
+    <link href="{{ STATIC }}css/prettify.css" type="text/css" rel="stylesheet" />
     <link href="{{ STATIC }}css/ui-lightness/jquery-ui-1.8.21.custom.css" type="text/css" rel="stylesheet" />
     <script type="text/javascript" src="{{ STATIC }}js/prettify/prettify.js"></script>
-    <script type="text/javascript" src="{{ STATIC }}js/jquery.timeago.js" ></script>
 
     {% block extra_head %}
     {% endblock %}
@@ -76,7 +73,9 @@
                   <span class="caret"></span>
                 </a>
                 <ul class="dropdown-menu">
-                  <li><a href="#">Profile</a></li>
+                  <li><a href="{{ url_for('nereid.user.profile') }}">Profile</a></li>
+                  <li class="divider"></li>
+                  <li><a href="{{ url_for('project.work.my_tasks') }}?state=opened">My Tasks</a></li>
                   <li class="divider"></li>
                   <li><a href="{{ url_for('nereid.website.logout') }}">Sign Out</a></li>
                 </ul>
@@ -93,38 +92,33 @@
     </div>
 
     <div class="container-fluid">
-    {% include 'new-project-modal.jinja' %}
+    {% include 'project/new-project-modal.jinja' %}
     {% block container %}
-    <div class="span9">
-      {% block main %}
+    <div class="span3">
+      {% block left %}
       {% endblock %}
     </div>
-    <div class="span3">
-      {% block right %}
+    <div class="span9">
+      {% block main %}
       {% endblock %}
     </div>
     {% endblock %}
     </div>
  
-     <!-- Bootstrap -->
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-transition.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-alert.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-modal.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-dropdown.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-scrollspy.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-tab.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-tooltip.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-popover.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-button.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-collapse.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-carousel.js"></script>
-    <script src="{{ STATIC }}bootstrap/js/bootstrap-typeahead.js"></script>
     <!-- Other JS -->
+    <script src="{{ STATIC }}js/jquery.min.js"></script>
+    <script src="{{ STATIC }}js/bootstrap.js"></script>
+    <script src="{{ STATIC }}js/chosen.jquery.min.js"></script>
+    <script src="{{ STATIC }}js/jquery.timeago.js"></script>
+    <script src="{{ STATIC }}js/jquery.meow.js"></script>
+    <script src="{{ STATIC }}js/jquery.validate.min.js"></script>
+    <script src="{{ STATIC }}js/bootstrap-datepicker.js"></script>
     <script src="{{ STATIC }}js/jquery.validate.min.js"></script>
     <script src="{{ STATIC }}js/jquery.meow.js"></script>
     <script src="{{ STATIC }}js/chosen.jquery.min.js"></script> 
+    <script src="{{ STATIC }}js/fullcalendar.min.js"></script>
     <!--<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.21/jquery-ui.min.js"></script> -->
-    {% block morejs %}
+    {% block scripts %}
     {% endblock %}
   </body>
 </html>

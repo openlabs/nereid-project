@@ -15,8 +15,6 @@ of this repository contains the full copyright notices and license terms. -->
                       <field name="assigned_to"/>
                       <label name="progress_state"/>
                       <field name="progress_state"/>
-                      <label name="work_period"/>
-                      <field name="work_period"/>
                     </xpath>
                     <xpath expr="/form/notebook" position="inside">
                         <page string="Participants" id="project_participants">
@@ -38,59 +36,6 @@ of this repository contains the full copyright notices and license terms. -->
                 ]]>
             </field>
         </record>
-
-        <!--Work Period-->
-        <record model="ir.ui.view" id="work_period_form">
-            <field name="model">project.work.period</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <![CDATA[
-                    <form string="Work Period">
-                        <label name="name" />
-                        <field name="name" />
-                        <newline/>
-                        <label name="start_date" />
-                        <field name="start_date" />
-                        <label name="end_date" />
-                        <field name="end_date" />
-                    </form>
-                ]]>
-            </field>
-        </record>
-
-        <record model="ir.ui.view" id="work_period_view_tree">
-            <field name="model">project.work.period</field>
-            <field name="type">tree</field>
-            <field name="arch" type="xml">
-                <![CDATA[
-                <tree string="Work Periods">
-                    <field name="name" />
-                    <field name="start_date" />
-                    <field name="end_date" />
-                </tree>
-                ]]>
-            </field>
-        </record>
-
-        <record model="ir.action.act_window" id="act_work_period_form">
-            <field name="name">Work Periods</field>
-            <field name="res_model">project.work.period</field>
-        </record>
-
-        <record model="ir.action.act_window.view" id="act_work_period_form_view1">
-            <field name="sequence" eval="10" />
-            <field name="view" ref="work_period_view_tree" />
-            <field name="act_window" ref="act_work_period_form" />
-        </record>
-
-        <record model="ir.action.act_window.view" id="act_work_period_form_view2">
-            <field name="sequence" eval="20" />
-            <field name="view" ref="work_period_form" />
-            <field name="act_window" ref="act_work_period_form" />
-        </record>
-
-        <menuitem parent="project.menu_project" action="act_work_period_form"
-            id="menu_work_period" sequence="100" />
 
         <record id="permission_project_admin" model="nereid.permission">
           <field name="name">Project Admin</field>

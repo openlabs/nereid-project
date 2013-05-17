@@ -1,12 +1,13 @@
 .meows {
   position: fixed;
-  top: 60;
+  top: 60;  /* Modified for bootstrap top nav bar */
   right: 0;
 }
 
 .meow {
   position: relative;
   margin: 20px 20px 0 0;
+  z-index: 9999;
 }
 
 .meow .inner {

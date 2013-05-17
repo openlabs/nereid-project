@@ -1,0 +1,28 @@
+{% extends 'project/home.jinja' %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.period.render_periods') }}">Work Periods</a></li>
+{% endblock %}
+
+{% block main %}
+<div class="row-fluid">
+  <div class="span12">
+    {% for period in periods %}
+      <div class="navbar">
+        <div class="navbar-inner">
+          <div class="container">
+            <a class="brand" href="" rel="tooltip" title="{{ period.name }}" style="font-size:16px">
+
+              <p class="navbar-text">
+                {{ period.name }}
+              </p>
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+        </div>
+</div>
+{% endblock %}
