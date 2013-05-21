@@ -6,6 +6,7 @@ activate_this = '%s/bin/activate_this.py' % app_root_path
 execfile(activate_this, dict(__file__=activate_this))
 
 import random
+import datetime
 
 from nereid import Nereid
 from werkzeug.contrib.sessions import FilesystemSessionStore
@@ -54,8 +55,17 @@ CONFIG = dict(
 app = Nereid()
 app.config.update(CONFIG)
 app.initialise()
-app.jinja_env.globals.update({'json': json, 'sample': random.sample})
+app.jinja_env.globals.update({
+    'json': json,
+    'sample': random.sample,
+    'datetime': datetime,
+})
 
+def float_to_time(hours):
+    "Converts a float of hours into readable hours and mins"
+    return "%dh %dm" % (hours, (hours * 60) % 60)
+
+app.jinja_env.filters['float_to_time'] = float_to_time
 
 babelized_app = Babel(app)
 application = babelized_app.app.wsgi_app

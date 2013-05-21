@@ -1,27 +1,57 @@
-{% macro render_field(field, class_="") %}
-<div class="clearfix {% if field.errors %}error{% endif %}">
-  <label for="{{ field.name }}">{{ field.label.text }}
+{% macro render_field(field, class_="", show_label=True, input_prepend=None) %}
+<div class="control-group {% if field.errors %}error{% endif %}">
+  {% if show_label %}
+  <label class="control-label" for="{{ field.name }}">{{ field.label.text }}
     {% if field.flags.required %}<span>*</span>{% endif %}:
   </label>
-  <div class="input">
+  {% endif %}
+  <div class="controls">
+    {% if input_prepend %}
+    <div class="input-prepend">
+    <span class="add-on"><i class="{{ input_prepend }}"></i></span>
+    {% endif %}
     {% if field.flags.required %}
       {% set class_ = class_ + " required" %}
     {% endif %}
+    {% if field.flags.email %}
+      {% set class_ = class_ + " email" %}
+    {% endif %}
     {{ field(class_=class_, **kwargs) }}
+    {% if input_prepend %}
+    {# close the input-prepend div if one exists #}
+    </div>
+    {% endif %}
     {% if field.description %}
-    <br/><span class="help-inline">{{ field.description }}</span>
+    <br/><span class="help-inline"><small>{{ field.description }}</small></span>
     {% endif %}
     {% for error in field.errors %}
-    <br/><span class="help-inline">{{ error|string }}</span>
+    <br/><span class="help-inline"><small>{{ error|string }}</small></span>
     {% endfor %}
   </div>
 </div>
 {% endmacro %}
 
-{%- macro status_label(task, class_="") -%}
-{% set states={'opened': _('Open'), 'done': _('Done')} %}
-<span class="label {% if task.state == 'opened' %}label-info{% else %}label-success{% endif %} {{ class_ }}">{{ states[task.state] }}</span>
-{%- endmacro -%}
+
+{% macro render_month_year_date(month_field, year_field, label, class_="") %}
+<div class="control-group {% if month_field.errors %}error{% endif %}">
+  <label class="control-label" for="{{ month_field.name }}">
+    {{ label }}
+    {% if month_field.flags.required or year_field.flags.required %}*{% endif %}:
+  </label>
+  <div class="controls">
+    {% for field in (month_field, year_field) %}
+    {% if field.flags.required %}
+      {% set class_ = class_ + " required" %}
+    {% endif %}
+    {% if field.flags.email %}
+      {% set class_ = class_ + " email" %}
+    {% endif %}
+    {{ field(class_=class_ + ' input-small ', **kwargs) }}
+    {% endfor %}
+  </div>
+</div>
+
+{% endmacro %}
 
 
 {% macro render_pagination(pagination, uri, endpoint) %}
@@ -43,7 +73,7 @@
 
     {%- for page in pagination.iter_pages(left_edge=0, left_current=5, right_current=5, right_edge=0) %}
       {% if loop.first and page !=1 %}
-      <li class="disabled">...</li>
+      <li class="disabled"><a>...</a></li>
       {% endif %}
 
       {% if page %}
@@ -53,7 +83,7 @@
       {% endif %}
 
       {% if loop.last and page != pagination.pages %}
-      <li class="disabled">...</li>
+      <li class="disabled"><a>...</a></li>
       {% endif %}
     {% endfor %}
 
@@ -71,4 +101,20 @@
 
   </ul>
 </div>
+{% endmacro %}
+
+{% macro  render_address(address) %}     
+<address>
+  <strong>{{ address.name }}</strong><br>
+  {{ address.street }}<br>
+  {% if address.streetbis %}
+  {{ address.streetbis }}<br>
+  {% endif %}
+  {{ address.city }} {{ address.zip }}
+  {% if address.subdivision %}
+  {% endif %}
+  {% if address.country %}
+  <abbr title="{{ address.country.name }}">{{ address.country.code }}</abbr> 
+  {% endif %}
+</address> 
 {% endmacro %}

@@ -1,0 +1,62 @@
+{% extends 'home.jinja' %}
+
+{% from '_helpers.jinja' import render_field %}
+
+{% set user = request.nereid_user %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li>
+  <a href="{{ url_for('nereid.user.profile') }}">
+    {{ user.display_name }}
+  </a>
+</li>
+{% endblock %}
+
+{% block title %}
+{{ _("Profile: ") + user.display_name }}
+{% endblock %}
+
+{% block main %}
+<div class="navbar">
+  <div class="navbar-inner">
+    <ul class="nav">
+      <li><a class="brand">{{ _('General Profile') }}</a></li>
+    </ul>
+  </div>
+</div>
+<div class="well">
+  <form method="POST" action="{{ url_for('nereid.user.profile') }}">
+    {{ render_field(user_form.display_name) }}
+    {{ render_field(user_form.timezone, class_="chzn-select") }}
+    {{ render_field(user_form.email, readonly="") }}
+    <button type="submit"a class="btn btn-success"
+      title="Submit" rel="tooltip">
+      <i class="icon-save"></i> Submit
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block left %}
+<div class="row-fluid" style="text-align: center">
+  <img src="{{ request.nereid_user.get_profile_picture(size=80, https=True) }}" class="img-rounded"/>
+  <br>
+  <a target="new" href="http://en.gravatar.com/emails/">Change Gravatar</a>
+</div>
+<br/>
+<ul class="nav nav-tabs nav-stacked">
+  <li {% if active_type_name == 'general' %}class="active"{% endif %}>
+    <a href="{{ url_for('nereid.user.profile') }}">
+      <i class="icon-user"></i> {{ _('General Profile') }}
+    </a>
+  </li>
+  <li {% if active_type_name == 'address' %}class="active"{% endif %}>
+    <a href="{{ url_for('party.address.view_address') }}">
+      <i class="icon-home"></i> {{ _('Address') }}
+    </a>
+  </li>
+</ul>
+
+{% endblock %}

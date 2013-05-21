@@ -1,7 +1,7 @@
-{% extends 'home.jinja' %}
+{% extends 'project/home.jinja' %}
 
 {% block breadcrumb %}
-<li><a href="{{ url_for('nereid.website.home') }}">{{ _('Dashboard') }}</a></li>
+{{ super() }}
 <li class="divider">/</li>
 <li>
   <a href="{{ url_for('project.work.render_project', project_id=project.id) }}">
@@ -14,20 +14,34 @@
 {{ _("Project: ") + project.name }}
 {% endblock %}
 
-{% block sidebar %}
+{% block left %}
 <ul class="nav nav-tabs nav-stacked">
-  <li {% if active_type_name == 'recent' %}class="active"{% endif %}>
-    <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-eye-open"></i> {{ _('Recent Activity') }}</a>
-  </li>
   <li>
-    <a href="#"><i class="icon-comment"></i> {{ _('Conversations') }}</a>
+    <a href="{{ url_for('project.work.home') }}"><i class="icon-arrow-left"></i> Back to projects list</a>
+  </li>
+</ul>
+
+
+<ul class="nav nav-tabs nav-stacked">
+<!--
+  <li {% if active_type_name == 'recent' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_project', project_id=project.id) }}">
+      <i class="icon-eye-open"></i> {{ _('Recent Activity') }}
+    </a>
+  </li>
+-->
+  <li>
+    <a href="#"><i class="icon-comment"></i> {{ _('Conversations (Coming Soon)') }}</a>
   </li>
   <li {% if active_type_name == 'render_task_list' %}class="active"{% endif %}>
-    <a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}">
-    <i class="icon-tasks"></i> {{ _('Tasks') }}</a>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened') }}">
+      <i class="icon-tasks"></i> {{ _('Tasks') }}
+    </a>
   </li>
   <li {% if active_type_name == 'timesheet' %}class="active"{% endif %}>
-    <a href="{{ url_for('project.work.render_timesheet', project_id=project.id) }}"><i class="icon-time"></i> {{ _('Time Sheets') }}</a>
+    <a href="{{ url_for('project.work.render_timesheet', project_id=project.id) }}"><i class="icon-time"></i> {{ _('Time Sheets') }}
+    <span class="label label-success">New</span>
+    </a>
   </li>
   <li {% if active_type_name == 'plan' %}class="active"{% endif %}>
     <a href="{{ url_for('project.work.render_plan', project_id=project.id) }}"><i class="icon-calendar"></i> {{ _('Planning') }}</a>
@@ -38,19 +52,78 @@
   <li  {% if active_type_name == 'files' %}class="active"{% endif %}>
     <a href="{{ url_for('project.work.render_files', project_id=project.id) }}"><i class="icon-folder-close"></i> {{ _('Files') }}</a>
   </li>
-  {% if request.nereid_user.is_project_admin(request.nereid_user) %}
-  <li>
-    <a href="#"><i class="icon-wrench"></i> {{ _('Settings') }}</a>
-  </li>
+  {% if request.nereid_user.is_project_admin() %}
   <li {% if active_type_name == 'permissions' %}class="active"{% endif %}>
     <a href="{{ url_for('project.work.permissions', project_id=project.id) }}"><i class="icon-user"></i> {{ _('People & Permissions') }}</a>
   </li>
   {% endif %}
 </ul>
 
-<div class="clear">&nbsp;</div>
+<!-- Modal for new task -->
+<div class="modal fade" id="new-task" aria-hidden="true" style="display: none; ">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">×</button>
+    <h3>{{ _('Create a New Task') }}</h3>
+  </div>
+  <div class="modal-body">
+    <form class="form-vertical well" id="new-task-form" method="POST" 
+        action="{{ url_for('project.work.create_task', active_id=project.id) }}">
+      <label for="name">A task Title:</label>
+      <input class="span12" type="text" placeholder="Do Something"
+        name="name" required="required" id="name"/>
+      <textarea class="span12" id="description" name="description" 
+        placeholder="Description" rows="5"></textarea>
+      <select id="assign_to" name="assign_to" class="span12">
+        <option value=''>Unassigned</option>
+        {% for participant in project.all_participants %}
+          <option value="{{ participant.id }}">
+            <span><img class="img" src="{{ participant.get_profile_picture(size="40") }}"></span>
+            <span class="name">{{ participant.display_name }}</span>
+          </option>
+        {% endfor %}
+      </select>
+      <label for="estimated_hours">Estimated hours</label>
+      <input class="span12" type="text" placeholder="Estimated hours"
+        name="estimated_hours" id="estimated_hours"/>
+      <label for="constraint_start_time">Task should start and finish by <small>(Optional):</small></label>
+      <div class="input-append date datepicker span4">
+        <input class="datepicker span10" type="text" name="constraint_start_time" readonly="">
+        <span class="add-on" rel="tooltip" title="Select Start Date"><i class="icon-calendar"></i></span>
+      </div>
+      <div class="input-append date datepicker span4 offset1">
+        <input class="datepicker span10" type="text" name="constraint_finish_time" readonly="">
+        <span class="add-on" rel="tooltip" title="Select Finish Date"><i class="icon-calendar"></i></span>
+      </div>
+
+      <a class="btn clear-date offset1" rel="tooltip" title="Clear Dates"><i class="icon-remove-sign"></i></a>
+      <br/>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-info pull-right span6 offset3" 
+          id="create_new_project" data-loading-text="Creating New Project">
+          <i class="icon-plus icon-white"></i> {{ _('Save') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<ul class="nav nav-list">
+  <li>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', user=request.nereid_user.id) }}">
+      <i class="icon-tasks"></i> {{ _("My Tasks in this project") }}
+    </a>
+  </li>
+  <li>
+    <a data-toggle="modal" href="#new-task">
+      <i class="icon-plus"></i> {{ _("New Task") }}
+    </a>
+  </li>
+  <hr>
+</ul>
+
 <div class="row-fluid">
-  {% if request.nereid_user.is_project_admin(request.nereid_user) %} 
+  {% if request.nereid_user.is_project_admin() %} 
     <h4 class="pull-left span12"><small><i class="icon-tags"></i></small> {{ _('Tags') }} </h4>
 
     {% if project.tags_for_projects %} 
@@ -58,34 +131,22 @@
         <div class="btn-group span12" id="{{ tag.id }}">
           <a class="btn btn-{{ tag.color }} btn-mini" 
             title="View all tasks with {{ tag.name }} tag" rel="tooltip" 
-            href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id) }}">
+            href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id, state=request.args.get('state', 'opened'), q=request.args.get('q', None)) }}">
             {{ tag.name }}
           </a>
-          <span class="label label-{{ tag.color if tag.color != 'danger' else 'important' }} pull-right">
-            {{ tag.project.get_tasks_by_tag(tag.id)|length }}
-          </span>
+          <a href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id, state=request.args.get('state', 'opened'), q=request.args.get('q', None)) }}">
+            <span class="label label-{{ tag.color if tag.color != 'danger' else 'important' }} pull-right">
+              {{ tag.project.get_tasks_by_tag(tag.id)|length }}
+            </span>
+          </a>
           <a class="btn btn-{{ tag.color }} btn-mini btn-remove-tag"
             title="Remove tag {{ tag.name }}" rel="tooltip" id="{{ tag.id }}"
-            data-url="{{ url_for('project.work.tag.delete_tag', tag_id=tag.id) }}">
+            data-url="{{ url_for('project.work.tag.delete_tag', active_id=tag.id) }}">
             <i class="icon-remove icon-white"></i>
           </a>
         </div>
       {% endfor %}
-      <script>
-        $(document).ready(function(){
-          // Remove a tag
-          $('.btn-remove-tag').click(function(){
-            tag_id = $(this).attr('id')
-            $.ajax({
-              url: $(this).attr('data-url'),
-              type: 'POST'
-            })
-            .done(function() {
-              $("div#" + tag_id).hide();
-            });
-          });
-        });
-      </script>
+      
     {% endif %}
 
     <form class="form-vertical" id="new-tag-form" method="POST"
@@ -108,43 +169,97 @@
         <i class="icon-plus"></i> {{ _('Add a new tag') }}
       </button>
 
-      <script>
-        $(document).ready(function(){
-          $(".color").click(function(){
-            $(this).parent().children().removeClass('active');
-            $(this).addClass('active');
-
-            // This is UGLY. On post the value should be picked up from the 
-            // active button
-            $("input#color").attr('value', $(this).attr('color'));
-          });
-
-          // Make edit buttons visible on hovers
-          $(".btn-edit-tag-area").hover(
-            function(){$(this).find(".btn-edit-tag").show();},
-            function(){$(this).find(".btn-edit-tag").hide();}
-          );
-
-          // Display option to delete a tag on click of edit tag
-          $('.btn-edit-tag').click(function(){
-            $($(this).siblings('a.btn-done-edit-tag')).show();
-            $(this).hide();
-            $(this).removeClass('btn-edit-tag').addClass('btn-edit-tag-disabled');
-            $('.count-tag').hide();
-            $('.remove-tag').show();
-          });
-
-          // Go back to normal state if done button is clicked
-          $('.btn-done-edit-tag').click(function(){
-            $(this).hide();
-            $($(this).siblings('a.btn-edit-tag-disabled')).removeClass('btn-edit-tag-disabled').addClass('btn-edit-tag').show();
-            $('.count-tag').show();
-            $('.remove-tag').hide();
-          });
-        });
-      </script>
-
     </form>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block main %}
+  
+    {% if request.endpoint == 'project.work.render_project' %}
+      <div class="row-fluid" id="project_timeline"></div>
+      <div class="row-fluid">
+        <div class="span5"></div>
+        <a class="btn btn-mini" id="more_project_timeline">{{ _('Show More') }}</a>
+      </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+  <script>
+    $(document).ready(function(){
+      // Remove a tag
+      $('.btn-remove-tag').click(function(){
+        tag_id = $(this).attr('id')
+        $.ajax({
+          url: $(this).attr('data-url'),
+          type: 'POST'
+        })
+        .done(function() {
+          $("div#" + tag_id).hide();
+        });
+      });
+    });
+  </script>
+
+  <script>
+    $(document).ready(function(){
+      $(".color").click(function(){
+        $(this).parent().children().removeClass('active');
+        $(this).addClass('active');
+
+        // This is UGLY. On post the value should be picked up from the 
+        // active button
+        $("input#color").attr('value', $(this).attr('color'));
+      });
+
+      // Make edit buttons visible on hovers
+      $(".btn-edit-tag-area").hover(
+        function(){$(this).find(".btn-edit-tag").show();},
+        function(){$(this).find(".btn-edit-tag").hide();}
+      );
+
+      // Display option to delete a tag on click of edit tag
+      $('.btn-edit-tag').click(function(){
+        $($(this).siblings('a.btn-done-edit-tag')).show();
+        $(this).hide();
+        $(this).removeClass('btn-edit-tag').addClass('btn-edit-tag-disabled');
+        $('.count-tag').hide();
+        $('.remove-tag').show();
+      });
+
+      // Go back to normal state if done button is clicked
+      $('.btn-done-edit-tag').click(function(){
+        $(this).hide();
+        $($(this).siblings('a.btn-edit-tag-disabled')).removeClass('btn-edit-tag-disabled').addClass('btn-edit-tag').show();
+        $('.count-tag').show();
+        $('.remove-tag').hide();
+      });
+    });
+  </script>
+
+  <script type="text/javascript" charset="utf-8">
+    $(document).ready(function(){
+
+      // Activate datepicker
+      var d = new Date();
+      $.each($("input.datepicker"), function(index, value) {
+        if (!$(this).attr('value')) {
+          $("div.datepicker").attr('data-date', d.getMonth()+1 + '/' + d.getDate() + '/' + d.getFullYear());
+          $("input.datepicker").attr('value', d.getMonth()+1 + '/' + d.getDate() + '/' + d.getFullYear());
+        }
+      });
+      $(".datepicker").datepicker();
+
+      $('.clear-date').click(function() {
+        $(this).parent().find('input.datepicker').val('');
+      });
+
+      // Client side validation for the form
+      $("form#new-project-form").validate();
+
+      $("span[rel='tooltip']").tooltip();
+    });
+  </script>
 {% endblock %}

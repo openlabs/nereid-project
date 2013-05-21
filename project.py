@@ -4,9 +4,10 @@
 
     Extend the project to allow users
 
-    :copyright: (c) 2012 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2012-2013 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
+import uuid
 import re
 import tempfile
 import random
@@ -19,7 +20,7 @@ import calendar
 from collections import defaultdict
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from itertools import groupby, chain, cycle
+from itertools import chain, cycle
 from mimetypes import guess_type
 from email.utils import parseaddr
 
@@ -31,11 +32,18 @@ from nereid.ctx import has_request_context
 from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
 from trytond.model import ModelView, ModelSQL, fields
-from trytond.pool import Pool
+from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
+from trytond.backend import TableHandler
+
+__all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation', \
+    'ProjectWorkInvitation', 'Project', 'Tag', \
+    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit']
+__metaclass__ = PoolMeta
+
 
 calendar.setfirstweekday(calendar.SUNDAY)
 PROGRESS_STATES = [
@@ -45,57 +53,54 @@ PROGRESS_STATES = [
     ('Review', 'Review/QA'),
 ]
 
-class WebSite(ModelSQL, ModelView):
+
+class WebSite:
     """
     Website
     """
-    _name = "nereid.website"
+    __name__ = "nereid.website"
 
+    @classmethod
     @login_required
-    def home(self):
+    def home(cls):
         """
         Put recent projects into the home
         """
-        user_obj = Pool().get('nereid.user')
-        project_obj = Pool().get('project.work')
-
-        # TODO: Limit to the last 5 projects
-        if user_obj.is_project_admin(request.nereid_user):
-            project_ids = project_obj.search([
-                ('type', '=', 'project'),
-                ('parent', '=', False),
-            ])
-        else:
-            project_ids = project_obj.search([
-                ('participants', '=', request.nereid_user.id),
-                ('type', '=', 'project'),
-                ('parent', '=', False),
-            ])
-        projects = project_obj.browse(project_ids)
-        return render_template('home.jinja', projects=projects)
-
-WebSite()
+        return redirect(url_for('project.work.home'))
 
 
 class ProjectUsers(ModelSQL):
-    _name = 'project.work-nereid.user'
-    _table = 'project_work_nereid_user_rel'
+    'Project Users'
+    __name__ = 'project.work-nereid.user'
 
     project = fields.Many2One(
         'project.work', 'Project',
-        ondelete='CASCADE', select=1, required=True)
+        ondelete='CASCADE', select=True, required=True
+    )
 
     user = fields.Many2One(
         'nereid.user', 'User', select=1, required=True
     )
 
-ProjectUsers()
+    @classmethod
+    def __register__(cls, module_name):
+        '''
+        Register class and update table name to new.
+        '''
+        cursor = Transaction().cursor
+        table  = TableHandler(cursor, cls, module_name)
+        super(ProjectUsers, cls).__register__(module_name)
+        # Migration
+        if table.table_exist(cursor, 'project_work_nereid_user_rel'):
+            table.table_rename(
+                cursor, 'project_work_nereid_user_rel',
+                'project_work-nereid_user'
+            )
 
 
 class ProjectInvitation(ModelSQL, ModelView):
     "Project Invitation store"
-    _name = 'project.work.invitation'
-    _description = __doc__
+    __name__ = 'project.work.invitation'
 
     email = fields.Char('Email', required=True, select=True)
     invitation_code = fields.Char(
@@ -109,38 +114,44 @@ class ProjectInvitation(ModelSQL, ModelView):
         'get_joining_date'
     )
 
-    def get_joining_date(self, ids, name=None):
-        """Joining Date of User
+    @classmethod
+    def __setup__(cls):
+        super(ProjectInvitation, cls).__setup__()
+        cls._sql_constraints += [
+            (
+                'invitation_code_unique',
+                'UNIQUE(invitation_code)',
+                'Invitation code cannot be same',
+            ),
+        ]
+
+    @staticmethod
+    def default_invitation_code():
         """
-        vals = {}
-        for invite in self.browse(ids):
-            if invite.nereid_user:
-                vals[invite.id] = invite.nereid_user.create_date
-        return vals
+        Sets the default invitation code as uuid everytime
+        """
+        return unicode(uuid.uuid4())
 
-    def create(self, vals):
-        existing_invite = self.search([
-            ('invitation_code', '=', vals['invitation_code'])
-        ])
-        if existing_invite:
-            vals['invitation_code'] = ''.join(
-                random.sample(string.letters + string.digits, 20)
-            )
-
-        return super(ProjectInvitation, self).create(vals)
+    def get_joining_date(self, name):
+        """
+        Joining Date of User
+        """
+        if self.nereid_user:
+            return self.nereid_user.create_date
 
     @login_required
-    def remove_invite(self, invitation_id):
-        """Remove the invite to a participant from project
+    def remove_invite(self):
+        """
+        Remove the invite to a participant from project
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            flash("Sorry! You are not allowed to remove invited users. \
-                Contact your project admin for the same.")
+        if not request.nereid_user.is_project_admin():
+            flash("Sorry! You are not allowed to remove invited users." +
+                " Contact your project admin for the same.")
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            self.delete(invitation_id)
+            self.delete([self])
 
             if request.is_xhr:
                 return jsonify({
@@ -152,28 +163,26 @@ class ProjectInvitation(ModelSQL, ModelView):
         return redirect(request.referrer)
 
     @login_required
-    def resend_invite(self, invitation_id):
+    def resend_invite(self):
         """Resend the invite to a participant
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin(request.nereid_user):
+        if not request.nereid_user.is_project_admin():
             flash("Sorry! You are not allowed to resend invites. \
                 Contact your project admin for the same.")
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            invitation = self.browse(invitation_id)
-
             subject = '[%s] You have been re-invited to join the project' \
-                % invitation.project.name
+                % self.project.name
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
-                subject=subject, to=invitation.email,
-                from_email=CONFIG['smtp_from'], project=invitation.project,
-                invitation=invitation
+                subject=subject, to=self.email,
+                from_email=CONFIG['smtp_from'], project=self.project,
+                invitation=self
             )
             server = get_smtp_server()
-            server.sendmail(CONFIG['smtp_from'], [invitation.email],
+            server.sendmail(CONFIG['smtp_from'], [self.email],
                 email_message.as_string())
             server.quit()
 
@@ -182,16 +191,13 @@ class ProjectInvitation(ModelSQL, ModelView):
                     'success': True,
                 })
 
-            flash("Invitation has been resent to %s." % invitation.email)
+            flash("Invitation has been resent to %s." % self.email)
         return redirect(request.referrer)
-
-ProjectInvitation()
 
 
 class ProjectWorkInvitation(ModelSQL):
     "Project Work Invitation"
-    _name = 'project.work-project.invitation'
-    _description = __doc__
+    __name__ = 'project.work-project.invitation'
 
     invitation = fields.Many2One(
         'project.work.invitation', 'Invitation',
@@ -202,95 +208,8 @@ class ProjectWorkInvitation(ModelSQL):
         ondelete='CASCADE', select=1, required=True
     )
 
-ProjectWorkInvitation()
 
-
-class WorkPeriod(ModelSQL, ModelView):
-    'Work Period'
-    _name= 'project.work.period'
-    _description = __doc__
-
-    name = fields.Char('Name', required=True)
-    start_date = fields.Date('Starting Date', required=True, select=True)
-    end_date = fields.Date('Ending Date', required=True, select=True)
-    active = fields.Boolean('Active')
-
-    def default_active(self):
-        return True
-
-    def __init__(self):
-        super(WorkPeriod, self).__init__()
-        self._constraints += [
-            ('check_dates', 'periods_overlaps'),
-        ]
-        self._order.insert(0, ('start_date', 'ASC'))
-        self._error_messages.update({
-            'periods_overlaps': 'You can not have two overlapping periods!',
-        })
-
-    def check_dates(self, ids):
-        cursor = Transaction().cursor
-        for period in self.browse(ids):
-            cursor.execute('SELECT id ' \
-                'FROM "' + self._table + '" ' \
-                'WHERE ((start_date <= %s AND end_date >= %s) ' \
-                        'OR (start_date <= %s AND end_date >= %s) ' \
-                        'OR (start_date >= %s AND end_date <= %s)) ' \
-                    'AND id != %s',
-                (period.start_date, period.start_date,
-                    period.end_date, period.end_date,
-                    period.start_date, period.end_date,
-                    period.id))
-            if cursor.fetchone():
-                return False
-        return True
-
-    @login_required
-    def create_work_periods(self):
-        """Create weekly work periods between the dates provided
-        """
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            flash("Sorry! You are not allowed to create new periods. \
-                Contact your project admin for the same.")
-            return redirect(request.referrer)
-
-        if request.method == 'POST':
-            period_start_date = start_date = datetime.strptime(
-                request.form.get('start_date'), '%m/%d/%Y')
-            end_date = datetime.strptime(
-                request.form.get('end_date'), '%m/%d/%Y')
-            while period_start_date < end_date:
-                period_end_date = period_start_date + \
-                    relativedelta(days=7)
-                if period_end_date > end_date:
-                    period_end_date = end_date
-                name = datetime_strftime(period_start_date, '%d/%b')
-                if name != datetime_strftime(period_end_date, '%d/%b'):
-                    name += ' - ' + datetime_strftime(period_end_date, '%d/%b')
-                self.create({
-                    'name': name,
-                    'start_date': period_start_date,
-                    'end_date': period_end_date,
-                })
-                period_start_date = period_end_date + relativedelta(days=1)
-            flash("Periods successfully created.")
-            return redirect(url_for('project.work.period.render_periods'))
-
-    @login_required
-    def render_periods(self):
-        """Render list of all work periods
-        """
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            abort(404)
-
-        period_ids = self.search([])
-        periods = self.browse(period_ids)
-        return render_template('project/periods.jinja', periods=periods)
-
-WorkPeriod()
-
-
-class Project(ModelSQL, ModelView):
+class Project:
     """
     Tryton itself is very flexible in allowing multiple layers of Projects and
     sub projects. But having this and implementing this seems to be too
@@ -300,10 +219,11 @@ class Project(ModelSQL, ModelView):
        |
        |-- Task (Type is task)
     """
-    _name = 'project.work'
+    __name__ = 'project.work'
 
     history = fields.One2Many('project.work.history', 'project',
-        'History', readonly=True)
+        'History', readonly=True
+    )
     participants = fields.Many2Many(
         'project.work-nereid.user', 'project', 'user',
         'Participants'
@@ -358,109 +278,99 @@ class Project(ModelSQL, ModelView):
         }
     )
 
-    work_period = fields.Many2One(
-        'project.work.period', 'Work Period',
-        states={
-            'invisible': Eval('type') != 'task',
-            'readonly': Eval('type') != 'task',
-        }, select=True
-    )
-
     repo_commits = fields.One2Many(
         'project.work.commit', 'project', 'Repo Commits'
     )
 
-    def default_progress_state(self):
+    @staticmethod
+    def default_progress_state():
+        '''
+        Default for progress state
+        '''
         return 'Backlog'
 
-    def __init__(self):
-        super(Project, self).__init__()
-
+    @classmethod
     @login_required
-    def home(self):
+    def home(cls):
         """
         Put recent projects into the home
         """
-        user_obj = Pool().get('nereid.user')
-        project_obj = Pool().get('project.work')
-
-        # TODO: Limit to the last 5 projects
-        if user_obj.is_project_admin(request.nereid_user):
-            project_ids = project_obj.search([
+        if request.nereid_user.is_project_admin():
+            # Display all projects to project admin
+            projects = cls.search([
                 ('type', '=', 'project'),
                 ('parent', '=', False),
             ])
         else:
-            project_ids = project_obj.search([
+            projects = cls.search([
                 ('participants', '=', request.nereid_user.id),
                 ('type', '=', 'project'),
                 ('parent', '=', False),
             ])
-        projects = project_obj.browse(project_ids)
         if request.is_xhr:
             return jsonify({
                 'itemCount': len(projects),
-                'items': map(project_obj.serialize, projects),
+                'items': map(lambda project: project.serialize(), projects),
             })
         return render_template('project/home.jinja', projects=projects)
 
-    def serialize(self, record):
+    def serialize(self):
         """
         Serialize a record, which could be a task or project
 
-        :param record: Browse record
         """
         assigned_to = None
-        if record.assigned_to:
+        if self.assigned_to:
             assigned_to = {
-                'id': record.assigned_to.id,
-                'display_name': record.assigned_to.display_name,
+                'id': self.assigned_to.id,
+                'display_name': self.assigned_to.display_name,
             }
 
         return {
-            'id': record.id,
-            'name': record.name,
-            'type': record.type,
-            'parent': record.parent and record.parent.id or None,
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'parent': self.parent and self.parent.id or None,
             # Task specific
-            'tags': map(lambda t: t.name, record.tags),
+            'tags': map(lambda t: t.name, self.tags),
             'assigned_to': assigned_to,
-            'attachments': len(record.attachments),
-            'progress_state': record.progress_state,
-            'comment': record.comment,
-            'effort': record.effort,
-            'total_effort': record.total_effort,
-            'constraint_finish_time': record.constraint_finish_time and record.constraint_finish_time.isoformat() or None,
+            'attachments': len(self.attachments),
+            'progress_state': self.progress_state,
+            'comment': self.comment,
+            'effort': self.effort,
+            'total_effort': self.total_effort,
+            'constraint_finish_time': self.constraint_finish_time and \
+                self.constraint_finish_time.isoformat() or None,
         }
 
-    def rst_to_html(self):
+    @classmethod
+    def rst_to_html(cls):
         """
         Return the response as rst converted to html
         """
         text = request.form['text']
         return render_template('project/rst_to_html.jinja', text=text)
 
-    def get_attachments(self, ids, name=None):
+    def get_attachments(self, name):
         """
         Return all the attachments in the object
         """
-        attachment_obj = Pool().get('ir.attachment')
+        Attachment = Pool().get('ir.attachment')
 
-        vals = {}
-        for project_id in ids:
-            attachments = attachment_obj.search([
-                ('resource', '=', '%s,%d' % (self._name, project_id))
+        return map(
+            int, Attachment.search([
+                ('resource', '=', '%s,%d' % (self.__name__, self.id))
             ])
-            vals[project_id] = attachments
-        return vals
+        )
 
-    def get_all_participants(self, ids, name=None):
+    @classmethod
+    def get_all_participants(cls, works, name):
         """
         All participants includes the participants in the project and also
         the admins
         """
         vals = {}
-        for work in self.browse(ids):
+        for work in works:
             vals[work.id] = []
             vals[work.id].extend([p.id for p in work.participants])
             vals[work.id].extend([p.id for p in work.company.project_admins])
@@ -471,7 +381,13 @@ class Project(ModelSQL, ModelView):
             vals[work.id] = list(set(vals[work.id]))
         return vals
 
-    def create(self, values):
+    @classmethod
+    def create(cls, values):
+        '''
+        Create a Project.
+
+        :param values: Values to create project.
+        '''
         if has_request_context():
             values['created_by'] = request.nereid_user.id
             if values['type'] == 'task':
@@ -482,46 +398,41 @@ class Project(ModelSQL, ModelView):
         else:
             # TODO: identify the nereid user through employee
             pass
-        return super(Project, self).create(values)
+        return super(Project, cls).create(values)
 
-    def can_read(self, project, user):
+    def can_read(self, user):
         """
         Returns true if the given nereid user can read the project
 
-        :param project: The browse record of the project
         :param user: The browse record of the current nereid user
         """
-        nereid_user_obj = Pool().get('nereid.user')
-
-        if nereid_user_obj.is_project_admin(user):
+        if user.is_project_admin():
             return True
-        if not user in project.participants:
+        if not user in self.participants:
             raise abort(404)
         return True
 
-    def can_write(self, project, user):
+    def can_write(self, user):
         """
         Returns true if the given user can write to the project
 
-        :param project: The browse record of the project
         :param user: The browse record of the current nereid user
         """
-        nereid_user_obj = Pool().get('nereid.user')
-
-        if nereid_user_obj.is_project_admin(user):
+        if user.is_project_admin():
             return True
-        if not user in project.participants:
+        if not user in self.participants:
             raise abort(404)
         return True
 
-    def get_project(self, project_id):
+    @classmethod
+    def get_project(cls, project_id):
         """
         Common base for fetching the project while validating if the user
         can use it.
 
-        :param project_id: ID of the project
+        :param project_id: Project Id of project to fetch.
         """
-        project = self.search([
+        project, = cls.search([
             ('id', '=', project_id),
             ('type', '=', 'project'),
         ])
@@ -529,22 +440,21 @@ class Project(ModelSQL, ModelView):
         if not project:
             raise abort(404)
 
-        project = self.browse(project[0])
-
-        if not self.can_read(project, request.nereid_user):
+        if not project.can_read(request.nereid_user):
             # If the user is not allowed to access this project then dont let
             raise abort(404)
 
         return project
 
-    def get_task(self, task_id):
+    @classmethod
+    def get_task(cls, task_id):
         """
         Common base for fetching the task while validating if the user
         can use it.
 
-        :param task_id: ID of the task
+        :param task_id: Task Id of project to fetch.
         """
-        task = self.search([
+        task, = cls.search([
             ('id', '=', task_id),
             ('type', '=', 'task'),
         ])
@@ -552,72 +462,82 @@ class Project(ModelSQL, ModelView):
         if not task:
             raise abort(404)
 
-        task = self.browse(task[0])
-
-        if not self.can_write(task.parent, request.nereid_user):
+        if not task.parent.can_write(request.nereid_user):
             # If the user is not allowed to access this project then dont let
             raise abort(403)
 
         return task
 
-    def get_tasks_by_tag(self, tag_id):
-        """Return the tasks associated with a tag
+    @classmethod
+    def get_tasks_by_tag(cls, tag_id):
         """
-        task_tag_obj = Pool().get('project.work-project.work.tag')
-        tasks = task_tag_obj.search([
+        Return the tasks associated with a tag
+
+        :param tag_id: tag Id of which tasks to fetch.
+        """
+        TaskTags = Pool().get('project.work-project.work.tag')
+
+        tasks = map(int, TaskTags.search([
             ('tag', '=', tag_id),
             ('task.state', '=', 'opened'),
-        ])
+        ]))
         return tasks
 
+    @classmethod
     @login_required
-    def render_project(self, project_id):
+    def render_project(cls, project_id):
         """
         Renders a project
+
+        :param project_id: Project Id of project to render.
         """
-        project = self.get_project(project_id)
+        # TODO: Convert to instance method
+        project = cls.get_project(project_id)
         return render_template(
             'project/project.jinja', project=project, active_type_name="recent"
         )
 
+    @classmethod
     @login_required
-    def create_project(self):
+    def create_project(cls):
         """Create a new project
 
         POST will create a new project
         """
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            flash("Sorry! You are not allowed to create new projects. \
-                Contact your project admin for the same.")
+        if not request.nereid_user.is_project_admin():
+            flash("Sorry! You are not allowed to create new projects." +
+            " Contact your project admin for the same.")
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            project_id = self.create({
+            project = cls.create({
                 'name': request.form['name'],
                 'type': 'project',
             })
             flash("Project successfully created.")
             return redirect(
-                url_for('project.work.render_project', project_id=project_id)
+                url_for('project.work.render_project', project_id=project.id)
             )
 
         flash("Could not create project. Try again.")
         return redirect(request.referrer)
 
     @login_required
-    def create_task(self, project_id):
+    def create_task(self):
         """Create a new task for the specified project
 
         POST will create a new task
         """
-        nereid_user_obj = Pool().get('nereid.user')
-        project = self.get_project(project_id)
+        NereidUser = Pool().get('nereid.user')
+
+        project = self.get_project(self.id)
+
         # Check if user is among the participants
-        self.can_write(project, request.nereid_user)
+        self.can_write(request.nereid_user)
 
         if request.method == 'POST':
             data = {
-                'parent': project_id,
+                'parent': self.id,
                 'name': request.form['name'],
                 'type': 'task',
                 'comment': request.form.get('description', False),
@@ -634,25 +554,23 @@ class Project(ModelSQL, ModelView):
                 data['constraint_finish_time'] = datetime.strptime(
                     constraint_finish_time, '%m/%d/%Y')
 
-            task_id = self.create(data)
+            task = self.create(data)
 
-            email_receivers = [p.email for p in project.all_participants]
+            email_receivers = [p.email for p in self.all_participants]
             if request.form.get('assign_to', False):
-                assignee = nereid_user_obj.browse(
-                    int(request.form.get('assign_to'))
-                )
-                self.write(task_id, {
+                assignee = NereidUser(request.form.get('assign_to', type=int))
+                self.write([task], {
                     'assigned_to': assignee.id,
                     'participants': [
                         ('add', [assignee.id])
                     ]
                 })
                 email_receivers = [assignee.email]
-            flash("Task successfully added to project %s" % project.name)
-            self.send_mail(task_id, email_receivers)
+            flash("Task successfully added to project %s" % self.name)
+            task.send_mail(email_receivers)
             return redirect(
                 url_for('project.work.render_task',
-                    project_id=project_id, task_id=task_id
+                    project_id=self.id, task_id=task.id
                 )
             )
 
@@ -660,12 +578,13 @@ class Project(ModelSQL, ModelView):
         return redirect(request.referrer)
 
     @login_required
-    def edit_task(self, task_id):
-        """Edit the task
+    def edit_task(self):
         """
-        task = self.get_task(task_id)
+        Edit the task
+        """
+        task = self.get_task(self.id)
 
-        self.write(task.id, {
+        self.write([task], {
             'name': request.form.get('name'),
             'comment': request.form.get('comment')
         })
@@ -673,28 +592,25 @@ class Project(ModelSQL, ModelView):
         if request.is_xhr:
             return jsonify({
                 'success': True,
-                'name': task.name,
-                'comment': task.comment,
+                'name': self.name,
+                'comment': self.comment,
             })
         return redirect(request.referrer)
 
-    def send_mail(self, task_id, receivers=None):
+    def send_mail(self, receivers=None):
         """Send mail when task created.
 
-        :param task_id: ID of task
         :param receivers: Receivers of email.
         """
-        task = self.browse(task_id)
-
         subject = "[#%s %s] - %s" % (
-            task.id, task.parent.name, task.name
+            self.id, self.parent.name, self.name
         )
 
         if not receivers:
-            receivers = [s.email for s in task.participants
+            receivers = [s.email for s in self.participants
                          if s.email]
-        if task.created_by.email in receivers:
-            receivers.remove(task.created_by.email)
+        if self.created_by.email in receivers:
+            receivers.remove(self.created_by.email)
 
         if not receivers:
             return
@@ -705,7 +621,7 @@ class Project(ModelSQL, ModelView):
             subject=subject,
             text_template='project/emails/project_text_content.jinja',
             html_template='project/emails/project_html_content.jinja',
-            task=task,
+            task=self,
             updated_by=request.nereid_user.name
         )
 
@@ -715,18 +631,19 @@ class Project(ModelSQL, ModelView):
             message.as_string())
         server.quit()
 
+    @classmethod
     @login_required
-    def unwatch(self, task_id):
+    def unwatch(cls, task_id):
         """
         Remove the current user from the participants of the task
 
-        :param task_id: Id of the task
+        :params task_id: task's id to unwatch.
         """
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
         if request.nereid_user in task.participants:
-            self.write(
-                task.id, {
+            cls.write(
+                [task], {
                     'participants': [('unlink', [request.nereid_user.id])]
                 }
             )
@@ -734,18 +651,19 @@ class Project(ModelSQL, ModelView):
             return jsonify({'success': True})
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def watch(self, task_id):
+    def watch(cls, task_id):
         """
         Add the current user from the participants of the task
 
-        :param task_id: Id of the task
+        :params task_id: task's id to watch.
         """
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
         if request.nereid_user not in task.participants:
-            self.write(
-                task.id, {
+            cls.write(
+                [task], {
                     'participants': [('add', [request.nereid_user.id])]
                 }
             )
@@ -753,84 +671,87 @@ class Project(ModelSQL, ModelView):
             return jsonify({'success': True})
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def permissions(self, project_id):
+    def permissions(cls, project_id):
         """
         Permissions for the project
-        """
-        project_invitation_obj = Pool().get('project.work.invitation')
-        project = self.get_project(project_id)
 
-        invitation_ids = project_invitation_obj.search([
+        :params project_id: project's id to check permission
+        """
+        ProjectInvitation = Pool().get('project.work.invitation')
+
+        project = cls.get_project(project_id)
+
+        invitations = ProjectInvitation.search([
             ('project', '=', project.id),
             ('nereid_user', '=', False)
         ])
-        invitations = project_invitation_obj.browse(invitation_ids)
         return render_template(
-            'project/permissions.jinja', project=project,
+            'project/project-permissions.jinja', project=project,
             invitations=invitations, active_type_name='permissions'
         )
 
+    @classmethod
     @login_required
-    def projects_list(self, page=1):
+    def projects_list(cls, page=1):
         """
         Render a list of projects
         """
-        projects = self.search([
+        projects = cls.search([
             ('party', '=', request.nereid_user.party),
         ])
         return render_template('project/projects.jinja', projects=projects)
 
+    @classmethod
     @login_required
-    def invite(self, project_id):
+    def invite(cls, project_id):
         """Invite a user via email to the project
 
         :param project_id: ID of Project
         """
-        nereid_user_obj = Pool().get('nereid.user')
-        project_invitation_obj = Pool().get('project.work.invitation')
-        data_obj = Pool().get('ir.model.data')
+        NereidUser = Pool().get('nereid.user')
+        ProjectInvitation = Pool().get('project.work.invitation')
 
         if not request.method == 'POST':
             return abort(404)
 
-        project = self.get_project(project_id)
-
+        project = cls.get_project(project_id)
         email = request.form['email']
 
-        existing_user_id = nereid_user_obj.search([
+        existing_user = NereidUser.search([
             ('email', '=', email),
             ('company', '=', request.nereid_website.company.id),
         ], limit=1)
+
         subject = '[%s] You have been invited to join the project' \
             % project.name
+        if existing_user:
+            # If participant already existed 
+            if existing_user[0] in project.participants:
+                flash("%s has been already added as a participant \
+                    for the project" % existing_user[0].display_name)
+                return redirect(request.referrer)
 
-        if existing_user_id:
-            existing_user = nereid_user_obj.browse(existing_user_id[0])
             email_message = render_email(
-                text_template='project/emails/inform_addition_2_project_text.html',
+                text_template=
+                    'project/emails/inform_addition_2_project_text.html',
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
-                project=project, user=existing_user
+                project=project, user=existing_user[0]
             )
-            self.write(
-                project.id, {
-                    'participants': [('add', existing_user_id)]
+            cls.write(
+                [project], {
+                    'participants': [('add', [existing_user[0].id])]
                 }
             )
             flash_message = "%s has been invited to the project" \
-                % existing_user.display_name
+                % existing_user[0].display_name
 
         else:
-            invitation_code = ''.join(
-                random.sample(string.letters + string.digits, 20)
-            )
-
-            new_invite_id = project_invitation_obj.create({
+            new_invite = ProjectInvitation.create({
                 'email': email,
                 'project': project.id,
-                'invitation_code': invitation_code
             })
-            new_invite = project_invitation_obj.browse(new_invite_id)
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
@@ -851,35 +772,35 @@ class Project(ModelSQL, ModelView):
         return redirect(request.referrer)
 
     @login_required
-    def remove_participant(self, project_id, participant_id):
+    def remove_participant(self, participant_id):
         """Remove the participant form project
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            flash("Sorry! You are not allowed to remove participants. \
-                Contact your project admin for the same.")
+        if not request.nereid_user.is_project_admin():
+            flash("Sorry! You are not allowed to remove participants." +
+                " Contact your project admin for the same.")
             return redirect(request.referrer)
 
         if request.method == 'POST' and request.is_xhr:
-            project = self.get_project(project_id)
-            records_to_update = [project.id]
-            records_to_update.extend([child.id for child in project.children])
+            records_to_update_ids = [self.id]
+            records_to_update_ids.extend([child.id for child in self.children])
             # If this participant is assigned to any task in this project,
             # that user cannot be removed as tryton's domain does not permit
             # this.
             # So removing assigned user from those tasks as well.
             # TODO: Find a better way to do it, this is memory intensive
             assigned_to_participant = self.search([
-                ('id', 'in', records_to_update),
+                ('id', 'in', records_to_update_ids),
                 ('assigned_to', '=', participant_id)
             ])
             self.write(assigned_to_participant, {
                 'assigned_to': False,
             })
             self.write(
-                records_to_update, {
-                    'participants': [('unlink', [participant_id])]
-                }
+                map(
+                    lambda rec_id:
+                        self.__class__(rec_id), records_to_update_ids
+                ), {'participants': [('unlink', [participant_id])]}
             )
 
             return jsonify({
@@ -889,13 +810,13 @@ class Project(ModelSQL, ModelView):
         flash("Could not remove participant! Try again.")
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def render_task_list(self, project_id):
+    def render_task_list(cls, project_id):
         """
         Renders a project's task list page
         """
-        tag_task_obj = Pool().get('project.work-project.work.tag')
-        project = self.get_project(project_id)
+        project = cls.get_project(project_id)
         state = request.args.get('state', None)
         page = request.args.get('page', 1, int)
 
@@ -920,13 +841,13 @@ class Project(ModelSQL, ModelView):
             filter_domain.append(('assigned_to', '=', user))
 
         counts = {}
-        counts['opened_tasks_count'] = self.search(
+        counts['opened_tasks_count'] = cls.search(
             filter_domain + [('state', '=', 'opened')], count=True
         )
-        counts['done_tasks_count'] = self.search(
+        counts['done_tasks_count'] = cls.search(
             filter_domain + [('state', '=', 'done')], count=True
         )
-        counts['all_tasks_count'] = self.search(
+        counts['all_tasks_count'] = cls.search(
             filter_domain, count=True
         )
 
@@ -934,33 +855,31 @@ class Project(ModelSQL, ModelView):
             filter_domain.append(('state', '=', state))
 
         if request.is_xhr:
-            tasks = self.browse(self.search(filter_domain))
+            tasks = cls.search(filter_domain)
             return jsonify({
-                'items': map(self.serialize, tasks),
+                'items': map(lambda task: task.serialize(), tasks),
                 'domain': filter_domain,
             })
 
-        tasks = Pagination(self, filter_domain, page, 20)
+        tasks = Pagination(cls, filter_domain, page, 10)
         return render_template(
-            'project/task-list.jinja', project=project,
+            'project/project-task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
             state_filter=state, tasks=tasks
         )
 
+    @classmethod
     @login_required
-    def my_tasks(self):
+    def my_tasks(cls):
         """
         Renders all tasks of the user in all projects
         """
-        tag_task_obj = Pool().get('project.work-project.work.tag')
         state = request.args.get('state', None)
-        page = request.args.get('page', 1, int)
 
         filter_domain = [
             ('type', '=', 'task'),
             ('assigned_to', '=', request.nereid_user.id)
         ]
-
         query = request.args.get('q', None)
         if query:
             # This search is probably the suckiest search in the
@@ -973,24 +892,24 @@ class Project(ModelSQL, ModelView):
             filter_domain.append(('tags', '=', tag))
 
         counts = {}
-        counts['opened_tasks_count'] = self.search(
+        counts['opened_tasks_count'] = cls.search(
             filter_domain + [('state', '=', 'opened')], count=True
         )
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        task_ids = self.search(filter_domain, order=[('progress_state', 'ASC')])
+
+        tasks = cls.search(filter_domain, order=[('progress_state', 'ASC')])
 
         if request.is_xhr:
-            tasks = self.browse(task_ids)
             return jsonify({
-                'items': map(self.serialize, tasks),
+                'items': map(lambda task: task.serialize(), tasks),
                 'domain': filter_domain,
             })
 
         # Group and return tasks for regular web viewing
         tasks_by_state = defaultdict(list)
-        for task in self.browse(task_ids):
+        for task in tasks:
             tasks_by_state[task.progress_state].append(task)
         return render_template(
             'project/global-task-list.jinja',
@@ -999,49 +918,55 @@ class Project(ModelSQL, ModelView):
             states=PROGRESS_STATES
         )
 
+    @classmethod
     @login_required
-    def render_task(self, task_id, project_id=None):
+    def render_task(cls, task_id, project_id):
         """
         Renders the task in a project
         """
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
         comments = sorted(
-            task.history + task.timesheet_lines + task.attachments + task.repo_commits,
-            key=lambda x: x.create_date
+            task.history + task.timesheet_lines + task.attachments + \
+                task.repo_commits, key=lambda x: x.create_date
         )
 
         hours={}
         for line in task.timesheet_lines:
-            hours[line.employee] = hours.setdefault(line.employee, 0) + line.hours
+            hours[line.employee] = hours.setdefault(line.employee, 0) + \
+                    line.hours
 
         if request.is_xhr:
-            response = self.serialize(task)
+            response = cls.serialize(task)
             return jsonify(response)
 
         return render_template(
-            'project/task.jinja', task=task, active_type_name='render_task_list',
-            project=task.parent, comments=comments,
-            timesheet_summary=hours
+            'project/task.jinja', task=task, \
+            active_type_name='render_task_list', project=task.parent,
+            comments=comments, timesheet_summary=hours
         )
 
+    @classmethod
     @login_required
-    def render_files(self, project_id):
-        project = self.get_project(project_id)
+    def render_files(cls, project_id):
+        project = cls.get_project(project_id)
         other_attachments = chain.from_iterable(
-            [list(task.attachments) for task in project.children if task.attachments]
+            [list(task.attachments) for task in project.children if \
+                task.attachments]
         )
         return render_template(
-            'project/files.jinja', project=project, active_type_name='files',
-            guess_type=guess_type, other_attachments=other_attachments
+            'project/project-files.jinja', project=project,
+            active_type_name='files', guess_type=guess_type,
+            other_attachments=other_attachments
         )
 
-    def _get_expected_date_range(self):
+    @classmethod
+    def _get_expected_date_range(cls):
         """Return the start and end date based on the GET arguments.
         Also asjust for the full calendar asking for more information than
         it actually must show
 
-        The last argument of the tuple returns a boolean to show if the 
+        The last argument of the tuple returns a boolean to show if the
         weekly table/aggregation should be displayed
         """
         start = datetime.fromtimestamp(
@@ -1063,7 +988,8 @@ class Project(ModelSQL, ModelView):
             date(year=mid_date.year, month=mid_date.month, day=last_day),
         )
 
-    def get_week(self, day):
+    @classmethod
+    def get_week(cls, day):
         """
         Return the week for any given day
         """
@@ -1076,15 +1002,16 @@ class Project(ModelSQL, ModelView):
         else:
             return '22-END'
 
-    def get_calendar_data(self, domain=None):
+    @classmethod
+    def get_calendar_data(cls, domain=None):
         """
         Returns the calendar data
 
         :param domain: List of tuple to add to the domain expression
         """
-        timesheet_obj = Pool().get('timesheet.line')
+        Timesheet = Pool().get('timesheet.line')
 
-        start, end = self._get_expected_date_range()
+        start, end = cls._get_expected_date_range()
 
         if domain is None:
             domain = []
@@ -1092,25 +1019,23 @@ class Project(ModelSQL, ModelView):
             ('date', '>=', start),
             ('date', '<=', end),
         ]
+
         if request.args.get('employee', None) and \
-                request.nereid_user.has_permissions(request.nereid_user, ['project.admin']):
+            request.nereid_user.has_permissions(['project.admin']):
             domain.append(
                 ('employee', '=', request.args.get('employee', None, int))
             )
-        line_ids = timesheet_obj.search(
+        lines = Timesheet.search(
             domain, order=[('date', 'asc'), ('employee', 'asc')]
         )
 
-
         hours_by_day_employee = defaultdict(lambda: defaultdict(float))
         hours_by_week_employee = defaultdict(lambda: defaultdict(float))
-        get_week = self.get_week
 
-        lines = timesheet_obj.browse(line_ids)
         for line in lines:
             hours_by_day_employee[line.date][line.employee] += line.hours
-            hours_by_week_employee[get_week(line.date.day)][line.employee] += line.hours
-            
+            hours_by_week_employee[cls.get_week(line.date.day)] \
+                [line.employee] += line.hours
 
         day_totals = []
         color_map = {}
@@ -1119,7 +1044,7 @@ class Project(ModelSQL, ModelView):
             'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
             'maroon', 'PaleTurquoise'
         ])
-        day_totals_append = day_totals.append # Performance speedup
+        day_totals_append = day_totals.append  # Performance speedup
         for date, employee_hours in hours_by_day_employee.iteritems():
             for employee, hours in employee_hours.iteritems():
                 day_totals_append({
@@ -1132,19 +1057,24 @@ class Project(ModelSQL, ModelView):
                 })
 
         def get_task_from_work(work):
-            with Transaction().set_context(active_test=False):
-                task_id, = self.search([('work', '=', work.id)])
-                return self.browse(task_id)
+            '''
+            Returns task from work
 
-        reverse_lines = line_ids[::-1]
+            :param work: Instance of work
+            '''
+            with Transaction().set_context(active_test=False):
+                task, = cls.search([('work', '=', work.id)], limit=1)
+                return task
+
+        reverse_lines = lines[::-1]
         lines = [
             render_template(
                     'project/timesheet-line.jinja', line=line,
                     related_task=get_task_from_work(line.work)
                 ) \
-                for line in timesheet_obj.browse(reverse_lines)
+                for line in reverse_lines
         ]
-        
+
         total_by_employee = defaultdict(float)
         for employee_hours in hours_by_week_employee.values():
             for employee, hours in employee_hours.iteritems():
@@ -1156,33 +1086,32 @@ class Project(ModelSQL, ModelView):
         )
         return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
 
+    @classmethod
     @login_required
-    def get_7_day_performance(self):
+    def get_7_day_performance(cls):
         """
         Returns the hours worked in the last 7 days.
         """
-        employee_obj = Pool().get('company.employee')
-        timesheet_obj = Pool().get('timesheet.line')
-        date_obj = Pool().get('ir.date')
+        Timesheet = Pool().get('timesheet.line')
+        Date_ = Pool().get('ir.date')
 
         if not request.nereid_user.employee:
             return jsonify({})
 
-        end_date = date_obj.today()
+        end_date = Date_.today()
         start_date = end_date - relativedelta(days=7)
 
-        timesheet_line_ids = timesheet_obj.search([
+        timesheet_lines = Timesheet.search([
             ('date', '>=', start_date),
             ('date', '<=', end_date),
             ('employee', '=', request.nereid_user.employee.id),
         ])
-        timesheet_lines = timesheet_obj.browse(timesheet_line_ids)
 
         hours_by_day = {}
 
         for line in timesheet_lines:
             hours_by_day[line.date] = \
-                    hours_by_day.setdefault(line.date, 0.0) + line.hours
+                hours_by_day.setdefault(line.date, 0.0) + line.hours
 
         days = hours_by_day.keys()
         days.sort()
@@ -1196,16 +1125,19 @@ class Project(ModelSQL, ModelView):
         """
         Compare the performance of people
         """
-        date_obj = Pool().get('ir.date')
-        employee_obj = Pool().get('company.employee')
+        Date = Pool().get('ir.date')
+        Employee = Pool().get('company.employee')
 
         employee_ids = request.args.getlist('employee', type=int)
         if not employee_ids:
-            employee_ids = employee_obj.search([])
-        
-        employees = dict(zip(employee_ids, employee_obj.browse(employee_ids)))
+            employees = Employee.search([])
+            employee_ids = map(lambda emp: emp.id, employees)
+        else:
+            employees = Employee.browse(employee_ids)
 
-        end_date = date_obj.today()
+        employees = dict(zip(employee_ids, employees))
+
+        end_date = Date.today()
         if request.args.get('end_date'):
             end_date = parse_date(
                     request.args['end_date'],
@@ -1226,9 +1158,9 @@ class Project(ModelSQL, ModelView):
 
         Transaction().cursor.execute(
             'SELECT * FROM timesheet_by_employee_by_day '
-            'WHERE "date" >= %s ' 
-            'AND "date" <= %s ' 
-            'AND "employee" in %s ' 
+            'WHERE "date" >= %s '
+            'AND "date" <= %s '
+            'AND "employee" in %s '
             'ORDER BY "date"',
             (start_date, end_date, tuple(employee_ids))
         )
@@ -1239,8 +1171,8 @@ class Project(ModelSQL, ModelView):
         )
         hours_by_date_by_employee = {}
         for employee_id, line_date, hours in raw_data:
-            hours_by_date_by_employee.setdefault(line_date, {})[employee_id] = hours
-        
+            hours_by_date_by_employee.setdefault(line_date, {}) \
+                [employee_id] = hours
 
         series = []
         for employee_id in employee_ids:
@@ -1249,44 +1181,48 @@ class Project(ModelSQL, ModelView):
                 'name': employee and employee.name or 'Ghost',
                 'type': 'column',
                 'data': map(
-                    lambda d: hours_by_date_by_employee.get(d, {}).get(employee_id, 0),
-                    categories
+                    lambda d: \
+                        hours_by_date_by_employee.get(d, {}) \
+                        .get(employee_id, 0), categories
                 )
             })
 
         additional = [{
             'type': 'pie',
             'name': 'Total Hours',
-            'data': map(lambda d: {'name': d['name'], 'y': sum(d['data'])}, series),
+            'data': map(
+                lambda d: {'name': d['name'], 'y': sum(d['data'])}, series
+            ),
             'center': [40, 40],
             'size': 100,
             'showInLegend': False,
             'dataLabels': {
                 'enabled': False
             }
-        }] 
+        }]
         additional.extend([{
             'type': 'line',
             'name': '{0} Avg'.format(serie['name']),
             'data': [sum(serie['data']) / len(serie['data'])] * len(categories),
         } for serie in series])
-         
+
         return jsonify(
             categories=map(lambda d: d.strftime('%d-%b'), categories),
             series=series + additional
         )
-        
+
     def get_gantt_data(self):
         """
         Get gantt data for the last 1 month.
         """
-        date_obj = Pool().get('ir.date')
-        employee_obj = Pool().get('company.employee')
+        Date = Pool().get('ir.date')
+        Employee = Pool().get('company.employee')
 
-        employee_ids = employee_obj.search([])
-        employees = dict(zip(employee_ids, employee_obj.browse(employee_ids)))
+        employees = Employee.search([])
+        employee_ids = map(lambda emp: emp.id, employees)
+        employees = dict(zip(employee_ids, employees))
 
-        today = date_obj.today()
+        today = Date.today()
         start_date = today - relativedelta(months=2)
 
         Transaction().cursor.execute(
@@ -1320,20 +1256,20 @@ class Project(ModelSQL, ModelView):
             if hasattr(o, 'timetuple') else o
         return json.dumps(gantt_data, default=date_handler)
 
+    @classmethod
     @login_required
     @permissions_required(['project.admin'])
-    def compare_performance(self):
+    def compare_performance(cls):
         """
         Compare the performance of people
         """
-        employee_obj = Pool().get('company.employee')
-        date_obj = Pool().get('ir.date')
+        Employee = Pool().get('company.employee')
+        Date = Pool().get('ir.date')
 
         if request.is_xhr:
-            return self.get_comparison_data()
-        employee_ids = employee_obj.search([])
-        employees = employee_obj.browse(employee_ids)
-        today = date_obj.today()
+            return cls.get_comparison_data()
+        employees = Employee.search([])
+        today = Date.today()
         return render_template(
             'project/compare-performance.jinja', employees=employees,
             start_date=today-relativedelta(days=7),
@@ -1345,39 +1281,46 @@ class Project(ModelSQL, ModelView):
     def render_global_gantt(self):
         """
         Renders a global gantt
-        """	
-        employee_obj = Pool().get('company.employee')
+        """
+        Employee = Pool().get('company.employee')
+
         if request.is_xhr:
             return self.get_gantt_data()
-        employee_ids = employee_obj.search([])
-        employees = employee_obj.browse(employee_ids)
+        employees = Employee.search([])
         return render_template(
             'project/global-gantt.jinja', employees=employees
         )
 
+    @classmethod
     @login_required
     @permissions_required(['project.admin'])
-    def render_global_timesheet(self):
-        employee_obj = Pool().get('company.employee')
+    def render_global_timesheet(cls):
+        '''
+        Returns rendered timesheet template.
+        '''
+        Employee = Pool().get('company.employee')
 
         if request.is_xhr:
-            return self.get_calendar_data()
-        employee_ids = employee_obj.search([])
-        employees = employee_obj.browse(employee_ids)
+            return cls.get_calendar_data()
+        employees = Employee.search([])
         return render_template(
             'project/global-timesheet.jinja', employees=employees
         )
 
+    @classmethod
     @login_required
     @permissions_required(['project.admin'])
-    def render_tasks_by_employee(self):
-        open_task_ids = self.search([
+    def render_tasks_by_employee(cls):
+        '''
+        Returns rendered task, for employee.
+        '''
+        open_tasks = cls.search([
             ('state', '=', 'opened'),
             ('assigned_to.employee', '!=', None),
             ], order=[('assigned_to', 'ASC')]
         )
         tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
-        for task in self.browse(open_task_ids):
+        for task in open_tasks:
             tasks_by_employee_by_state[task.assigned_to][
                 task.progress_state
             ].append(task)
@@ -1390,15 +1333,19 @@ class Project(ModelSQL, ModelView):
             states=PROGRESS_STATES,
         )
 
+    @classmethod
     @login_required
-    def render_timesheet(self, project_id):
-        project = self.get_project(project_id)
+    def render_timesheet(cls, project_id):
+        '''
+        Returns rendered timesheet template.
+        '''
+        project = cls.get_project(project_id)
         employees = [
             p.employee for p in project.all_participants \
                 if p.employee
         ]
         if request.is_xhr:
-            return self.get_calendar_data(
+            return cls.get_calendar_data(
                 [('work.parent', 'child_of', [project.work.id])]
             )
         return render_template(
@@ -1406,13 +1353,13 @@ class Project(ModelSQL, ModelView):
             active_type_name="timesheet", employees=employees
         )
 
+    @classmethod
     @login_required
-    def render_plan(self, project_id):
+    def render_plan(cls, project_id):
         """
         Render the plan of the project
         """
-        project = self.get_project(project_id)
-
+        project = cls.get_project(project_id)
         if request.is_xhr:
             # XHTTP Request probably from the calendar widget, answer that
             # with json
@@ -1424,7 +1371,7 @@ class Project(ModelSQL, ModelView):
             )
             # TODO: These times are local times of the user, convert them to
             # UTC (Server time) before using them for comparison
-            task_ids = self.search(['AND',
+            tasks = cls.search(['AND',
                 ('type', '=', 'task'),
                 ('parent', '=', project.id),
                 ['OR',
@@ -1442,7 +1389,6 @@ class Project(ModelSQL, ModelView):
                     ],
                 ]
             ])
-            tasks = self.browse(task_ids)
             event_type = request.args['event_type']
             assert event_type in ('constraint', 'actual')
 
@@ -1472,36 +1418,40 @@ class Project(ModelSQL, ModelView):
             )
 
         return render_template(
-            'project/plan.jinja', project=project,
+            'project/project-plan.jinja', project=project,
             active_type_name='plan'
         )
 
+    @classmethod
     @login_required
-    def download_file(self, attachment_id):
+    def download_file(cls, attachment_id):
         """
-        Returns the file for download. The wonership of the task or the
+        Returns the file for download. The ownership of the task or the
         project is checked automatically.
         """
-        attachment_obj = Pool().get('ir.attachment')
+        Attachment = Pool().get('ir.attachment')
 
         work = None
         if request.args.get('project', None):
-            work = self.get_project(request.args.get('project', type=int))
+            work = cls.get_project(request.args.get('project', type=int))
         if request.args.get('task', None):
-            work = self.get_task(request.args.get('task', type=int))
+            work = cls.get_task(request.args.get('task', type=int))
 
         if not work:
             # Neither task, nor the project is specified
             raise abort(404)
 
-        attachment_ids = attachment_obj.search([
+        attachment, = Attachment.search([
             ('id', '=', attachment_id),
-            ('resource', '=', '%s,%d' % (self._name, work.id))
-        ])
-        if not attachment_ids:
+            ('resource', '=', '%s,%d' % (cls.__name__, work.id))
+        ], limit=1)
+
+        if attachment.type == 'link':
+            return redirect(attachment.link)
+
+        if not attachment:
             raise abort(404)
 
-        attachment = attachment_obj.browse(attachment_ids[0])
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(attachment.data)
 
@@ -1509,19 +1459,20 @@ class Project(ModelSQL, ModelView):
             f.name, attachment_filename=attachment.name, as_attachment=True
         )
 
+    @classmethod
     @login_required
-    def upload_file(self):
+    def upload_file(cls):
         """
         Upload the file to a project or task with owner/uploader
         as the current user
         """
-        attachment_obj = Pool().get('ir.attachment')
+        Attachment = Pool().get('ir.attachment')
 
         work = None
         if request.form.get('project', None):
-            work = self.get_project(request.form.get('project', type=int))
+            work = cls.get_project(request.form.get('project', type=int))
         if request.form.get('task', None):
-            work = self.get_task(request.form.get('task', type=int))
+            work = cls.get_task(request.form.get('task', type=int))
 
         if not work:
             # Neither task, nor the project is specified
@@ -1530,7 +1481,7 @@ class Project(ModelSQL, ModelView):
         attached_file =  request.files["file"]
 
         data = {
-            'resource': '%s,%d' % (self._name, work.id),
+            'resource': '%s,%d' % (cls.__name__, work.id),
             'description': request.form.get('description', '')
         }
 
@@ -1548,7 +1499,7 @@ class Project(ModelSQL, ModelView):
                 'type': 'data'
             })
 
-        attachment_id = attachment_obj.create(data)
+        Attachment.create(data)
 
         if request.is_xhr:
             return jsonify({
@@ -1558,17 +1509,18 @@ class Project(ModelSQL, ModelView):
         flash("Attachment added to %s" % work.name)
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def update_task(self, task_id, project_id=None):
+    def update_task(cls, task_id):
         """
         Accepts a POST request against a task_id and updates the ticket
 
         :param task_id: The ID of the task which needs to be updated
         """
-        history_obj = Pool().get('project.work.history')
-        timesheet_line_obj = Pool().get('timesheet.line')
+        History = Pool().get('project.work.history')
+        TimesheetLine = Pool().get('timesheet.line')
 
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
         history_data = {
             'project': task.id,
@@ -1577,10 +1529,9 @@ class Project(ModelSQL, ModelView):
         }
 
         updatable_attrs = ['state', 'progress_state']
-        new_participants = []
-        current_participants = [p.id for p in task.participants]
+        new_participant_ids = []
+        current_participant_ids = [p.id for p in task.participants]
         post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
-
         if any(post_attrs):
             # Combined update of task and history since there is some value
             # posted in addition to the comment
@@ -1589,82 +1540,85 @@ class Project(ModelSQL, ModelView):
                 if getattr(task, attr) != request.form.get(attr, None):
                     task_changes[attr] = request.form[attr]
 
-            new_assignee = request.form.get('assigned_to', None, int)
-            if not new_assignee == None:
-                if (new_assignee and \
+            new_assignee_id = request.form.get('assigned_to', None, int)
+            if not new_assignee_id == None:
+                if (new_assignee_id and \
                         (not task.assigned_to or \
-                            new_assignee != task.assigned_to.id)) \
+                            new_assignee_id != task.assigned_to.id)) \
                         or (request.form.get('assigned_to', None) == ""): # Clear the user
                     history_data['previous_assigned_to'] = \
                         task.assigned_to and task.assigned_to.id or None
-                    history_data['new_assigned_to'] = new_assignee
-                    task_changes['assigned_to'] = new_assignee
-                    if new_assignee and new_assignee not in current_participants:
-                        new_participants.append(new_assignee)
+                    history_data['new_assigned_to'] = new_assignee_id
+                    task_changes['assigned_to'] = new_assignee_id
+                    if new_assignee_id and new_assignee_id not in \
+                        current_participant_ids:
+                        new_participant_ids.append(new_assignee_id)
 
             if task_changes:
                 # Only write change if anything has really changed
-                self.write(task.id, task_changes)
-                comment_id = self.browse(task.id).history[-1].id
-                history_obj.write(comment_id, history_data)
+                cls.write([task], task_changes)
+                comment = task.history[-1]
+                History.write([comment], history_data)
             else:
                 # just create comment since nothing really changed since this
                 # update. This is to cover to cover cases where two users who
                 # havent refreshed the web page close the ticket
-                comment_id = history_obj.create(history_data)
+                comment = History.create(history_data)
         else:
             # Just comment, no update to task
-            comment_id = history_obj.create(history_data)
+            comment = History.create(history_data)
 
-        if request.nereid_user.id not in current_participants:
+
+        if request.nereid_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
-            new_participants.append(request.nereid_user.id)
+            new_participant_ids.append(request.nereid_user.id)
 
         for nereid_user in request.form.getlist('notify[]', int):
             # Notify more people if there are people
             # who havent been added as participants
-            if nereid_user not in current_participants:
-                new_participants.append(nereid_user)
+            if nereid_user not in current_participant_ids:
+                new_participant_ids.append(nereid_user)
 
-        if new_participants:
-            self.write(
-                task.id, {'participants': [('add', new_participants)]}
+        if new_participant_ids:
+            cls.write(
+                [task], {'participants': [('add', new_participant_ids)]}
             )
 
         hours = request.form.get('hours', None, type=float)
         if hours and request.nereid_user.employee:
-            timesheet_line_obj.create({
+            TimesheetLine.create({
                 'employee': request.nereid_user.employee.id,
                 'hours': hours,
                 'work': task.id
             })
 
         # Send the email since all thats required is done
-        history_obj.send_mail(comment_id)
+        comment.send_mail()
 
         if request.is_xhr:
-            comment_record = history_obj.browse(comment_id)
             html = render_template(
-                'project/comment.jinja', comment=comment_record)
+                'project/comment.jinja', comment=comment)
             return jsonify({
                 'success': True,
                 'html': html,
-                'state': self.browse(task.id).state,
-                'progress_state': self.browse(task.id).progress_state,
+                'state': task.state,
+                'progress_state': task.progress_state,
             })
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def add_tag(self, task_id, tag_id):
-        """Assigns the provided to this task
+    def add_tag(cls, task_id, tag_id):
+        """
+        Assigns the provided to this task
 
         :param task_id: ID of task
         :param tag_id: ID of tag
         """
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
-        self.write(
-            task.id, {'tags': [('add', [tag_id])]}
+        cls.write(
+            [task], {'tags': [('add', [tag_id])]}
         )
 
         if request.method == 'POST':
@@ -1674,17 +1628,19 @@ class Project(ModelSQL, ModelView):
         flash("Tag cannot be added")
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def remove_tag(self, task_id, tag_id):
-        """Assigns the provided to this task
+    def remove_tag(cls, task_id, tag_id):
+        """
+        Assigns the provided to this task
 
         :param task_id: ID of task
         :param tag_id: ID of tag
         """
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
-        self.write(
-            task.id, {'tags': [('unlink', [tag_id])]}
+        cls.write(
+            [task], {'tags': [('unlink', [tag_id])]}
         )
 
         if request.method == 'POST':
@@ -1694,71 +1650,70 @@ class Project(ModelSQL, ModelView):
         flash("Tag cannot be removed")
         return redirect(request.referrer)
 
-    def write(self, ids, values):
+    @classmethod
+    def write(cls, projects, values):
         """
         Update write to historize everytime an update is made
 
         :param ids: ids of the projects
         :param values: A dictionary
         """
-        work_history_obj = Pool().get('project.work.history')
+        WorkHistory = Pool().get('project.work.history')
 
-        if isinstance(ids, (int, long)):
-            ids = [ids]
+        for project in projects:
+            WorkHistory.create_history_line(project, values)
 
-        for project in self.browse(ids):
-            work_history_obj.create_history_line(project, values)
+        return super(Project, cls).write(projects, values)
 
-        return super(Project, self).write(ids, values)
-
+    @classmethod
     @login_required
-    def mark_time(self, task_id):
-        """Marks the time against the employee for the task
+    def mark_time(cls, task_id):
+        """
+        Marks the time against the employee for the task
 
         :param task_id: ID of task
         """
-        timesheet_line_obj = Pool().get('timesheet.line')
+        TimesheetLine = Pool().get('timesheet.line')
+
         if not request.nereid_user.employee:
             flash("Only employees can mark time on tasks!")
             return redirect(request.referrer)
 
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
-        timesheet_line_obj.create({
-            'employee': request.nereid_user.employee.id,
-            'hours': request.form['hours'],
-            'work': task.id
-        })
+        with Transaction().set_user(0):
+            TimesheetLine.create({
+                'employee': request.nereid_user.employee.id,
+                'hours': request.form['hours'],
+                'work': task.id
+            })
 
         flash("Time has been marked on task %s" % task.name)
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def assign_task(self, task_id):
-        """Assign task to a user
+    def assign_task(cls, task_id):
+        """
+        Assign task to a user
 
         :param task_id: Id of Task
         """
-        nereid_user_obj = Pool().get('nereid.user')
-        history_obj = Pool().get('project.work.history')
+        NereidUser = Pool().get('nereid.user')
 
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
-        new_assignee = nereid_user_obj.browse(int(request.form['user']))
+        new_assignee = NereidUser(int(request.form['user']))
 
-        if task.assigned_to.id == new_assignee.id:
+        if task.assigned_to == new_assignee:
             flash("Task already assigned to %s" % new_assignee.name)
             return redirect(request.referrer)
-
-        if self.can_write(task.parent, new_assignee):
-            self.write(task.id, {
+        if task.parent.can_write(new_assignee):
+            cls.write([task], {
                 'assigned_to': new_assignee.id,
                 'participants': [('add', [new_assignee.id])]
             })
-
-            comment_id = self.browse(task.id).history[-1].id
-            history_obj.send_mail(comment_id)
-
+            task.history[-1].send_mail()
             if request.is_xhr:
                 return jsonify({
                     'success': True,
@@ -1766,19 +1721,19 @@ class Project(ModelSQL, ModelView):
 
             flash("Task assigned to %s" % new_assignee.name)
             return redirect(request.referrer)
-
         flash("Only employees can be assigned to tasks.")
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def clear_assigned_user(self, task_id):
+    def clear_assigned_user(cls, task_id):
         """Clear the assigned user from the task
 
         :param task_id: Id of Task
         """
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
-        self.write(task.id, {
+        cls.write([task], {
             'assigned_to': False
         })
 
@@ -1790,11 +1745,13 @@ class Project(ModelSQL, ModelView):
         flash("Removed the assigned user from task")
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def change_constraint_dates(self, task_id):
-        """Change the constraint dates
+    def change_constraint_dates(cls, task_id):
         """
-        task = self.get_task(task_id)
+        Change the constraint dates
+        """
+        task = cls.get_task(task_id)
 
         data = {
             'constraint_start_time': False,
@@ -1811,7 +1768,7 @@ class Project(ModelSQL, ModelView):
             data['constraint_finish_time'] = datetime.strptime(
                 constraint_finish, '%m/%d/%Y')
 
-        self.write(task.id, data)
+        cls.write([task], data)
 
         if request.is_xhr:
             return jsonify({
@@ -1821,19 +1778,20 @@ class Project(ModelSQL, ModelView):
         flash("The constraint dates have been changed for this task.")
         return redirect(request.referrer)
 
+    @classmethod
     @login_required
-    def delete_task(self, task_id):
+    def delete_task(cls, task_id):
         """Delete the task from project
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin(request.nereid_user):
+        if not request.nereid_user.is_project_admin():
             flash("Sorry! You are not allowed to delete tags. \
                 Contact your project admin for the same.")
             return redirect(request.referrer)
 
-        task = self.get_task(task_id)
+        task = cls.get_task(task_id)
 
-        self.write(task.id, {'active': False})
+        cls.write([task], {'active': False})
 
         if request.is_xhr:
             return jsonify({
@@ -1846,24 +1804,7 @@ class Project(ModelSQL, ModelView):
         )
 
     @login_required
-    def change_state(self, task_id):
-        "Change the progress state of a task"
-        if not request.nereid_user.employee:
-            flash("Only employees can change the state of a task!")
-            return redirect(request.referrer)
-
-        task = self.get_task(task_id)
-
-        self.write(task.id, {
-            'progress_state': request.form['progress_state']
-        })
-
-        flash("State of the task has been changed to %s" % \
-            request.form['progress_state'])
-        return redirect(request.referrer)
-
-    @login_required
-    def change_estimated_hours(self, task_id):
+    def change_estimated_hours(self):
         """Change estimated hours.
 
         :param task_id: ID of the task.
@@ -1872,14 +1813,12 @@ class Project(ModelSQL, ModelView):
             flash("Sorry! You are not allowed to change estimate hours.")
             return redirect(request.referrer)
 
-        task = self.browse(task_id)
-
         estimated_hours = request.form.get(
             'new_estimated_hours', None, type=float
         )
 
         if estimated_hours:
-            self.write(task.id, {
+            self.write([self], {
                 'effort': estimated_hours,
                 }
             )
@@ -1887,13 +1826,10 @@ class Project(ModelSQL, ModelView):
         flash("The estimated hours have been changed for this task.")
         return redirect(request.referrer)
 
-Project()
 
-
-class ProjectTag(ModelSQL, ModelView):
+class Tag(ModelSQL, ModelView):
     "Tags"
-    _name = "project.work.tag"
-    _description = __doc__
+    __name__ = "project.work.tag"
 
     name = fields.Char('Name', required=True)
     color = fields.Char('Color Code', required=True)
@@ -1902,32 +1838,43 @@ class ProjectTag(ModelSQL, ModelView):
         domain=[('type', '=', 'project')], ondelete='CASCADE',
     )
 
-    def __init__(self):
-        super(ProjectTag, self).__init__()
-        #self._sql_contraints += [
-        #    ('unique_name_project', 'UNIQUE(name, project)', 'Duplicate Tag')
-        #]
+    @classmethod
+    def __setup__(cls):
+        super(Tag, cls).__setup__()
+        cls._sql_constraints += [
+           ('unique_name_project', 'UNIQUE(name, project)', 'Duplicate Tag')
+        ]
 
-    def default_color(self):
+    @staticmethod
+    def default_color():
+        '''
+        Default for color
+        '''
         return "#999"
 
+    @classmethod
     @login_required
-    def create_tag(self, project_id):
-        """Create a new tag for the specific project
+    def create_tag(cls, project_id):
         """
-        project_obj = Pool().get('project.work')
-        project = project_obj.get_project(project_id)
+        Create a new tag for the specific project
+
+        :params project_id: Project id for which need to be created
+        """
+        Project = Pool().get('project.work')
+
+        project = Project.get_project(project_id)
+
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            flash("Sorry! You are not allowed to create new tags. \
-                Contact your project admin for the same.")
+        if not request.nereid_user.is_project_admin():
+            flash("Sorry! You are not allowed to create new tags." +
+                " Contact your project admin for the same.")
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            tag_id = self.create({
+            cls.create({
                 'name': request.form['name'],
                 'color': request.form['color'],
-                'project': project_id
+                'project': project.id
             })
 
             flash("Successfully created tag")
@@ -1937,17 +1884,18 @@ class ProjectTag(ModelSQL, ModelView):
         return redirect(request.referrer)
 
     @login_required
-    def delete_tag(self, tag_id):
-        """Delete the tag from project
+    def delete_tag(self):
+        """
+        Delete the tag from project
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin(request.nereid_user):
-            flash("Sorry! You are not allowed to delete tags. \
-                Contact your project admin for the same.")
+        if not request.nereid_user.is_project_admin():
+            flash("Sorry! You are not allowed to delete tags." +
+                " Contact your project admin for the same.")
             return redirect(request.referrer)
 
         if request.method == 'POST' and request.is_xhr:
-            tag_id = self.delete(tag_id)
+            self.delete([self])
 
             return jsonify({
                 'success': True,
@@ -1956,12 +1904,10 @@ class ProjectTag(ModelSQL, ModelView):
         flash("Could not delete tag! Try again.")
         return redirect(request.referrer)
 
-ProjectTag()
-
 
 class TaskTags(ModelSQL):
-    _name = 'project.work-project.work.tag'
-    _table = 'project_work_tag_rel'
+    'Task Tags'
+    __name__ = 'project.work-project.work.tag'
 
     task = fields.Many2One(
         'project.work', 'Project',
@@ -1970,18 +1916,30 @@ class TaskTags(ModelSQL):
     )
 
     tag = fields.Many2One(
-        'project.work.tag', 'Tag', select=1, required=True, ondelete='CASCADE',
+       'project.work.tag', 'Tag', select=1, required=True, ondelete='CASCADE',
     )
 
-TaskTags()
+    @classmethod
+    def __register__(cls, module_name):
+        '''
+        Register class and update table name to new.
+        '''
+        cursor = Transaction().cursor
+        table  = TableHandler(cursor, cls, module_name)
+        super(TaskTags, cls).__register__(module_name)
+
+        # Migration
+        if table.table_exist(cursor, 'project_work_tag_rel'):
+            table.table_exist(
+                cursor, 'project_work_tag_rel', 'project_work-project_work_tag'
+            )
 
 
 class ProjectHistory(ModelSQL, ModelView):
     'Project Work History'
-    _name = 'project.work.history'
-    _description = __doc__
+    __name__ = 'project.work.history'
 
-    date = fields.DateTime('Change Date')
+    date = fields.DateTime('Change Date')  # date is python built
     create_uid = fields.Many2One('res.user', 'Create User')
 
     #: The reverse many to one for history field to work
@@ -2022,13 +1980,18 @@ class ProjectHistory(ModelSQL, ModelView):
     previous_constraint_start_time = fields.DateTime("Constraint Start Time")
     new_constraint_start_time = fields.DateTime("Next Constraint Start Time")
 
-    previous_constraint_finish_time = fields.DateTime("Constraint  Finish Time")
+    previous_constraint_finish_time = fields.DateTime("Constraint Finish Time")
     new_constraint_finish_time = fields.DateTime("Constraint  Finish Time")
 
-    def default_date(self):
+    @staticmethod
+    def default_date():
+        '''
+        Return current datetime in utcformat as default for date.
+        '''
         return datetime.utcnow()
 
-    def create_history_line(self, project, changed_values):
+    @classmethod
+    def create_history_line(cls, project, changed_values):
         """
         Creates a history line from the changed values of a project.work
         """
@@ -2051,79 +2014,61 @@ class ProjectHistory(ModelSQL, ModelView):
                     # if an employee made the update
                     pass
                 data['project'] = project.id
-                return self.create(data)
-
-    def get_function_fields(self, ids, names):
-        """
-        Function to compute fields
-
-        :param ids: the ids of works
-        :param names: the list of field name to compute
-        :return: a dictionary with all field names as key and
-                 a dictionary as value with id as key
-        """
-        pass
-
-    def set_function_fields(self, ids, name, value):
-        pass
+                return cls.create(data)
 
     @login_required
-    def update_comment(self, task_id, comment_id):
+    def update_comment(self, task_id):
         """
         Update a specific comment.
         """
-        project_obj = Pool().get('project.work')
-        nereid_user_obj = Pool().get('nereid.user')
+        Project = Pool().get('project.work')
 
         # allow modification only if the user is an admin or the author of
         # this ticket
-        task = project_obj.browse(task_id)
-        comment = self.browse(comment_id)
+        task = Project(task_id)
         assert task.type == "task"
-        assert comment.project.id == task.id
+        assert self.project.id == task.id
 
         # Allow only admins and author of this comment to edit it
-        if nereid_user_obj.is_project_admin(request.nereid_user) or \
-                comment.updated_by == request.nereid_user:
-            self.write(comment_id, {'comment': request.form['comment']})
+        if request.nereid_user.is_project_admin() or \
+                self.updated_by == request.nereid_user:
+            self.write([self], {'comment': request.form['comment']})
         else:
             abort(403)
 
         if request.is_xhr:
-            comment_record = self.browse(comment_id)
-            html = render_template('project/comment.jinja', comment=comment_record)
+            html = render_template('project/comment.jinja', comment=self)
             return jsonify({
                 'success': True,
                 'html': html,
-                'state': project_obj.browse(task.id).state,
+                'state': task.state,
             })
         return redirect(request.referrer)
 
-    def send_mail(self, history_id):
-        """Send mail to all participants whenever there is any update on
+    def send_mail(self):
+        """
+        Send mail to all participants whenever there is any update on
         project.
 
-        :param history_id: ID of history.
         """
-        history = self.browse(history_id)
-
         # Get the previous updates than the latest one.
-        history_ids = self.search([
-            ('id', '<', history_id),
-            ('project.id', '=', history.project.id)
+        last_history = self.search([
+            ('id', '<', self.id),
+            ('project.id', '=', self.project.id)
         ], order=[('create_date', 'DESC')])
-
-        last_history = self.browse(history_ids)
 
         # Prepare the content of email.
         subject = "[#%s %s] - %s" % (
-            history.project.id, history.project.parent.name,
-            history.project.work.name,
+            self.project.id, self.project.parent.name,
+            self.project.work.name,
         )
 
-        receivers = [s.email for s in history.project.participants
-                     if s.email]
-        receivers.remove(history.updated_by.email)
+        receivers = map(
+            lambda user: user.email,
+            filter(lambda s: s.email, self.project.participants)
+        )
+        if self.updated_by.email in receivers:
+            receivers.remove(self.updated_by.email)
 
         if not receivers:
             return
@@ -2134,7 +2079,7 @@ class ProjectHistory(ModelSQL, ModelView):
             subject=subject,
             text_template='project/emails/text_content.jinja',
             html_template='project/emails/html_content.jinja',
-            history=history,
+            history=self,
             last_history=last_history
         )
 
@@ -2146,13 +2091,10 @@ class ProjectHistory(ModelSQL, ModelView):
             message.as_string())
         server.quit()
 
-ProjectHistory()
-
 
 class ProjectWorkCommit(ModelSQL, ModelView):
     "Repository commits"
-    _name = 'project.work.commit'
-    _description = __doc__
+    __name__ = 'project.work.commit'
     _rec_name = 'commit_message'
 
     commit_timestamp = fields.DateTime('Commit Timestamp')
@@ -2169,18 +2111,19 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     commit_id = fields.Char('Commit Id', required=True)
 
     def commit_github_hook_handler(self):
-        """Handle post commit posts from GitHub
+        """
+        Handle post commit posts from GitHub
         See https://help.github.com/articles/post-receive-hooks
         """
-        nereid_user_obj = Pool().get('nereid.user')
+        NereidUser = Pool().get('nereid.user')
 
         if request.method == "POST":
             payload = json.loads(request.form['payload'])
             for commit in payload['commits']:
-                nereid_user_ids = nereid_user_obj.search([
+                nereid_users = NereidUser.search([
                     ('email', '=', commit['author']['email'])
                 ])
-                if not nereid_user_ids:
+                if not nereid_users:
                     continue
 
                 projects = set([
@@ -2203,7 +2146,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     self.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
-                        'nereid_user': nereid_user_ids[0],
+                        'nereid_user': nereid_users[0].id,
                         'repository': payload['repository']['name'],
                         'repository_url': payload['repository']['url'],
                         'commit_message': commit['message'],
@@ -2213,18 +2156,19 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         return 'OK'
 
     def commit_bitbucket_hook_handler(self):
-        """Handle post commit posts from bitbucket
+        """
+        Handle post commit posts from bitbucket
         See https://confluence.atlassian.com/display/BITBUCKET/POST+Service+Management
         """
-        nereid_user_obj = Pool().get('nereid.user')
+        NereidUser = Pool().get('nereid.user')
 
         if request.method == "POST":
             payload = json.loads(request.form['payload'])
             for commit in payload['commits']:
-                nereid_user_ids = nereid_user_obj.search([
+                nereid_users = NereidUser.search([
                     ('email', '=', parseaddr(commit['raw_author'])[1])
                 ])
-                if not nereid_user_ids:
+                if not nereid_users:
                     continue
 
                 projects = set([
@@ -2235,8 +2179,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 pull_requests = set([
                     int(x) for x in re.findall(
                         r'pull request #(\d+)', commit['message']
-                    )
-                ])
+                )])
                 for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['utctimestamp']
@@ -2247,19 +2190,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     self.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
-                        'nereid_user': nereid_user_ids[0],
+                        'nereid_user': nereid_users[0].id,
                         'repository': payload['repository']['name'],
                         'repository_url': payload['canon_url'] + \
                             payload['repository']['absolute_url'],
                         'commit_message': commit['message'],
                         'commit_url': payload['canon_url'] + \
-                            payload['repository']['absolute_url'] + \
+                        payload['repository']['absolute_url'] + \
                             "changeset/" + commit['raw_node'],
-                        'commit_id': commit['raw_node']
+                            'commit_id': commit['raw_node']
                     })
         return 'OK'
-
-ProjectWorkCommit()
 
 
 @registration.connect
@@ -2273,9 +2214,10 @@ def invitation_new_user_handler(nereid_user_id):
         If not, perform normal operation
     """
     try:
-        invitation_obj = Pool().get('project.work.invitation')
-        project_obj = Pool().get('project.work')
-        nereid_user_obj = Pool().get('nereid.user')
+        Invitation = Pool().get('project.work.invitation')
+        Project = Pool().get('project.work')
+        NereidUser = Pool().get('nereid.user')
+
     except KeyError:
         # Just return silently. This KeyError is cause if the module is not
         # installed for a specific database but exists in the python path
@@ -2289,20 +2231,19 @@ def invitation_new_user_handler(nereid_user_id):
     invitation_code = request.args.get('invitation_code')
     if not invitation_code:
         return
-    ids = invitation_obj.search([
+    invitation, = Invitation.search([
         ('invitation_code', '=', invitation_code)
-    ])
+    ], limit=1)
 
-    if not ids:
+    if not invitation:
         return
 
-    invitation = invitation_obj.browse(ids[0])
-    invitation_obj.write(invitation.id, {
+    Invitation.write([invitation], {
         'nereid_user': nereid_user_id,
         'invitation_code': None
     })
 
-    nereid_user = nereid_user_obj.browse(nereid_user_id)
+    nereid_user = NereidUser(nereid_user_id)
 
     subject = '[%s] %s Accepted the invitation to join the project' \
         % (invitation.project.name, nereid_user.display_name)
@@ -2320,8 +2261,8 @@ def invitation_new_user_handler(nereid_user_id):
     server.sendmail(CONFIG['smtp_from'], receivers, email_message.as_string())
     server.quit()
 
-    project_obj.write(
-        invitation.project.id, {
+    Project.write(
+        [invitation.project], {
             'participants': [('add', [nereid_user_id])]
         }
     )

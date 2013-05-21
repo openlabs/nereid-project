@@ -1,4 +1,4 @@
-{% extends 'project.jinja' %}
+{% extends 'project/project.jinja' %}
 
 {% from "_helpers.jinja" import status_label, render_pagination %}
 
@@ -20,7 +20,7 @@
     </div>
     <div class="modal-body">
       <form class="form-vertical well" id="new-task-form" method="POST" 
-          action="{{ url_for('project.work.create_task', project_id=project.id) }}">
+          action="{{ url_for('project.work.create_task', active_id=project.id) }}">
         <label for="name">Name:</label>
         <input class="span12" type="text" placeholder="Do Something"
           name="name" required="required" id="name"/>

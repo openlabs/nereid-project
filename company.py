@@ -10,16 +10,18 @@
 from datetime import datetime
 
 from nereid import request
-from trytond.pool import Pool
-from trytond.model import ModelView, ModelSQL, fields
-from trytond.pyson import Eval, Get
+from trytond.pool import Pool, PoolMeta
+from trytond.model import ModelSQL, fields
+
+__all__ = ['Company', 'CompanyProjectAdmins', 'NereidUser']
+__metaclass__ = PoolMeta
 
 
-class Company(ModelSQL, ModelView):
+class Company:
     """
     Add project admins to company
     """
-    _name = "company.company"
+    __name__ = "company.company"
 
     #: Administrators for project management. Only admins can create new 
     project_admins = fields.Many2Many(
@@ -27,11 +29,10 @@ class Company(ModelSQL, ModelView):
         'Project Administrators'
     )
 
-Company()
-
 
 class CompanyProjectAdmins(ModelSQL):
-    _name = 'company.company-nereid.user'
+    "Company Admins"
+    __name__ = 'company.company-nereid.user'
     _table = 'company_company_nereid_user_rel'
 
     company = fields.Many2One(
@@ -42,14 +43,12 @@ class CompanyProjectAdmins(ModelSQL):
         'nereid.user', 'User', select=1, required=True
     )
 
-CompanyProjectAdmins()
 
-
-class NereidUser(ModelSQL, ModelView):
+class NereidUser:
     """
     Add employee
     """
-    _name = "nereid.user"
+    __name__ = "nereid.user"
 
     #: Allow the nereid user to be connected to an internal employee. This
     #: indicates that the user is an employee and not a regular participant
@@ -57,37 +56,31 @@ class NereidUser(ModelSQL, ModelView):
         select=True,
     )
 
-    def is_project_admin(self, user):
+    def is_project_admin(self):
         """
         Returns True if the user is in the website admins list
 
-        :param user: Browse record of the user
-        :return: True
+        :return: True or False
         """
-        if user in request.nereid_website.company.project_admins:
+        if self in request.nereid_website.company.project_admins:
             return True
         return False
 
-    def hours_reported_today(self, user):
+    def hours_reported_today(self):
         """
         Returns the number of hours the nereid_user has done on the
         current date.
 
-        :param user: Browse record of the nereid user
         """
-        timesheet_obj = Pool().get('timesheet.line')
+        Timesheet = Pool().get('timesheet.line')
 
-        if not user.employee:
+        if not self.employee:
             return 0.00
 
-
         current_date = datetime.utcnow().date()
-        line_ids = timesheet_obj.search([
+        lines = Timesheet.search([
             ('date', '=', current_date),
-            ('employee', '=', user.employee.id),
+            ('employee', '=', self.employee.id),
         ])
-        lines = timesheet_obj.browse(line_ids)
 
         return sum(map(lambda line: line.hours, lines))
-
-NereidUser()
