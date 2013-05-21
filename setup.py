@@ -68,6 +68,7 @@ setup(name='trytond_nereid_project',
     ],
     license='GPL-3',
     install_requires=requires,
+    tests_require=['minimock'],
     zip_safe=False,
     entry_points="""
     [trytond.modules]

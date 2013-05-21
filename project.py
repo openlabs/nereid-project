@@ -37,7 +37,7 @@ from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
-from trytond.backend import TableHandlerInterface
+from trytond.backend import TableHandler
 
 __all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation', \
     'ProjectWorkInvitation', 'Project', 'Tag', \
@@ -88,7 +88,7 @@ class ProjectUsers(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
-        table  = TableHandlerInterface(cursor, cls, module_name)
+        table  = TableHandler(cursor, cls, module_name)
         super(ProjectUsers, cls).__register__(module_name)
         # Migration
         if table.table_exist(cursor, 'project_work_nereid_user_rel'):
@@ -578,11 +578,11 @@ class Project:
         return redirect(request.referrer)
 
     @login_required
-    def edit_task(self, task_id):
+    def edit_task(self):
         """
         Edit the task
         """
-        task = self.get_task(task_id)
+        task = self.get_task(self.id)
 
         self.write([task], {
             'name': request.form.get('name'),
@@ -1925,7 +1925,7 @@ class TaskTags(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
-        table  = TableHandlerInterface(cursor, cls, module_name)
+        table  = TableHandler(cursor, cls, module_name)
         super(TaskTags, cls).__register__(module_name)
 
         # Migration
