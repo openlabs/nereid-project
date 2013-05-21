@@ -13,14 +13,17 @@ import random
 import string
 import json
 import warnings
+import time
 import dateutil
 import calendar
+from collections import defaultdict
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from itertools import groupby, chain, cycle
 from mimetypes import guess_type
 from email.utils import parseaddr
 
+from babel.dates import parse_date
 from nereid import (request, abort, render_template, login_required, url_for,
     redirect, flash, jsonify, render_email, permissions_required)
 from flask import send_file
@@ -35,7 +38,12 @@ from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
 
 calendar.setfirstweekday(calendar.SUNDAY)
-
+PROGRESS_STATES = [
+    ('Backlog', 'Backlog'),
+    ('Planning', 'Planning'),
+    ('In Progress', 'In Progress'),
+    ('Review', 'Review/QA'),
+]
 
 class WebSite(ModelSQL, ModelView):
     """
@@ -341,11 +349,9 @@ class Project(ModelSQL, ModelView):
         'get_attachments'
     )
 
-    progress_state = fields.Selection([
-            ('Backlog', 'Backlog'),
-            ('Planning', 'Planning'),
-            ('In Progress', 'In Progress'),
-        ], 'Progress State', depends=['state', 'type'], select=True,
+    progress_state = fields.Selection(
+        PROGRESS_STATES, 'Progress State',
+        depends=['state', 'type'], select=True,
         states={
             'invisible': (Eval('type') != 'task') | (Eval('state') != 'opened'),
             'readonly': (Eval('type') != 'task') | (Eval('state') != 'opened'),
@@ -391,7 +397,41 @@ class Project(ModelSQL, ModelView):
                 ('parent', '=', False),
             ])
         projects = project_obj.browse(project_ids)
+        if request.is_xhr:
+            return jsonify({
+                'itemCount': len(projects),
+                'items': map(project_obj.serialize, projects),
+            })
         return render_template('project/home.jinja', projects=projects)
+
+    def serialize(self, record):
+        """
+        Serialize a record, which could be a task or project
+
+        :param record: Browse record
+        """
+        assigned_to = None
+        if record.assigned_to:
+            assigned_to = {
+                'id': record.assigned_to.id,
+                'display_name': record.assigned_to.display_name,
+            }
+
+        return {
+            'id': record.id,
+            'name': record.name,
+            'type': record.type,
+            'parent': record.parent and record.parent.id or None,
+            # Task specific
+            'tags': map(lambda t: t.name, record.tags),
+            'assigned_to': assigned_to,
+            'attachments': len(record.attachments),
+            'progress_state': record.progress_state,
+            'comment': record.comment,
+            'effort': record.effort,
+            'total_effort': record.total_effort,
+            'constraint_finish_time': record.constraint_finish_time and record.constraint_finish_time.isoformat() or None,
+        }
 
     def rst_to_html(self):
         """
@@ -892,7 +932,15 @@ class Project(ModelSQL, ModelView):
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        tasks = Pagination(self, filter_domain, page, 10)
+
+        if request.is_xhr:
+            tasks = self.browse(self.search(filter_domain))
+            return jsonify({
+                'items': map(self.serialize, tasks),
+                'domain': filter_domain,
+            })
+
+        tasks = Pagination(self, filter_domain, page, 20)
         return render_template(
             'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
@@ -928,22 +976,27 @@ class Project(ModelSQL, ModelView):
         counts['opened_tasks_count'] = self.search(
             filter_domain + [('state', '=', 'opened')], count=True
         )
-        counts['done_tasks_count'] = self.search(
-            filter_domain + [('state', '=', 'done')], count=True
-        )
-        counts['all_tasks_count'] = self.search(
-            filter_domain, count=True
-        )
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
-        tasks = Pagination(
-            self, filter_domain, page, 10, order=[('constraint_finish_time', 'asc')]
-        )
+        task_ids = self.search(filter_domain, order=[('progress_state', 'ASC')])
+
+        if request.is_xhr:
+            tasks = self.browse(task_ids)
+            return jsonify({
+                'items': map(self.serialize, tasks),
+                'domain': filter_domain,
+            })
+
+        # Group and return tasks for regular web viewing
+        tasks_by_state = defaultdict(list)
+        for task in self.browse(task_ids):
+            tasks_by_state[task.progress_state].append(task)
         return render_template(
             'project/global-task-list.jinja',
             active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks=tasks
+            state_filter=state, tasks_by_state=tasks_by_state,
+            states=PROGRESS_STATES
         )
 
     @login_required
@@ -958,15 +1011,18 @@ class Project(ModelSQL, ModelView):
             key=lambda x: x.create_date
         )
 
-        timesheet_rows = sorted(
-            task.timesheet_lines, key=lambda x: x.employee
-        )
-        timesheet_summary = groupby(timesheet_rows, key=lambda x: x.employee)
+        hours={}
+        for line in task.timesheet_lines:
+            hours[line.employee] = hours.setdefault(line.employee, 0) + line.hours
+
+        if request.is_xhr:
+            response = self.serialize(task)
+            return jsonify(response)
 
         return render_template(
             'project/task.jinja', task=task, active_type_name='render_task_list',
             project=task.parent, comments=comments,
-            timesheet_summary=timesheet_summary
+            timesheet_summary=hours
         )
 
     @login_required
@@ -994,22 +1050,31 @@ class Project(ModelSQL, ModelView):
         end = datetime.fromtimestamp(
             request.args.get('end', type=int)
         ).date()
-        day_week_map = {}
         if (end - start).days < 20:
             # this is not a month call, just some smaller range
-            return start, end, day_week_map
+            return start, end
         # This is a data call for a month, but fullcalendar tries to
         # fill all the days in the first and last week from the prev
         # and next month. So just return start and end date of the month
         mid_date = start + relativedelta(days=((end - start).days / 2))
         ignore, last_day = calendar.monthrange(mid_date.year, mid_date.month)
-        for week, days in enumerate(calendar.monthcalendar(mid_date.year, mid_date.month), 1):
-            day_week_map.update(dict.fromkeys(days, week))
         return (
             date(year=mid_date.year, month=mid_date.month, day=1),
             date(year=mid_date.year, month=mid_date.month, day=last_day),
-            day_week_map
         )
+
+    def get_week(self, day):
+        """
+        Return the week for any given day
+        """
+        if (day >= 1) and (day <= 7):
+            return '01-07'
+        elif (day >= 8) and (day <= 14):
+            return '08-14'
+        elif (day >= 15) and (day <= 21):
+            return '15-21'
+        else:
+            return '22-END'
 
     def get_calendar_data(self, domain=None):
         """
@@ -1019,7 +1084,7 @@ class Project(ModelSQL, ModelView):
         """
         timesheet_obj = Pool().get('timesheet.line')
 
-        start, end, day_week_map = self._get_expected_date_range()
+        start, end = self._get_expected_date_range()
 
         if domain is None:
             domain = []
@@ -1036,31 +1101,28 @@ class Project(ModelSQL, ModelView):
             domain, order=[('date', 'asc'), ('employee', 'asc')]
         )
 
-        # Build an iterable 
+
+        hours_by_day_employee = defaultdict(lambda: defaultdict(float))
+        hours_by_week_employee = defaultdict(lambda: defaultdict(float))
+        get_week = self.get_week
+
         lines = timesheet_obj.browse(line_ids)
+        for line in lines:
+            hours_by_day_employee[line.date][line.employee] += line.hours
+            hours_by_week_employee[get_week(line.date.day)][line.employee] += line.hours
+            
 
-        data = {}
-        data_by_week = {}
-        for date, g_by_date in groupby(lines, key=lambda line: line.date):
-            for k, g in groupby(g_by_date, key=lambda line: line.employee):
-                data.setdefault(date, {})[k] = sum(
-                    [line.hours for line in g]
-                )
-                if day_week_map:
-                    week = day_week_map[date.day]
-                    data_by_week.setdefault(week, {}).setdefault(line.employee, 0)
-                    data_by_week[week][line.employee] += line.hours
-
-        day_totals=[]
+        day_totals = []
         color_map = {}
         colors = cycle([
             'grey', 'RoyalBlue', 'CornflowerBlue', 'DarkSeaGreen',
             'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
             'maroon', 'PaleTurquoise'
         ])
-        for date, employee_hours in data.iteritems():
+        day_totals_append = day_totals.append # Performance speedup
+        for date, employee_hours in hours_by_day_employee.iteritems():
             for employee, hours in employee_hours.iteritems():
-                day_totals.append({
+                day_totals_append({
                     'id': '%s.%s' % (date, employee.id),
                     'title': '%s (%dh %dm)' % (
                         employee.name, hours, (hours * 60) % 60
@@ -1070,27 +1132,228 @@ class Project(ModelSQL, ModelView):
                 })
 
         def get_task_from_work(work):
-            task_id, = self.search([('work', '=', work.id)])
-            return self.browse(task_id)
+            with Transaction().set_context(active_test=False):
+                task_id, = self.search([('work', '=', work.id)])
+                return self.browse(task_id)
 
+        reverse_lines = line_ids[::-1]
         lines = [
             render_template(
                     'project/timesheet-line.jinja', line=line,
                     related_task=get_task_from_work(line.work)
                 ) \
-                for line in timesheet_obj.browse(line_ids)
+                for line in timesheet_obj.browse(reverse_lines)
         ]
-        total_by_employee = {}
-        for emp_hours_map in data_by_week.values():
-            for employee, hours in emp_hours_map.iteritems():
-                total_by_employee[employee] = total_by_employee.setdefault(
-                    employee, 0
-                ) + hours
+        
+        total_by_employee = defaultdict(float)
+        for employee_hours in hours_by_week_employee.values():
+            for employee, hours in employee_hours.iteritems():
+                total_by_employee[employee] += hours
+
         work_week =  render_template(
-            'project/work-week.jinja', data_by_week=data_by_week,
+            'project/work-week.jinja', data_by_week=hours_by_week_employee,
             total_by_employee=total_by_employee
         )
         return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
+
+    @login_required
+    def get_7_day_performance(self):
+        """
+        Returns the hours worked in the last 7 days.
+        """
+        employee_obj = Pool().get('company.employee')
+        timesheet_obj = Pool().get('timesheet.line')
+        date_obj = Pool().get('ir.date')
+
+        if not request.nereid_user.employee:
+            return jsonify({})
+
+        end_date = date_obj.today()
+        start_date = end_date - relativedelta(days=7)
+
+        timesheet_line_ids = timesheet_obj.search([
+            ('date', '>=', start_date),
+            ('date', '<=', end_date),
+            ('employee', '=', request.nereid_user.employee.id),
+        ])
+        timesheet_lines = timesheet_obj.browse(timesheet_line_ids)
+
+        hours_by_day = {}
+
+        for line in timesheet_lines:
+            hours_by_day[line.date] = \
+                    hours_by_day.setdefault(line.date, 0.0) + line.hours
+
+        days = hours_by_day.keys()
+        days.sort()
+
+        return jsonify({
+            'categories': map(lambda d:d.strftime('%d-%b'), days),
+            'series': ['%.2f' % hours_by_day[day] for day in days]
+        })
+
+    def get_comparison_data(self):
+        """
+        Compare the performance of people
+        """
+        date_obj = Pool().get('ir.date')
+        employee_obj = Pool().get('company.employee')
+
+        employee_ids = request.args.getlist('employee', type=int)
+        if not employee_ids:
+            employee_ids = employee_obj.search([])
+        
+        employees = dict(zip(employee_ids, employee_obj.browse(employee_ids)))
+
+        end_date = date_obj.today()
+        if request.args.get('end_date'):
+            end_date = parse_date(
+                    request.args['end_date'],
+                    locale='en_IN',
+                    #locale=Transaction().context.get('language')
+            )
+        start_date = end_date - relativedelta(months=1)
+        if request.args.get('start_date'):
+            start_date = parse_date(
+                    request.args['start_date'],
+                    locale='en_IN',
+                    #locale=Transaction().context.get('language')
+            )
+
+        if start_date > end_date:
+            flash('Invalid date Range')
+            return redirect(request.referrer)
+
+        Transaction().cursor.execute(
+            'SELECT * FROM timesheet_by_employee_by_day '
+            'WHERE "date" >= %s ' 
+            'AND "date" <= %s ' 
+            'AND "employee" in %s ' 
+            'ORDER BY "date"',
+            (start_date, end_date, tuple(employee_ids))
+        )
+        raw_data = Transaction().cursor.fetchall()
+        categories = map(
+            lambda d: start_date + relativedelta(days=d),
+            range(0, (end_date - start_date).days + 1)
+        )
+        hours_by_date_by_employee = {}
+        for employee_id, line_date, hours in raw_data:
+            hours_by_date_by_employee.setdefault(line_date, {})[employee_id] = hours
+        
+
+        series = []
+        for employee_id in employee_ids:
+            employee = employees.get(employee_id)
+            series.append({
+                'name': employee and employee.name or 'Ghost',
+                'type': 'column',
+                'data': map(
+                    lambda d: hours_by_date_by_employee.get(d, {}).get(employee_id, 0),
+                    categories
+                )
+            })
+
+        additional = [{
+            'type': 'pie',
+            'name': 'Total Hours',
+            'data': map(lambda d: {'name': d['name'], 'y': sum(d['data'])}, series),
+            'center': [40, 40],
+            'size': 100,
+            'showInLegend': False,
+            'dataLabels': {
+                'enabled': False
+            }
+        }] 
+        additional.extend([{
+            'type': 'line',
+            'name': '{0} Avg'.format(serie['name']),
+            'data': [sum(serie['data']) / len(serie['data'])] * len(categories),
+        } for serie in series])
+         
+        return jsonify(
+            categories=map(lambda d: d.strftime('%d-%b'), categories),
+            series=series + additional
+        )
+        
+    def get_gantt_data(self):
+        """
+        Get gantt data for the last 1 month.
+        """
+        date_obj = Pool().get('ir.date')
+        employee_obj = Pool().get('company.employee')
+
+        employee_ids = employee_obj.search([])
+        employees = dict(zip(employee_ids, employee_obj.browse(employee_ids)))
+
+        today = date_obj.today()
+        start_date = today - relativedelta(months=2)
+
+        Transaction().cursor.execute(
+            'SELECT * FROM timesheet_by_employee_by_day '
+            'WHERE "date" >= \'%s\'' % (start_date, )
+        )
+        raw_data = Transaction().cursor.fetchall()
+        employee_wise_data = {}
+        get_class = lambda h: (h < 4) and 'ganttRed' or \
+                                (h < 6) and 'ganttOrange' or 'ganttGreen'
+        for employee_id, line_date, hours in raw_data:
+            value = {
+                'from': line_date - relativedelta(days=1), # Gantt has a bug of 1 day off
+                'to': line_date - relativedelta(days=1),
+                'label': '%.1f' % hours,
+                'customClass': get_class(hours)
+            }
+            employee_wise_data.setdefault(employee_id, []).append(value)
+
+        gantt_data = []
+        gantt_data_append = gantt_data.append
+        for employee_id, values in employee_wise_data.iteritems():
+            employee = employees.get(employee_id)
+            gantt_data_append({
+                'name': employee and employee.name or 'Ghost',
+		'desc': '',
+                'values': values,
+            })
+        gantt_data = sorted(gantt_data, key=lambda item: item['name'].lower())
+        date_handler = lambda o: '/Date(%d)/' % (time.mktime(o.timetuple()) * 1000) \
+            if hasattr(o, 'timetuple') else o
+        return json.dumps(gantt_data, default=date_handler)
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def compare_performance(self):
+        """
+        Compare the performance of people
+        """
+        employee_obj = Pool().get('company.employee')
+        date_obj = Pool().get('ir.date')
+
+        if request.is_xhr:
+            return self.get_comparison_data()
+        employee_ids = employee_obj.search([])
+        employees = employee_obj.browse(employee_ids)
+        today = date_obj.today()
+        return render_template(
+            'project/compare-performance.jinja', employees=employees,
+            start_date=today-relativedelta(days=7),
+            end_date=today
+        )
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def render_global_gantt(self):
+        """
+        Renders a global gantt
+        """	
+        employee_obj = Pool().get('company.employee')
+        if request.is_xhr:
+            return self.get_gantt_data()
+        employee_ids = employee_obj.search([])
+        employees = employee_obj.browse(employee_ids)
+        return render_template(
+            'project/global-gantt.jinja', employees=employees
+        )
 
     @login_required
     @permissions_required(['project.admin'])
@@ -1103,6 +1366,28 @@ class Project(ModelSQL, ModelView):
         employees = employee_obj.browse(employee_ids)
         return render_template(
             'project/global-timesheet.jinja', employees=employees
+        )
+
+    @login_required
+    @permissions_required(['project.admin'])
+    def render_tasks_by_employee(self):
+        open_task_ids = self.search([
+            ('state', '=', 'opened'),
+            ('assigned_to.employee', '!=', None),
+            ], order=[('assigned_to', 'ASC')]
+        )
+        tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
+        for task in self.browse(open_task_ids):
+            tasks_by_employee_by_state[task.assigned_to][
+                task.progress_state
+            ].append(task)
+        employees = tasks_by_employee_by_state.keys()
+        employees.sort()
+        return render_template(
+            'project/tasks-by-employee.jinja',
+            tasks_by_employee_by_state=tasks_by_employee_by_state,
+            employees=employees,
+            states=PROGRESS_STATES,
         )
 
     @login_required
@@ -1715,16 +2000,12 @@ class ProjectHistory(ModelSQL, ModelView):
         ('opened', 'Opened'),
         ('done', 'Done'),
         ], 'New State', select=True)
-    previous_progress_state = fields.Selection([
-            ('Backlog', 'Backlog'),
-            ('Planning', 'Planning'),
-            ('In Progress', 'In Progress'),
-        ], 'Prev. Progress State', select=True)
-    new_progress_state = fields.Selection([
-            ('Backlog', 'Backlog'),
-            ('Planning', 'Planning'),
-            ('In Progress', 'In Progress'),
-        ], 'New Progress State', select=True)
+    previous_progress_state = fields.Selection(
+        PROGRESS_STATES, 'Prev. Progress State', select=True
+    )
+    new_progress_state = fields.Selection(
+        PROGRESS_STATES, 'New Progress State', select=True
+    )
 
     # Comment
     comment = fields.Text('Comment')
@@ -1902,8 +2183,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 if not nereid_user_ids:
                     continue
 
-                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
-                for project in projects:
+                projects = set([
+                    int(x) for x in re.findall(
+                        r'#(\d+)', commit['message']
+                    )
+                ])
+                pull_requests = set([
+                    int(x) for x in re.findall(
+                        r'pull request #(\d+)', commit['message']
+                    )
+                ])
+                for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['timestamp']
                     )
@@ -1937,8 +2227,17 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 if not nereid_user_ids:
                     continue
 
-                projects = [int(x) for x in re.findall(r'#(\d+)', commit['message'])]
-                for project in projects:
+                projects = set([
+                    int(x) for x in re.findall(
+                        r'#(\d+)', commit['message']
+                    )
+                ])
+                pull_requests = set([
+                    int(x) for x in re.findall(
+                        r'pull request #(\d+)', commit['message']
+                    )
+                ])
+                for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['utctimestamp']
                     )

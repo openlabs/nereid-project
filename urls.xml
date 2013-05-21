@@ -51,6 +51,12 @@
             <field name="sequence" eval="10" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="tasks_by_employee" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/tasks-by-employee</field>
+            <field name="endpoint">project.work.render_tasks_by_employee</field>
+            <field name="sequence" eval="10" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
         <record id="project_task_list" model="nereid.url_rule">
             <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/task-list</field>
             <field name="endpoint">project.work.render_task_list</field>
@@ -171,6 +177,18 @@
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+        <record id="project_compare_performance" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/projects/-compare-performance</field>
+            <field name="endpoint">project.work.compare_performance</field>
+            <field name="sequence" eval="05" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
+        <record id="project_global_gantt" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/projects/-gantt</field>
+            <field name="endpoint">project.work.render_global_gantt</field>
+            <field name="sequence" eval="05" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
         <record id="project_plan" model="nereid.url_rule">
             <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-plan</field>
             <field name="endpoint">project.work.render_plan</field>
@@ -257,6 +275,13 @@
             <field name="endpoint">project.work.commit.commit_bitbucket_hook_handler</field>
             <field name="sequence" eval="60" />
             <field name="methods">("POST",)</field>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
+        <record id="project_work_last_7_days" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/-project/-my-last-7-days</field>
+            <field name="endpoint">project.work.get_7_day_performance</field>
+            <field name="sequence" eval="60" />
+            <field name="methods">("GET",)</field>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
     </data>
