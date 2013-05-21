@@ -28,8 +28,8 @@ major_version = int(major_version)
 minor_version = int(minor_version)
 
 requires = [
-    'nereid',
     'raven',
+    'blinker',
 ]
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):
@@ -68,6 +68,7 @@ setup(name='trytond_nereid_project',
     ],
     license='GPL-3',
     install_requires=requires,
+    tests_require=['minimock'],
     zip_safe=False,
     entry_points="""
     [trytond.modules]
