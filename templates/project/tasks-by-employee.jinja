@@ -47,7 +47,7 @@
     {% for state, state_name in states %}
     <div class="span3">
       {% for task in tasks_by_employee_by_state[employee][state] %}
-        {{ render_task(task, assigned_to_picture=False, show_effort=False, show_hours=False, show_attachments=False, show_watch_toggle=False, show_project_tag=True, show_project=False, show_progress_state=False) }}
+        {{ render_task(task, assigned_to_picture=False, show_project_tag=True) }}
       {% endfor %}
     </div>
     {% endfor %}

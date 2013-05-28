@@ -20,18 +20,18 @@
   <div class="pagination">
     <ul class="span12">
       {% for state, state_name in states %}
-      <li class="span3"><a class="span12">{{ state_name }} ({{ tasks_by_state[state]|length }})</a></li>
+        <li class="span3"><a class="span12">{{ state_name }} ({{ tasks_by_state[state]|length }})</a></li>
       {% endfor %}
     </ul>
   </div>
   <div class="row-fluid">
     <div class="span12">
     {% for state, state_name in states %}
-    <div class="span3">
-      {% for task in tasks_by_state[state] %}
-        {{ render_task(task, assigned_to_picture=False, show_effort=False, show_hours=False, show_attachments=False, show_watch_toggle=False, show_project_tag=True, show_project=False, show_progress_state=False) }}
-      {% endfor %}
-    </div>
+      <div class="span3 tasks-list" progress_state="{{ state }}" id="task-list-{{ state|replace(' ', '_') }}">
+        {% for task in tasks_by_state[state] %}
+          {{ render_task(task, assigned_to_picture=True, show_project_tag=True) }}
+        {% endfor %}
+      </div>
     {% endfor %}
     </div>
   </div>
@@ -42,6 +42,50 @@
 {{ super() }}
 <script>
   $(document).ready(function(){
+    $( ".tasks-list" ).sortable({
+      connectWith: ".tasks-list",
+      items: "div.task-item:not(.done)",
+      opacity: 0.7,
+      revert: true,
+      delay: 150,
+    })
+    .disableSelection()
+    .on( "sortreceive", function(event, ui){
+      $.ajax({
+        url: ui.item.attr('update-url'),
+        type: 'POST',
+        data: {
+          progress_state: ui.item.closest("div.tasks-list").attr("progress_state"),
+          state: ui.item.attr('state'),
+          comment: '',
+        },
+      })
+      .always(function(data, textStatus){
+        if(textStatus == "error" || !data.success){
+          alert("Update Failed!")
+          location.reload();
+        }
+        else{
+          $.meow({
+            title: 'Success', 
+            message: 'Successfully updated task status.',
+          });          
+        }
+      });
+    });
+    $("a.add-tags").click(function(e){
+      e.preventDefault();
+      $('a.action-tag-btn').click(function(e){
+        e.preventDefault();
+        $.ajax({
+          url: $(this).attr("data-url"),
+          type: 'POST',
+        })
+        .done(function(){
+          location.reload();
+        });
+      });
+    });
     $('a.log-hours').click(function() {
       $(this).parents("form").find("tr.hours-input").show();
       $(this).parents("form").find("tr.hours-input input").focus();
