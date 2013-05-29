@@ -131,7 +131,7 @@ features:
   
 * **Tasks:** Every single project can have multiple tasks assigned to it.
   participant of the project can create tasks depending on the requirements to
-  acheive the goal of the project as soon as possible. See `tasks`_.
+  achieve the goal of the project as soon as possible. See `tasks`_.
 
 * **Time Sheets:** The timesheet module allow to track the time spent by
   employees on various tasks. This module also comes with several reports that
@@ -195,34 +195,80 @@ Though any participant can create tasks, in the figure shown below, the project
 admin is creating the task,  with the title and description related to that
 task, can assign it to any of the participants, team members of that project in
 seconds, can put estimated efforts, start and end date for the task. Project
-paricipant can also assign it to other participant of the project.
+participant can also assign it to other participant of the project.
 
 .. image:: images/create-task.png
    :width: 700
    :align: center
 
 .. note::
-   Any nereid user who has permissions for project can create task, update the
-   task by putting comments, upload files into it, and assign it to other
-   nereid user of that project. See `update`_.
+   Any nereid user having access to project can create task, update the task by
+   putting comments, upload files into it, and assign it to other nereid user
+   of that project. See `update`_.
+
+.. _reST primer:
 
 Basic RST primer
 ----------------
 
-`RST primar <http://docutils.sourceforge.net/docs/user/rst/quickstart.html>`_
+This section is a brief introduction to reStructuredText (reST) concepts and
+syntax, reST was designed to be a simple, unobtrusive markup language. For more
+refer `RST primer <http://sphinx-doc.org/rest.html>`_
 
-#TODO
+Lists
+`````
+Just place an asterisk at the start of a paragraph and indent properly. The
+same goes for numbered lists;they can also be autonumbered using a ``#`` sign::
+  
+  * This is a bulleted list.
+  * It has two items, the second
+  item uses two lines.
+
+   1. This is a numbered list.
+   2. It has two items too.
+
+   #. This is a numbered list.
+   #. It has two items too.
+
+Paragraph
+`````````
+As in Python, indentation is significant in reST, so all lines of the same
+paragraph must be left-aligned to the same level of indentation.
+
+Inline markup
+`````````````
+The standard reST inline markup is quite simple: use
+
+* one asterisk: ``*text*`` for emphasis (italics),
+* two asterisks: ``**text**`` for strong emphasis (boldface), and
+* backquotes: ````text```` for code samples.
+
+Code Highlighting
+``````````````````
+The highlighting language can be changed using the ``highlight`` directive, by
+default, this is ``'python'`` as the majority of files will have to highlight
+Python snippets used as follows::
+
+     .. highlight:: c
+
+An example in python code highlighting::
+
+    .. code-block:: python
+
+       def some_function():
+           interesting = False
+           print 'This is '
+           print 'code highlighting'
+           print '...'
 
 .. _update:
 
 Updating task
 --------------
 
-Task updates can be formatted using `reST(restructured Text)
-<http://docutils.sourceforge.net/docs/ref/rst/directives.html>`_ syntax for
-making comments or updates looks clear. 
-
-#TODO
+Task updates can be formatted using `reST primer`_ syntax for
+making comments or updates looks clear. For more `reST(restructured Text)
+<http://docutils.sourceforge.net/docs/ref/rst/directives.html>`_
 
 Updates can be written to clarify progress made so far for the task, for
 changing the state of the task, for marking time i.e., the time spent by the
@@ -257,13 +303,38 @@ For marking time, see below:
 View my-tasks
 -------------
 
-Project participant can then see their task list, and these lists easily help
-user to keep track of every assigned tasks on a project, quickly tells the
-`state`_, with `tag`_ (if provided), and when!
+Project participants can see their task list, and these lists easily help user
+to keep track of every assigned tasks on a project, quickly tells the `state`_,
+and with `tag`_ (if associated to it)!
+
+.. admonition:: And, by the way...
+
+   Drag and Drop- To change the state of the task, just drag and drop task from
+   one state to the necessary state. 
 
 .. image:: images/my-tasks.png
   :width: 800
   :align: center
+
+View all tasks
+```````````````
+
+The employees who get access see all tasks gathered in this project as user
+might want to see all of the tasks quickly, find a task when don’t remember its
+name. It can be really helpful to get a comprehensive view of all the tasks.  
+
+* Striped multi-colour tasks in NereidProject- tasks with different colors
+  signifies different `state`_
+* Make an instant search of a task
+* All tasks together, so user can go to one place for all the history of the
+  work.
+
+To see All Tasks, Open Tasks, Done Tasks just click on the ``Tasks``
+Button shown on the left, for reference see below:
+
+.. image:: images/tasks-list.png
+   :width: 900
+   :align: center
 
 .. _state:
 
@@ -278,25 +349,25 @@ State of Task
 
 Ideal way the project admin and participants are using to manage their tasks
 is to specify the state while updating or assigning along with it. This can be
-considered as the tasks progess. For greater transparency of task these
+considered as the tasks progress. For greater transparency of task these
 following states are defined:
  
 * **Backlog:** The task's backlog state is a state containing short
-descriptions of all functionality desired in the task when assigned to
-participant. The task backlog state can consists of features, bug fixes,
-non-functional requirements, etc. - whatever needs to be done in order to
-deliver it successfully. The features added to the backlog are commonly written
-in story format.
+  descriptions of all functionality desired in the task when assigned to
+  participant. The task backlog state can consists of features, bug fixes,
+  non-functional requirements, etc. - whatever needs to be done in order to
+  deliver it successfully. The default state of task is backlog after being
+  created.
+* **Planning:** The backlog state can then move into planning, this determines
+  how much of it the user can commit to complete the task.
+* **In Progress:** Development comes under this state to fulfil the
+  requirements that must end on time.
+* **Review:** After development state, user can now assign it back to the
+  :ref:`admin`, to review. If requirements are not completed, the state
+  then be back into ``In Progress`` or ``Planning`` or ``Backlog``.
+* **Done:** If requirements met, the task can then be marked as Done.
 
-* **Planning:**
-
-* **In Progress:**
-
-* **Review:**
-
-#TODO
-
-States transition are as below:
+In their simplest, the tasks are categorized into the work stages:
 
 * from Backlog --> Planning
 
@@ -423,7 +494,7 @@ This timesheet and online project management application helps to track, or
 monitor every hour that is spent on a project, by whom and how they did with
 regards to staying within your expected target durations. 
 
-.. image:: images/timesheet.png
+.. image:: images/global-timesheet.png
    :align: center
    :width: 900
 
@@ -445,6 +516,27 @@ time on a specific work at a given date. The list of timesheet lines of
 employees associated to the project and its tasks. These timesheet lines are
 used to analyse employee's productivity & job costs.
 
+Weekly Analysis
+````````````````
+
+To gather data weekly on the actual time spent by employee. For time tracking
+to monitor employees performance. The :ref:`admin` can analyse the progress of
+the team of the project. Can filter it by employee's name also. Refer image:
+
+.. image:: images/weekly-analysis.png
+   :align: center
+   :width: 800
+
+Task by employees
+``````````````````
+
+A powerful filter for :ref:`admin` to see tasks holders of the projects.
+Shows list of tasks assigned to particular employee.
+
+.. image:: images/tasks-employee.png
+   :align: center
+   :width: 800
+
 .. _planning:
 
 Calendar 
@@ -456,11 +548,11 @@ able to filter by month, week or day. Access to calendars and the tasks held
 within follow the same access, setup for projects. So that users will only see
 the calendar items of the projects they are invited to. For project admin,
 calendar provides a number of powerful filters. These filters let project admin
-see performance of employess. This is a great feature for project admin to
+see performance of employees. This is a great feature for project admin to
 track your progress on the graphical Gantt charts for their most highly valued
 projects.
 
-.. image:: images/calender-task.png
+.. image:: images/calender.png
    :width: 900
    :align: center
  

@@ -8,11 +8,24 @@ started with :ref:`installation` and then head over to the :ref:`quickstart`.
 
 **Nereid Project** is an open-source collaborative development platform offered
 by Team Openlabs. It is mainly used for managing project processes. While it
-could be used for managing any kind of projects, it is primarily used at
+could be used for managing any kind of project, it is primarily used at
 Openlabs to manage software projects. It is designed to help organise projects
 & tasks. The aim is to connect everything together on a single interface,
-avoiding unecessary time consumption, and track project's progress, task's
-status, shared files, time spent on individual tasks. 
+avoiding unnecessary time consumption, and track project's progress, task's
+status, shared files, time spent on individual tasks.
+
+* Break project into multiple tasks, assign to project teammates to collaborate
+* Gantt chart provides deep insights about progress
+* Collaborative dashboard ties everything together
+* Upload files from personal desktop, or internet link
+* Organize efforts-Easily create, assign, and comment on tasks, so user always
+  know what's getting done and who's doing it.
+* Puts tasks together, so user can go to one place for all the history of the
+  work.
+* notifications via email make it effortless to stay on top of the details that
+  matter to user.
+
+and much more...
 
 Overview
 --------
