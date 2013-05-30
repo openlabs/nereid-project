@@ -28,6 +28,7 @@ def upload_documentation():
     local('git checkout gh-pages')
 
     # Copy back the files from temp folder
+    local('rm -rf *')
     local('mv %s/* .' % temp_folder)
 
     # Add the relevant files
