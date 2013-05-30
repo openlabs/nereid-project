@@ -123,7 +123,7 @@ you plan to use WSGI HTTP servers like `Gunicorn`_
 
 .. note::
    DATABASE_NAME has to be changed in ``application.py``. Mention the
-   database name your have created while setting the database in tryton client,
+   database name you have created while setting the database in tryton client,
    and also the site name which you mentioned while creating the website.
 
 .. code-block:: python
@@ -204,7 +204,6 @@ purposes which listens to the port 5000. Point your browser to
    :align: center
    :width: 700
 
-Now the installation is successful. To learn more about how to use nereid
-project for your use, case read :ref:`tutorial`. 
+Now the installation is successful. Refer :ref:`tutorial`. 
 
 .. _Gunicorn: http://gunicorn.org/
