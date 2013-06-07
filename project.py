@@ -541,6 +541,9 @@ class Project:
                 'name': request.form['name'],
                 'type': 'task',
                 'comment': request.form.get('description', False),
+                'tags': [('set',
+                    request.form.getlist('tags', int)
+                )]
             }
 
             constraint_start_time = request.form.get(
