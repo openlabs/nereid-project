@@ -768,6 +768,12 @@ class TestNereidProject(NereidTestCase):
                 'parent': project.id,
                 'company': data['company'].id,
             })
+            task2 = self.Project.create({
+                'name': 'PQR_task',
+                'comment': 'task2',
+                'parent': project.id,
+                'company': data['company'].id,
+            })
 
             login_data = {
                 'email': 'email@example.com',
@@ -788,16 +794,79 @@ class TestNereidProject(NereidTestCase):
                 response = c.post(
                     '/en_US/attachment/-upload',
                     data={
-                        'file': (StringIO('testfile contents'), 'test.txt'),
+                        'file': (StringIO('testfile contents'), 'test1.txt'),
                         'task': task1.id,
                     },
                     content_type="multipart/form-data"
                 )
                 self.assertEqual(response.status_code, 302)
 
-                # File is added successfully
+                response = c.get('en_US/login')
+                self.assertTrue(
+                    u'Attachment added to ABC_task' in response.data
+                )
+
+                # File 'test1.txt' added successfully in task1
+                self.assertEqual(len(self.Attachment.search([])), 1)
+
+                # Add same file to other task
+                response = c.post(
+                    '/en_US/attachment/-upload',
+                    data={
+                        'file': (StringIO('testfile contents'), 'test1.txt'),
+                        'task': task2.id,
+                    },
+                    content_type="multipart/form-data"
+                )
+                self.assertEqual(response.status_code, 302)
+
+                response = c.get('en_US/login')
+                self.assertTrue(
+                    u'Attachment added to PQR_task' in response.data
+                )
+
+                # Same file 'test1.txt' added successfully in task2
+                self.assertEqual(len(self.Attachment.search([])), 2)
+
+                # Upload same file again
+                response = c.post(
+                    '/en_US/attachment/-upload',
+                    data={
+                        'file': (StringIO('testfile contents'), 'test1.txt'),
+                        'task': task1.id,
+                    },
+                    content_type="multipart/form-data"
+                )
+                self.assertEqual(response.status_code, 302)
+
+                # Check Flash Message
+                response = c.get('/en_US/login')
+                self.assertTrue(
+                    u'File already exists with same name, please choose ' +
+                    'another file or rename this file to upload !!' in
+                    response.data
+                )
+
+                # No same file added in same task
+                self.assertEqual(len(self.Attachment.search([])), 2)
+
+                # Add same file content with different file name
+                response = c.post(
+                    '/en_US/attachment/-upload',
+                    data={
+                        'file': (StringIO('testfile contents'), 'test2.txt'),
+                        'task': task1.id,
+                    },
+                    content_type="multipart/form-data"
+                )
+                self.assertEqual(response.status_code, 302)
+
+                # 2nd file with same content is added successfully
                 response = c.get('/en_US/project-%d/-files' % project.id)
-                self.assertEqual(response.data, '1')
+                self.assertEqual(response.data, '2')
+
+                # Total file added in attachments
+                self.assertEqual(len(self.Attachment.search([])), 3)
 
     def test_0130_render_files(self):
         """
