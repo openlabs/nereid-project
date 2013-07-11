@@ -39,8 +39,8 @@ from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
 from trytond.backend import TableHandler
 
-__all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation', \
-    'ProjectWorkInvitation', 'Project', 'Tag', \
+__all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation',
+    'TimesheetEmployeeDay', 'ProjectWorkInvitation', 'Project', 'Tag',
     'TaskTags', 'ProjectHistory', 'ProjectWorkCommit']
 __metaclass__ = PoolMeta
 
@@ -207,6 +207,36 @@ class ProjectWorkInvitation(ModelSQL):
         'project.work.invitation', 'Project',
         ondelete='CASCADE', select=1, required=True
     )
+
+
+class TimesheetEmployeeDay(ModelView):
+    'Gantt dat view generator'
+    __name__ = 'timesheet_by_employee_by_day'
+
+    employee = fields.Many2One('company.employee', 'Employee')
+    date = fields.Date('Date')
+    hours = fields.Float('Hours', digits=(16, 2))
+
+    @classmethod
+    def __register__(cls, module_name):
+        """
+        Init Method
+
+        :param module_name: Name of the module
+        """
+        super(TimesheetEmployeeDay, cls).__register__(module_name)
+
+        query = '"timesheet_by_employee_by_day" AS ' \
+                'SELECT timesheet_line.employee, timesheet_line.date, ' \
+                'SUM(timesheet_line.hours) AS sum ' \
+                'FROM "timesheet_line" ' \
+                'GROUP BY timesheet_line.date, timesheet_line.employee;'
+
+        if CONFIG['db_type'] == 'postgres':
+            Transaction().cursor.execute('CREATE OR REPLACE VIEW ' + query)
+
+        elif CONFIG['db_type'] == 'sqlite':
+            Transaction().cursor.execute('CREATE VIEW IF NOT EXISTS ' + query)
 
 
 class Project:
@@ -691,7 +721,7 @@ class Project:
             ('nereid_user', '=', False)
         ])
         return render_template(
-            'project/project-permissions.jinja', project=project,
+            'project/permissions.jinja', project=project,
             invitations=invitations, active_type_name='permissions'
         )
 
@@ -958,7 +988,7 @@ class Project:
                 task.attachments]
         )
         return render_template(
-            'project/project-files.jinja', project=project,
+            'project/files.jinja', project=project,
             active_type_name='files', guess_type=guess_type,
             other_attachments=other_attachments
         )
@@ -1124,7 +1154,8 @@ class Project:
             'series': ['%.2f' % hours_by_day[day] for day in days]
         })
 
-    def get_comparison_data(self):
+    @classmethod
+    def get_comparison_data(cls):
         """
         Compare the performance of people
         """
@@ -1214,7 +1245,8 @@ class Project:
             series=series + additional
         )
 
-    def get_gantt_data(self):
+    @classmethod
+    def get_gantt_data(cls):
         """
         Get gantt data for the last 1 month.
         """
@@ -1279,16 +1311,17 @@ class Project:
             end_date=today
         )
 
+    @classmethod
     @login_required
     @permissions_required(['project.admin'])
-    def render_global_gantt(self):
+    def render_global_gantt(cls):
         """
         Renders a global gantt
         """
         Employee = Pool().get('company.employee')
 
         if request.is_xhr:
-            return self.get_gantt_data()
+            return cls.get_gantt_data()
         employees = Employee.search([])
         return render_template(
             'project/global-gantt.jinja', employees=employees
@@ -1421,7 +1454,7 @@ class Project:
             )
 
         return render_template(
-            'project/project-plan.jinja', project=project,
+            'project/plan.jinja', project=project,
             active_type_name='plan'
         )
 

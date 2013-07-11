@@ -200,11 +200,11 @@ class TestNereidProject(NereidTestCase):
             'localhost/project/project.jinja': '{{ project.name }}',
             'localhost/project/home.jinja': '{{ projects|length }}',
             'localhost/project/timesheet.jinja': '{{ employees|length }}',
-            'localhost/project/project-files.jinja':
+            'localhost/project/files.jinja':
                 '{{ project.children[0].attachments|length }}',
-            'localhost/project/project-permissions.jinja':
+            'localhost/project/permissions.jinja':
                 '{{ invitations|length }}',
-            'localhost/project/project-plan.jinja': '{{  }}',
+            'localhost/project/plan.jinja': '{{  }}',
             'localhost/project/compare-performance.jinja':
                 '{{ employees|length }}',
             'localhost/project/emails/text_content.jinja': '',

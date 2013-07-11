@@ -746,51 +746,53 @@ class TestTask(NereidTestCase):
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.location, 'http://localhost/en_US/')
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    # Mark time
+                    response = c.post(
+                        '/en_US/task-%d/-mark-time' % task.id,
+                        data={
+                            'hours': '8',
+                        }
+                    )
 
-                # Mark time
-                response = c.post(
-                    '/en_US/task-%d/-mark-time' % task.id,
-                    data={
-                        'hours': '8',
-                    }
-                )
+                    self.assertEqual(response.status_code, 302)
 
-                self.assertEqual(response.status_code, 302)
+                    # Check Flash Message
+                    response = c.get('/en_US/login')
+                    self.assertTrue(
+                        u'Time has been marked on task ABC_task' in
+                        response.data
+                    )
 
-                # Check Flash Message
-                response = c.get('/en_US/login')
-                self.assertTrue(
-                    u'Time has been marked on task ABC_task' in
-                    response.data
-                )
+                    # Logout
+                    response = c.get('/en_US/logout')
 
-                # Logout
-                response = c.get('/en_US/logout')
+                    # Login with other user
+                    response = c.post('/en_US/login', data=login_data2)
 
-                # Login with other user
-                response = c.post('/en_US/login', data=login_data2)
+                    # Login Success
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response.location, 'http://localhost/en_US/')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                    # Mark time when user is not employee
+                    response = c.post(
+                        '/en_US/task-%d/-mark-time' % task.id,
+                        data={
+                            'hours': '8',
+                        }
+                    )
 
-                # Mark time when user is not employee
-                response = c.post(
-                    '/en_US/task-%d/-mark-time' % task.id,
-                    data={
-                        'hours': '8',
-                    }
-                )
+                    self.assertEqual(response.status_code, 302)
+                    response = c.get('/en_US/logout')
 
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/en_US/logout')
-
-                # Check Flash Message
-                response = c.get('/en_US/login')
-                self.assertTrue(
-                    u'Only employees can mark time on tasks!' in
-                    response.data
-                )
+                    # Check Flash Message
+                    response = c.get('/en_US/login')
+                    self.assertTrue(
+                        u'Only employees can mark time on tasks!' in
+                        response.data
+                    )
 
     def test_0130_change_estimated_hours(self):
         """
