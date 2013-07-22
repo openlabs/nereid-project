@@ -1482,9 +1482,20 @@ class Project:
             raise abort(404)
 
         attached_file =  request.files["file"]
+        resource = '%s,%d' % (cls.__name__, work.id)
+
+        if Attachment.search([
+            ('name', '=', attached_file.filename),
+            ('resource', '=', resource)
+        ]):
+            flash(
+                'File already exists with same name, please choose another ' +
+                'file or rename this file to upload !!'
+            )
+            return redirect(request.referrer)
 
         data = {
-            'resource': '%s,%d' % (cls.__name__, work.id),
+            'resource': resource,
             'description': request.form.get('description', '')
         }
 
