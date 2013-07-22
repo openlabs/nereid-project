@@ -162,6 +162,11 @@ class TestTask(NereidTestCase):
             'color': 'color2',
             'project': project1.id
         })
+        tag3 = self.Tag.create({
+            'name': 'tag3',
+            'color': 'color3',
+            'project': project1.id
+        })
 
         # Nereid Permission
         permission = self.Permission.search([
@@ -190,6 +195,7 @@ class TestTask(NereidTestCase):
             'project1': project1,
             'tag1': tag1,
             'tag2': tag2,
+            'tag3': tag3,
         }
 
     def create_task_dafaults(self):
@@ -1040,6 +1046,69 @@ class TestTask(NereidTestCase):
                     self.assertEqual(
                         len(self.Project.search([('type', '=', 'task')])),
                         2
+                    )
+
+    def test_0200_create_task_with_multiple_tags(self):
+        """
+        Adding more than one tag to task which already exist in a project
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            login_data = {
+                'email': 'email@example.com',
+                'password': 'password',
+            }
+            with app.test_client() as c:
+                response = c.post('/en_US/login', data=login_data)
+                self.assertEqual(response.status_code, 302)
+
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    # No task created
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        0
+                    )
+
+                    # Create Task
+                    response = c.post(
+                        '/en_US/project-%d/task/-new' % data['project1'].id,
+                        data={
+                            'name': 'Task with multiple tags',
+                            'description': 'Multi selection tags field',
+                            'tags': [
+                                data['tag1'].id,
+                                data['tag2'].id,
+                                data['tag3'].id,
+                            ],
+                        }
+                    )
+                    self.assertEqual(response.status_code, 302)
+                    # One task created
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        1
+                    )
+                    self.assertTrue(
+                        self.Project.search([
+                            ('name', '=', 'Task with multiple tags')
+                        ])
+                    )
+
+                    task, = self.Project.search([
+                        ('name', '=', 'Task with multiple tags'),
+                    ])
+
+                    # Tags added in above created task
+                    self.assertEqual(len(task.tags), 3)
+
+                    response = c.get('/en_US/login')
+                    self.assertTrue(
+                        u'Task successfully added to project ABC' in
+                        response.data
                     )
 
 

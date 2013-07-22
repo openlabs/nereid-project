@@ -85,6 +85,12 @@
       <label for="estimated_hours">Estimated hours</label>
       <input class="span12" type="text" placeholder="Estimated hours"
         name="estimated_hours" id="estimated_hours"/>
+      <label for="tag"> Tags: </label>
+      <select data-placeholder="Choose tags to add into this task" class="chzn-select" style="width: 460px;" multiple id="tag" name="tags">
+        {% for tag in project.tags_for_projects %}
+          <option value="{{ tag.id }}">{{ tag.name }}</option>
+        {% endfor %}
+      </select>
       <label for="constraint_start_time">Task should start and finish by <small>(Optional):</small></label>
       <div class="input-append date datepicker span4">
         <input class="datepicker span10" type="text" name="constraint_start_time" readonly="">
