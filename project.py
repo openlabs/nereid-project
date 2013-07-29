@@ -1944,7 +1944,7 @@ class TaskTags(ModelSQL):
 
         # Migration
         if table.table_exist(cursor, 'project_work_tag_rel'):
-            table.table_exist(
+            table.table_rename(
                 cursor, 'project_work_tag_rel', 'project_work-project_work_tag'
             )
 
