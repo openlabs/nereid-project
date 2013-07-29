@@ -2124,7 +2124,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     commit_url = fields.Char('Commit URL', required=True)
     commit_id = fields.Char('Commit Id', required=True)
 
-    def commit_github_hook_handler(self):
+    @classmethod
+    def commit_github_hook_handler(cls):
         """
         Handle post commit posts from GitHub
         See https://help.github.com/articles/post-receive-hooks
@@ -2157,7 +2158,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
-                    self.create({
+                    cls.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2169,7 +2170,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     })
         return 'OK'
 
-    def commit_bitbucket_hook_handler(self):
+    @classmethod
+    def commit_bitbucket_hook_handler(cls):
         """
         Handle post commit posts from bitbucket
         See https://confluence.atlassian.com/display/BITBUCKET/POST+Service+Management
@@ -2201,7 +2203,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
-                    self.create({
+                    cls.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
