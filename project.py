@@ -462,19 +462,19 @@ class Project:
 
         :param project_id: Project Id of project to fetch.
         """
-        project, = cls.search([
+        projects = cls.search([
             ('id', '=', project_id),
             ('type', '=', 'project'),
         ])
 
-        if not project:
+        if not projects:
             raise abort(404)
 
-        if not project.can_read(request.nereid_user):
+        if not projects[0].can_read(request.nereid_user):
             # If the user is not allowed to access this project then dont let
             raise abort(404)
 
-        return project
+        return projects[0]
 
     @classmethod
     def get_task(cls, task_id):
@@ -484,19 +484,19 @@ class Project:
 
         :param task_id: Task Id of project to fetch.
         """
-        task, = cls.search([
+        tasks = cls.search([
             ('id', '=', task_id),
             ('type', '=', 'task'),
         ])
 
-        if not task:
+        if not tasks:
             raise abort(404)
 
-        if not task.parent.can_write(request.nereid_user):
+        if not tasks[0].parent.can_write(request.nereid_user):
             # If the user is not allowed to access this project then dont let
             raise abort(403)
 
-        return task
+        return tasks[0]
 
     @classmethod
     def get_tasks_by_tag(cls, tag_id):
