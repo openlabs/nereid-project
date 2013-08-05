@@ -1589,7 +1589,7 @@ class Project:
             TimesheetLine.create({
                 'employee': request.nereid_user.employee.id,
                 'hours': hours,
-                'work': task.id
+                'work': task.work.id
             })
 
         # Send the email since all thats required is done
