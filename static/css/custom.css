@@ -1,0 +1,102 @@
+body{
+    cursor: default;
+}
+a{
+    cursor: pointer;
+}
+.tasks-list .ui-sortable-placeholder, .iteration-block .ui-sortable-placeholder{
+    border: 2px dashed #999;
+    visibility: visible !important;
+    height: 40px !important;
+    background: #ddd;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+.tasks-list .ui-sortable-placeholder *, .iteration-block .ui-sortable-placeholder *{
+    visibility: hidden;
+}
+#task-list-Backlog div.task-item div.task-details, .state-Backlog{
+    border-left: 6px #999 solid;
+}
+#task-list-Planning div.task-item div.task-details, .state-Planning{
+    border-left: 6px #378DF0 solid;
+}
+#task-list-In_Progress div.task-item div.task-details, .state-In_Progress{
+    border-left: 6px #7EA629 solid;
+}
+#task-list-Review div.task-item div.task-details, .state-Review{
+    border-left: 6px #ED811D solid;
+}
+
+div.task-item div.task-details {
+    font-size: 13px;
+    border-radius:5px;
+    padding:6px;
+    box-shadow: #999 0px 0px 5px;
+    background: #fefefe;
+    margin-bottom: 10px;
+}
+div.task-item div.task-details.delay {
+    box-shadow: #D93030 0px 0px 5px;
+    border-left: 6px #D93030 solid !important;
+    background: #FFF0F0;
+}
+div.task-item a, div.task-item a:hover {
+    text-decoration: none;
+    color: inherit;
+}
+div.task-item .size{
+    font-weight: bold;
+    font-size: 12px;
+    text-shadow: #999 0 0 3px;
+}
+div.task-item .icon-hide{
+    opacity: 0;
+    padding-left: 5px;
+}
+div.task-item:not(.done):hover .icon-hide{
+    opacity: 1;
+}
+a.action-tag-btn:hover span.label{
+    cursor: pointer;
+    text-decoration: none;
+}
+div.task-item .icon{
+    display: block;
+    padding: 0 5px;
+}
+div.task-item .task-footer{
+    padding-top: 5px;
+}
+div.task-item .tag{
+    background: #efefef;
+}
+div.task-item .tag:hover{
+    text-decoration: underline;
+}
+div.task-item.done div.task-details{
+    background: #EFEFEF;
+}
+div.task-item.done div.task-details a.task-name{
+    text-decoration: line-through !important;
+}
+
+div.popover-content a{
+    color: inherit;
+}
+div.popover-content a:hover{
+    text-decoration: none;
+}
+
+div.iteration-block{
+    border: #999 1px solid;
+    border-radius: 5px;
+    box-shadow: #000 0 0 5px;
+    padding: 10px;
+    height: 400px;
+    overflow-y: scroll;
+}
+
+.clear{
+    clear: both;
+}
