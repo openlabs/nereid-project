@@ -54,6 +54,27 @@ of this repository contains the full copyright notices and license terms. -->
             </field>
         </record>
 
+        <record model="nereid.activity.allowed_model"
+                id="activity_allowed_model_work">
+          <field name="name">ProjectWork</field>
+          <field name="model" search="[('model', '=', 'project.work')]"/>
+        </record>
+        <record model="nereid.activity.allowed_model"
+                id="activity_allowed_model_work_tag">
+          <field name="name">ProjectWorkTag</field>
+          <field name="model" search="[('model', '=', 'project.work.tag')]"/>
+        </record>
+        <record model="nereid.activity.allowed_model"
+                id="activity_allowed_model_nereid_user">
+          <field name="name">NereidUser</field>
+          <field name="model" search="[('model', '=', 'nereid.user')]"/>
+        </record>
+        <record model="nereid.activity.allowed_model"
+                id="activity_allowed_model_work_history">
+          <field name="name">ProjectWorkHistory</field>
+          <field name="model" search="[('model', '=', 'project.work.history')]"/>
+        </record>
+
         <record id="permission_project_admin" model="nereid.permission">
           <field name="name">Project Admin</field>
           <field name="value">project.admin</field>
