@@ -41,6 +41,8 @@ class TestNereidProject(NereidTestCase):
         this method is called before each test function execution.
         """
         trytond.tests.test_tryton.install_module('nereid_project')
+        self.ActivityAllowedModel = POOL.get('nereid.activity.allowed_model')
+        self.Model = POOL.get('ir.model')
         self.Project = POOL.get('project.work')
         self.Company = POOL.get('company.company')
         self.Employee = POOL.get('company.employee')

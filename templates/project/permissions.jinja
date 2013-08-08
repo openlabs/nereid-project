@@ -14,7 +14,7 @@
         <br>
         <a class="btn btn-mini btn-danger btn-remove-participant" href=""
           title="Remove {{ user.display_name }}" rel="tooltip" data-id="{{ user.id }}"
-          data-url="{{ url_for('project.work.remove_participant', project_id=project.id, participant_id=user.id) }}">
+          data-url="{{ url_for('project.work.remove_participant', active_id=project.id, participant_id=user.id) }}">
             <i class="icon-minus-sign icon-white"></i> {{ _('Remove') }}
         </a>
         {% endif %}
@@ -57,12 +57,12 @@
     <strong>{{ invitation.email }}</strong><br>
     <a class="btn btn-small btn-reinvite-participant"
       title="Re-Invite {{ invitation.email }}" rel="tooltip" data-id="{{ invitation.id }}"
-      data-url="{{ url_for('project.work.invitation.resend_invite', invitation_id=invitation.id) }}">
+      data-url="{{ url_for('project.work.invitation.resend_invite', active_id=invitation.id) }}">
         <i class="icon-share-alt icon-white"></i> {{ _('Resend Invite') }}
     </a>
     <a class="btn btn-small btn-warning btn-remove-invite"
       title="Revoke invitation to {{ invitation.email }}" rel="tooltip" data-id="{{ invitation.id }}"
-      data-url="{{ url_for('project.work.invitation.remove_invite', invitation_id=invitation.id) }}">
+      data-url="{{ url_for('project.work.invitation.remove_invite', active_id=invitation.id) }}">
         <i class="icon-minus-sign icon-white"></i> {{ _('Revoke Invitation') }}
     </a>
 </div>
