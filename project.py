@@ -1036,39 +1036,48 @@ class Project:
             return '22-END'
 
     @classmethod
-    def get_calendar_data(cls, domain=None):
+    def get_task_from_work(cls, work):
+        '''
+        Returns task from work
+
+        :param work: Instance of work
+        '''
+        with Transaction().set_context(active_test=False):
+            task, = cls.search([('work', '=', work.id)], limit=1)
+            return task
+
+    @classmethod
+    def get_calendar_data(cls, project=None):
         """
         Returns the calendar data
-
-        :param domain: List of tuple to add to the domain expression
         """
         Timesheet = Pool().get('timesheet.line')
+        ProjectWork = Pool().get('project.work')
+        Employee = Pool().get('company.employee')
+
+        if request.args.get('timesheet_lines_of'):
+            # This request only expects timesheet lines and the request comes
+            # in the format date:employee_id:project_id 
+            date, employee_id, project_id = request.args.get('timesheet_lines_of').split(':')
+            domain = [
+                ('date', '=', datetime.strptime(date, '%Y-%m-%d').date()),
+                ('employee', '=', int(employee_id))
+            ]
+            if int(project_id):
+                project = ProjectWork(int(project_id))
+                domain.append(('work.parent', 'child_of', [project.work.id]))
+            lines = Timesheet.search(
+                domain, order=[('date', 'asc'), ('employee', 'asc')]
+            )
+            return jsonify(lines=[
+                render_template(
+                    'project/timesheet-line.jinja', line=line,
+                    related_task=cls.get_task_from_work(line.work)
+                ) \
+                for line in lines[::-1]
+            ])
 
         start, end = cls._get_expected_date_range()
-
-        if domain is None:
-            domain = []
-        domain += [
-            ('date', '>=', start),
-            ('date', '<=', end),
-        ]
-
-        if request.args.get('employee', None) and \
-            request.nereid_user.has_permissions(['project.admin']):
-            domain.append(
-                ('employee', '=', request.args.get('employee', None, int))
-            )
-        lines = Timesheet.search(
-            domain, order=[('date', 'asc'), ('employee', 'asc')]
-        )
-
-        hours_by_day_employee = defaultdict(lambda: defaultdict(float))
-        hours_by_week_employee = defaultdict(lambda: defaultdict(float))
-
-        for line in lines:
-            hours_by_day_employee[line.date][line.employee] += line.hours
-            hours_by_week_employee[cls.get_week(line.date.day)] \
-                [line.employee] += line.hours
 
         day_totals = []
         color_map = {}
@@ -1077,36 +1086,55 @@ class Project:
             'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
             'maroon', 'PaleTurquoise'
         ])
-        day_totals_append = day_totals.append  # Performance speedup
-        for date, employee_hours in hours_by_day_employee.iteritems():
-            for employee, hours in employee_hours.iteritems():
-                day_totals_append({
-                    'id': '%s.%s' % (date, employee.id),
-                    'title': '%s (%dh %dm)' % (
-                        employee.name, hours, (hours * 60) % 60
-                    ),
-                    'start': date.isoformat(),
-                    'color': color_map.setdefault(employee, colors.next()),
-                })
+        query = '''SELECT 
+                timesheet_line.employee,
+                timesheet_line.date,
+        '''
+        if project:
+             query += 'project_work.id AS project,'
+        else:
+             query += '0 AS project,'
+        query += '''SUM(timesheet_line.hours) AS sum
+            FROM timesheet_line
+            JOIN timesheet_work ON timesheet_work.id = timesheet_line.work AND timesheet_work.parent IS NOT NULL
+            JOIN project_work ON project_work.work = timesheet_work.parent
+            WHERE 
+                timesheet_line.date >= %s AND 
+                timesheet_line.date <= %s
+        '''
+        qargs = [start, end]
+        if project:
+            qargs.append(project.id)
+            query += 'AND project_work.id = %s'
 
-        def get_task_from_work(work):
-            '''
-            Returns task from work
+        if request.args.get('employee', None) and \
+            request.nereid_user.has_permissions(['project.admin']):
+            qargs.append(request.args.get('employee', None, int))
+            query += 'AND timesheet_line.employee = %s'
 
-            :param work: Instance of work
-            '''
-            with Transaction().set_context(active_test=False):
-                task, = cls.search([('work', '=', work.id)], limit=1)
-                return task
+        query += '''
+            GROUP BY 
+                timesheet_line.employee,
+                timesheet_line.date
+        '''
+        if project:
+            query += ',project_work.id'
 
-        reverse_lines = lines[::-1]
-        lines = [
-            render_template(
-                    'project/timesheet-line.jinja', line=line,
-                    related_task=get_task_from_work(line.work)
-                ) \
-                for line in reverse_lines
-        ]
+        Transaction().cursor.execute(query, qargs)
+        raw_data = Transaction().cursor.fetchall()
+
+        hours_by_week_employee = defaultdict(lambda: defaultdict(float))
+        for employee_id, date, project_id, hours in raw_data:
+            employee = Employee(employee_id)
+            day_totals.append({
+                'id': '%s:%s:%s' % (date, employee.id, project_id),
+                'title': '%s (%dh %dm)' % (
+                    employee.name, hours, (hours * 60) % 60
+                ),
+                'start': date.isoformat(),
+                'color': color_map.setdefault(employee, colors.next()),
+            })
+            hours_by_week_employee[cls.get_week(date.day)][employee] += hours
 
         total_by_employee = defaultdict(float)
         for employee_hours in hours_by_week_employee.values():
@@ -1117,7 +1145,7 @@ class Project:
             'project/work-week.jinja', data_by_week=hours_by_week_employee,
             total_by_employee=total_by_employee
         )
-        return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
+        return jsonify(day_totals=day_totals, lines=[], work_week=work_week)
 
     @classmethod
     @login_required
@@ -1283,7 +1311,7 @@ class Project:
             employee = employees.get(employee_id)
             gantt_data_append({
                 'name': employee and employee.name or 'Ghost',
-		'desc': '',
+        'desc': '',
                 'values': values,
             })
         gantt_data = sorted(gantt_data, key=lambda item: item['name'].lower())
@@ -1381,9 +1409,7 @@ class Project:
                 if p.employee
         ]
         if request.is_xhr:
-            return cls.get_calendar_data(
-                [('work.parent', 'child_of', [project.work.id])]
-            )
+            return cls.get_calendar_data(project)
         return render_template(
             'project/timesheet.jinja', project=project,
             active_type_name="timesheet", employees=employees
