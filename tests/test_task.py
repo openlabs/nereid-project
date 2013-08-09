@@ -224,7 +224,8 @@ class TestTask(NereidTestCase):
             'company': data['company'].id,
         })
 
-        self.Project.write([data['task1'].parent],
+        self.Project.write(
+            [data['task1'].parent],
             {
                 'participants': [
                     ('add', [
@@ -254,10 +255,8 @@ class TestTask(NereidTestCase):
             'localhost/project/emails/html_content.jinja': '',
             'localhost/project/task.jinja': '{{ task.id }}',
             'localhost/project/comment.jinja': '',
-            'localhost/project/tasks-by-employee.jinja':
-                '',
-            'localhost/project/project-task-list.jinja':
-                '{{ tasks|length }}',
+            'localhost/project/tasks-by-employee.jinja': '',
+            'localhost/project/project-task-list.jinja': '{{ tasks|length }}',
         }
         return self.templates.get(name)
 
@@ -776,7 +775,9 @@ class TestTask(NereidTestCase):
 
                     # Login Success
                     self.assertEqual(response.status_code, 302)
-                    self.assertEqual(response.location, 'http://localhost/en_US/')
+                    self.assertEqual(
+                        response.location, 'http://localhost/en_US/'
+                    )
 
                     # Mark time when user is not employee
                     response = c.post(

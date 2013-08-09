@@ -16,6 +16,7 @@ import unittest
 import trytond.tests.test_tryton
 from trytond.backend.sqlite.database import Database as SQLiteDatabase
 
+
 def doctest_dropdb(test):
     '''
     Remove sqlite memory database
@@ -27,6 +28,7 @@ def doctest_dropdb(test):
         cursor.commit()
     finally:
         cursor.close()
+
 
 def suite():
     """

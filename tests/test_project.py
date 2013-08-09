@@ -203,12 +203,12 @@ class TestNereidProject(NereidTestCase):
             'localhost/project/home.jinja': '{{ projects|length }}',
             'localhost/project/timesheet.jinja': '{{ employees|length }}',
             'localhost/project/files.jinja':
-                '{{ project.children[0].attachments|length }}',
+            '{{ project.children[0].attachments|length }}',
             'localhost/project/permissions.jinja':
-                '{{ invitations|length }}',
+            '{{ invitations|length }}',
             'localhost/project/plan.jinja': '{{  }}',
             'localhost/project/compare-performance.jinja':
-                '{{ employees|length }}',
+            '{{ employees|length }}',
             'localhost/project/emails/text_content.jinja': '',
             'localhost/project/emails/html_content.jinja': '',
             'localhost/project/emails/invite_2_project_text.html': '',
@@ -244,8 +244,8 @@ class TestNereidProject(NereidTestCase):
                     # Get flash message for logged in user
                     response = c.get('/en_US/login')
                     self.assertTrue(
-                        u'You are now logged in. Welcome Registered User2' in \
-                        response.data
+                        u'You are now logged in. Welcome Registered User2' in
+                            response.data
                     )
 
                     # Create project when user is not admin
@@ -262,7 +262,7 @@ class TestNereidProject(NereidTestCase):
                     response = c.get('/en_US/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to create new projects.' +
-                        ' Contact your project admin for the same.' in \
+                        ' Contact your project admin for the same.' in
                         response.data
                     )
 
@@ -315,7 +315,8 @@ class TestNereidProject(NereidTestCase):
                 rv = c.get('/en_US/me')
                 self.assertEqual(rv.status_code, 302)
 
-                with Transaction().set_context({'company': data['company'].id}):
+                with Transaction().set_context(
+                        {'company': data['company'].id}):
                     # User Login
                     response = c.post('/en_US/login', data={
                         'email': 'email@example.com',
@@ -323,7 +324,7 @@ class TestNereidProject(NereidTestCase):
                     })
                     response = c.get('/en_US/login')
                     self.assertTrue(
-                        u'You are now logged in. Welcome Registered User1' in \
+                        u'You are now logged in. Welcome Registered User1' in
                         response.data
                     )
 
@@ -365,7 +366,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 302)
                     response = c.get('/en_US/login')
                     self.assertTrue(
-                        u'Could not create project. Try again.' in \
+                        u'Could not create project. Try again.' in
                         response.data
                     )
 
@@ -393,7 +394,8 @@ class TestNereidProject(NereidTestCase):
                     'password': 'password',
                 }
 
-                with Transaction().set_context({'company': data['company'].id}):
+                with Transaction().set_context(
+                        {'company': data['company'].id}):
                     response = c.post('/en_US/login', data=login_data)
                     self.assertEqual(response.status_code, 302)
 
@@ -412,22 +414,20 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project1 = self.Project.create({
+            self.Project.create({
                 'name': 'ABC',
                 'type': 'project',
                 'company': data['company'].id,
                 'parent': False,
                 'state': 'opened',
             })
-            project2 = self.Project.create({
+            self.Project.create({
                 'name': 'PQR',
                 'type': 'project',
                 'company': data['company'].id,
                 'parent': False,
                 'state': 'opened',
             })
-
-
             with app.test_client() as c:
 
                 login_data = {
@@ -465,7 +465,7 @@ class TestNereidProject(NereidTestCase):
                 'parent': False,
                 'state': 'opened',
             })
-            project2 = self.Project.create({
+            self.Project.create({
                 'name': 'PQR',
                 'type': 'project',
                 'company': data['company'].id,
@@ -484,10 +484,11 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
 
-                    self.Project.write([project1],
-                        {'participants':
-                            [('add',
-                                [data['registered_user3'].id])
+                    self.Project.write(
+                        [project1],
+                        {
+                            'participants': [
+                                ('add', [data['registered_user3'].id])
                             ]
                         }
                     )
@@ -526,10 +527,12 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/project-%d/tag/-new' % project.id, data={
-                        'name': 'TagProject',
-                        'color': 'Black',
-                    })
+                        '/en_US/project-%d/tag/-new' % project.id,
+                        data={
+                            'name': 'TagProject',
+                            'color': 'Black',
+                        }
+                    )
 
                     # Redirecting back to refer page
                     self.assertEqual(response.status_code, 302)
@@ -543,11 +546,13 @@ class TestNereidProject(NereidTestCase):
                     # Tests for creating tag for specific project with get
                     # request
                     response = c.get(
-                        '/en_US/project-%d/tag/-new' % project.id, data={
-                        'name': 'TagProject',
-                        'color': 'Black',
-                        'project': project.id,
-                    })
+                        '/en_US/project-%d/tag/-new' % project.id,
+                        data={
+                            'name': 'TagProject',
+                            'color': 'Black',
+                            'project': project.id,
+                        }
+                    )
 
                     # Redirecting back to refer page
                     self.assertEqual(response.status_code, 302)
@@ -577,11 +582,10 @@ class TestNereidProject(NereidTestCase):
             })
 
             # For project nereid user should be participant of that project
-            self.Project.write([project],
-                {'participants':
-                    [('add',
-                        [data['registered_user2'].id])
-                    ]
+            self.Project.write(
+                [project],
+                {
+                    'participants': [('add', [data['registered_user2'].id])]
                 }
             )
 
@@ -596,10 +600,12 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/project-%d/tag/-new' % project.id, data={
-                        'name': 'TagProject',
-                        'color': 'Black',
-                    })
+                        '/en_US/project-%d/tag/-new' % project.id,
+                        data={
+                            'name': 'TagProject',
+                            'color': 'Black',
+                        }
+                    )
 
                     # Redirecting back to refer page
                     self.assertEqual(response.status_code, 302)
@@ -608,7 +614,7 @@ class TestNereidProject(NereidTestCase):
                     response = c.get('/en_US/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to create new tags.' +
-                        ' Contact your project admin for the same.' in \
+                        ' Contact your project admin for the same.' in
                         response.data
                     )
 
@@ -630,11 +636,10 @@ class TestNereidProject(NereidTestCase):
             })
 
             # For project nereid user should be participant of that project
-            self.Project.write([project],
-                {'participants':
-                    [('add',
-                        [data['registered_user2'].id])
-                    ]
+            self.Project.write(
+                [project],
+                {
+                    'participants': [('add', [data['registered_user2'].id])]
                 }
             )
 
@@ -1014,7 +1019,7 @@ class TestNereidProject(NereidTestCase):
                 }):
                     response = c.get(
                         '/en_US/project-%d/-permissions?invitations=%d' %
-                            (project.id, invitation.id)
+                        (project.id, invitation.id)
                     )
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.data, '0')
@@ -1060,7 +1065,7 @@ class TestNereidProject(NereidTestCase):
                     response = c.get('/en_US/login')
                     self.assertTrue(
                         'Sorry! You are not allowed to remove participants.' +
-                        ' Contact your project admin for the same.' in \
+                        ' Contact your project admin for the same.' in
                         response.data
                     )
 
@@ -1116,7 +1121,7 @@ class TestNereidProject(NereidTestCase):
                     # Checks Flash Message
                     response = c.get('/en_US/login')
                     self.assertTrue(
-                        'Could not remove participant! Try again.' \
+                        'Could not remove participant! Try again.'
                         in response.data
                     )
 
@@ -1160,7 +1165,7 @@ class TestNereidProject(NereidTestCase):
                     response = c.get('/en_US/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to remove invited ' +
-                        'users. Contact your project admin for the same.' in \
+                        'users. Contact your project admin for the same.' in
                         response.data
                     )
 
@@ -1219,7 +1224,7 @@ def suite():
     test_suite = unittest.TestSuite()
     test_suite.addTests(
         unittest.TestLoader().loadTestsFromTestCase(TestNereidProject)
-        )
+    )
     return test_suite
 
 
