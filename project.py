@@ -39,9 +39,9 @@ from trytond.config import CONFIG
 from trytond.tools import get_smtp_server, datetime_strftime
 from trytond.backend import TableHandler
 
-__all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation', \
-    'ProjectWorkInvitation', 'Project', 'Tag', \
-    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit']
+__all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation',
+    'TimesheetEmployeeDay', 'ProjectWorkInvitation', 'Project', 'Tag',
+    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'Activity',]
 __metaclass__ = PoolMeta
 
 
@@ -209,6 +209,36 @@ class ProjectWorkInvitation(ModelSQL):
     )
 
 
+class TimesheetEmployeeDay(ModelView):
+    'Gantt dat view generator'
+    __name__ = 'timesheet_by_employee_by_day'
+
+    employee = fields.Many2One('company.employee', 'Employee')
+    date = fields.Date('Date')
+    hours = fields.Float('Hours', digits=(16, 2))
+
+    @classmethod
+    def __register__(cls, module_name):
+        """
+        Init Method
+
+        :param module_name: Name of the module
+        """
+        super(TimesheetEmployeeDay, cls).__register__(module_name)
+
+        query = '"timesheet_by_employee_by_day" AS ' \
+                'SELECT timesheet_line.employee, timesheet_line.date, ' \
+                'SUM(timesheet_line.hours) AS sum ' \
+                'FROM "timesheet_line" ' \
+                'GROUP BY timesheet_line.date, timesheet_line.employee;'
+
+        if CONFIG['db_type'] == 'postgres':
+            Transaction().cursor.execute('CREATE OR REPLACE VIEW ' + query)
+
+        elif CONFIG['db_type'] == 'sqlite':
+            Transaction().cursor.execute('CREATE VIEW IF NOT EXISTS ' + query)
+
+
 class Project:
     """
     Tryton itself is very flexible in allowing multiple layers of Projects and
@@ -343,6 +373,26 @@ class Project:
                 self.constraint_finish_time.isoformat() or None,
         }
 
+    def _json(self):
+        '''
+        Serialize the work and returns a dictionary
+        '''
+        rv = {
+            'id': self.id,
+            'displayName': self.name,
+            'type': self.type,
+            'objectType': self.__name__,
+        }
+        if self.type == 'project':
+            rv['url'] = url_for(
+                'project.work.render_project', active_id=self.id
+            )
+        else:
+            rv['url'] = url_for(
+                'project.work.render_task', active_id=self.id
+            )
+        return rv
+
     @classmethod
     def rst_to_html(cls):
         """
@@ -432,19 +482,19 @@ class Project:
 
         :param project_id: Project Id of project to fetch.
         """
-        project, = cls.search([
+        projects = cls.search([
             ('id', '=', project_id),
             ('type', '=', 'project'),
         ])
 
-        if not project:
+        if not projects:
             raise abort(404)
 
-        if not project.can_read(request.nereid_user):
+        if not projects[0].can_read(request.nereid_user):
             # If the user is not allowed to access this project then dont let
             raise abort(404)
 
-        return project
+        return projects[0]
 
     @classmethod
     def get_task(cls, task_id):
@@ -454,19 +504,19 @@ class Project:
 
         :param task_id: Task Id of project to fetch.
         """
-        task, = cls.search([
+        tasks = cls.search([
             ('id', '=', task_id),
             ('type', '=', 'task'),
         ])
 
-        if not task:
+        if not tasks:
             raise abort(404)
 
-        if not task.parent.can_write(request.nereid_user):
+        if not tasks[0].parent.can_write(request.nereid_user):
             # If the user is not allowed to access this project then dont let
             raise abort(403)
 
-        return task
+        return tasks[0]
 
     @classmethod
     def get_tasks_by_tag(cls, tag_id):
@@ -504,6 +554,7 @@ class Project:
 
         POST will create a new project
         """
+        Activity = Pool().get('nereid.activity')
         if not request.nereid_user.is_project_admin():
             flash("Sorry! You are not allowed to create new projects." +
             " Contact your project admin for the same.")
@@ -513,6 +564,12 @@ class Project:
             project = cls.create({
                 'name': request.form['name'],
                 'type': 'project',
+            })
+            Activity.create({
+                'actor': request.nereid_user.id,
+                'object_': 'project.work, %d' % project.id,
+                'verb': 'created_project',
+                'project': project.id,
             })
             flash("Project successfully created.")
             return redirect(
@@ -529,6 +586,7 @@ class Project:
         POST will create a new task
         """
         NereidUser = Pool().get('nereid.user')
+        Activity = Pool().get('nereid.activity')
 
         project = self.get_project(self.id)
 
@@ -541,6 +599,9 @@ class Project:
                 'name': request.form['name'],
                 'type': 'task',
                 'comment': request.form.get('description', False),
+                'tags': [('set',
+                    request.form.getlist('tags', int)
+                )]
             }
 
             constraint_start_time = request.form.get(
@@ -555,6 +616,13 @@ class Project:
                     constraint_finish_time, '%m/%d/%Y')
 
             task = self.create(data)
+            Activity.create({
+                'actor': request.nereid_user.id,
+                'object_': 'project.work, %d' % task.id,
+                'verb': 'created_task',
+                'target': 'project.work, %d' % project.id,
+                'project': project.id,
+            })
 
             email_receivers = [p.email for p in self.all_participants]
             if request.form.get('assign_to', False):
@@ -582,13 +650,20 @@ class Project:
         """
         Edit the task
         """
+        Activity = Pool().get('nereid.activity')
         task = self.get_task(self.id)
 
         self.write([task], {
             'name': request.form.get('name'),
             'comment': request.form.get('comment')
         })
-
+        Activity.create({
+            'actor': request.nereid_user.id,
+            'object_': 'project.work, %d' % task.id,
+            'verb': 'edited_task',
+            'target': 'project.work, %d' % task.parent.id,
+            'project': task.parent.id,
+        })
         if request.is_xhr:
             return jsonify({
                 'success': True,
@@ -688,7 +763,7 @@ class Project:
             ('nereid_user', '=', False)
         ])
         return render_template(
-            'project/project-permissions.jinja', project=project,
+            'project/permissions.jinja', project=project,
             invitations=invitations, active_type_name='permissions'
         )
 
@@ -712,6 +787,7 @@ class Project:
         """
         NereidUser = Pool().get('nereid.user')
         ProjectInvitation = Pool().get('project.work.invitation')
+        Activity = Pool().get('nereid.activity')
 
         if not request.method == 'POST':
             return abort(404)
@@ -744,6 +820,12 @@ class Project:
                     'participants': [('add', [existing_user[0].id])]
                 }
             )
+            Activity.create({
+                'actor': existing_user[0].id,
+                'object_': 'project.work, %d' % project.id,
+                'verb': 'joined_project',
+                'project': project.id,
+            })
             flash_message = "%s has been invited to the project" \
                 % existing_user[0].display_name
 
@@ -775,6 +857,7 @@ class Project:
     def remove_participant(self, participant_id):
         """Remove the participant form project
         """
+        Activity = Pool().get('nereid.activity')
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
             flash("Sorry! You are not allowed to remove participants." +
@@ -802,6 +885,13 @@ class Project:
                         self.__class__(rec_id), records_to_update_ids
                 ), {'participants': [('unlink', [participant_id])]}
             )
+            Activity.create({
+                'actor': request.nereid_user.id,
+                'object_': 'nereid.user, %d' % participant_id,
+                'target': 'project.work, %d' % self.id,
+                'verb': 'removed_participant',
+                'project': self.id,
+            })
 
             return jsonify({
                 'success': True,
@@ -955,7 +1045,7 @@ class Project:
                 task.attachments]
         )
         return render_template(
-            'project/project-files.jinja', project=project,
+            'project/files.jinja', project=project,
             active_type_name='files', guess_type=guess_type,
             other_attachments=other_attachments
         )
@@ -1003,39 +1093,48 @@ class Project:
             return '22-END'
 
     @classmethod
-    def get_calendar_data(cls, domain=None):
+    def get_task_from_work(cls, work):
+        '''
+        Returns task from work
+
+        :param work: Instance of work
+        '''
+        with Transaction().set_context(active_test=False):
+            task, = cls.search([('work', '=', work.id)], limit=1)
+            return task
+
+    @classmethod
+    def get_calendar_data(cls, project=None):
         """
         Returns the calendar data
-
-        :param domain: List of tuple to add to the domain expression
         """
         Timesheet = Pool().get('timesheet.line')
+        ProjectWork = Pool().get('project.work')
+        Employee = Pool().get('company.employee')
+
+        if request.args.get('timesheet_lines_of'):
+            # This request only expects timesheet lines and the request comes
+            # in the format date:employee_id:project_id 
+            date, employee_id, project_id = request.args.get('timesheet_lines_of').split(':')
+            domain = [
+                ('date', '=', datetime.strptime(date, '%Y-%m-%d').date()),
+                ('employee', '=', int(employee_id))
+            ]
+            if int(project_id):
+                project = ProjectWork(int(project_id))
+                domain.append(('work.parent', 'child_of', [project.work.id]))
+            lines = Timesheet.search(
+                domain, order=[('date', 'asc'), ('employee', 'asc')]
+            )
+            return jsonify(lines=[
+                render_template(
+                    'project/timesheet-line.jinja', line=line,
+                    related_task=cls.get_task_from_work(line.work)
+                ) \
+                for line in lines[::-1]
+            ])
 
         start, end = cls._get_expected_date_range()
-
-        if domain is None:
-            domain = []
-        domain += [
-            ('date', '>=', start),
-            ('date', '<=', end),
-        ]
-
-        if request.args.get('employee', None) and \
-            request.nereid_user.has_permissions(['project.admin']):
-            domain.append(
-                ('employee', '=', request.args.get('employee', None, int))
-            )
-        lines = Timesheet.search(
-            domain, order=[('date', 'asc'), ('employee', 'asc')]
-        )
-
-        hours_by_day_employee = defaultdict(lambda: defaultdict(float))
-        hours_by_week_employee = defaultdict(lambda: defaultdict(float))
-
-        for line in lines:
-            hours_by_day_employee[line.date][line.employee] += line.hours
-            hours_by_week_employee[cls.get_week(line.date.day)] \
-                [line.employee] += line.hours
 
         day_totals = []
         color_map = {}
@@ -1044,36 +1143,55 @@ class Project:
             'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
             'maroon', 'PaleTurquoise'
         ])
-        day_totals_append = day_totals.append  # Performance speedup
-        for date, employee_hours in hours_by_day_employee.iteritems():
-            for employee, hours in employee_hours.iteritems():
-                day_totals_append({
-                    'id': '%s.%s' % (date, employee.id),
-                    'title': '%s (%dh %dm)' % (
-                        employee.name, hours, (hours * 60) % 60
-                    ),
-                    'start': date.isoformat(),
-                    'color': color_map.setdefault(employee, colors.next()),
-                })
+        query = '''SELECT 
+                timesheet_line.employee,
+                timesheet_line.date,
+        '''
+        if project:
+             query += 'project_work.id AS project,'
+        else:
+             query += '0 AS project,'
+        query += '''SUM(timesheet_line.hours) AS sum
+            FROM timesheet_line
+            JOIN timesheet_work ON timesheet_work.id = timesheet_line.work AND timesheet_work.parent IS NOT NULL
+            JOIN project_work ON project_work.work = timesheet_work.parent
+            WHERE 
+                timesheet_line.date >= %s AND 
+                timesheet_line.date <= %s
+        '''
+        qargs = [start, end]
+        if project:
+            qargs.append(project.id)
+            query += 'AND project_work.id = %s'
 
-        def get_task_from_work(work):
-            '''
-            Returns task from work
+        if request.args.get('employee', None) and \
+            request.nereid_user.has_permissions(['project.admin']):
+            qargs.append(request.args.get('employee', None, int))
+            query += 'AND timesheet_line.employee = %s'
 
-            :param work: Instance of work
-            '''
-            with Transaction().set_context(active_test=False):
-                task, = cls.search([('work', '=', work.id)], limit=1)
-                return task
+        query += '''
+            GROUP BY 
+                timesheet_line.employee,
+                timesheet_line.date
+        '''
+        if project:
+            query += ',project_work.id'
 
-        reverse_lines = lines[::-1]
-        lines = [
-            render_template(
-                    'project/timesheet-line.jinja', line=line,
-                    related_task=get_task_from_work(line.work)
-                ) \
-                for line in reverse_lines
-        ]
+        Transaction().cursor.execute(query, qargs)
+        raw_data = Transaction().cursor.fetchall()
+
+        hours_by_week_employee = defaultdict(lambda: defaultdict(float))
+        for employee_id, date, project_id, hours in raw_data:
+            employee = Employee(employee_id)
+            day_totals.append({
+                'id': '%s:%s:%s' % (date, employee.id, project_id),
+                'title': '%s (%dh %dm)' % (
+                    employee.name, hours, (hours * 60) % 60
+                ),
+                'start': date.isoformat(),
+                'color': color_map.setdefault(employee, colors.next()),
+            })
+            hours_by_week_employee[cls.get_week(date.day)][employee] += hours
 
         total_by_employee = defaultdict(float)
         for employee_hours in hours_by_week_employee.values():
@@ -1084,7 +1202,7 @@ class Project:
             'project/work-week.jinja', data_by_week=hours_by_week_employee,
             total_by_employee=total_by_employee
         )
-        return jsonify(day_totals=day_totals, lines=lines, work_week=work_week)
+        return jsonify(day_totals=day_totals, lines=[], work_week=work_week)
 
     @classmethod
     @login_required
@@ -1121,7 +1239,8 @@ class Project:
             'series': ['%.2f' % hours_by_day[day] for day in days]
         })
 
-    def get_comparison_data(self):
+    @classmethod
+    def get_comparison_data(cls):
         """
         Compare the performance of people
         """
@@ -1211,7 +1330,8 @@ class Project:
             series=series + additional
         )
 
-    def get_gantt_data(self):
+    @classmethod
+    def get_gantt_data(cls):
         """
         Get gantt data for the last 1 month.
         """
@@ -1248,7 +1368,7 @@ class Project:
             employee = employees.get(employee_id)
             gantt_data_append({
                 'name': employee and employee.name or 'Ghost',
-		'desc': '',
+        'desc': '',
                 'values': values,
             })
         gantt_data = sorted(gantt_data, key=lambda item: item['name'].lower())
@@ -1276,16 +1396,17 @@ class Project:
             end_date=today
         )
 
+    @classmethod
     @login_required
     @permissions_required(['project.admin'])
-    def render_global_gantt(self):
+    def render_global_gantt(cls):
         """
         Renders a global gantt
         """
         Employee = Pool().get('company.employee')
 
         if request.is_xhr:
-            return self.get_gantt_data()
+            return cls.get_gantt_data()
         employees = Employee.search([])
         return render_template(
             'project/global-gantt.jinja', employees=employees
@@ -1345,9 +1466,7 @@ class Project:
                 if p.employee
         ]
         if request.is_xhr:
-            return cls.get_calendar_data(
-                [('work.parent', 'child_of', [project.work.id])]
-            )
+            return cls.get_calendar_data(project)
         return render_template(
             'project/timesheet.jinja', project=project,
             active_type_name="timesheet", employees=employees
@@ -1418,7 +1537,7 @@ class Project:
             )
 
         return render_template(
-            'project/project-plan.jinja', project=project,
+            'project/plan.jinja', project=project,
             active_type_name='plan'
         )
 
@@ -1479,9 +1598,20 @@ class Project:
             raise abort(404)
 
         attached_file =  request.files["file"]
+        resource = '%s,%d' % (cls.__name__, work.id)
+
+        if Attachment.search([
+            ('name', '=', attached_file.filename),
+            ('resource', '=', resource)
+        ]):
+            flash(
+                'File already exists with same name, please choose another ' +
+                'file or rename this file to upload !!'
+            )
+            return redirect(request.referrer)
 
         data = {
-            'resource': '%s,%d' % (cls.__name__, work.id),
+            'resource': resource,
             'description': request.form.get('description', '')
         }
 
@@ -1519,6 +1649,7 @@ class Project:
         """
         History = Pool().get('project.work.history')
         TimesheetLine = Pool().get('timesheet.line')
+        Activity = Pool().get('nereid.activity')
 
         task = cls.get_task(task_id)
 
@@ -1554,6 +1685,7 @@ class Project:
                         current_participant_ids:
                         new_participant_ids.append(new_assignee_id)
 
+
             if task_changes:
                 # Only write change if anything has really changed
                 cls.write([task], task_changes)
@@ -1567,7 +1699,13 @@ class Project:
         else:
             # Just comment, no update to task
             comment = History.create(history_data)
-
+        Activity.create({
+            'actor': request.nereid_user.id,
+            'object_': 'project.work.history, %d' % comment.id,
+            'verb': 'updated_task',
+            'target': 'project.work, %d' % task.id,
+            'project': task.parent.id,
+        })
 
         if request.nereid_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
@@ -1586,10 +1724,17 @@ class Project:
 
         hours = request.form.get('hours', None, type=float)
         if hours and request.nereid_user.employee:
-            TimesheetLine.create({
+            timesheet_line = TimesheetLine.create({
                 'employee': request.nereid_user.employee.id,
                 'hours': hours,
                 'work': task.work.id
+            })
+            Activity.create({
+                'actor': request.nereid_user.id,
+                'object_': 'timesheet.line, %d' % timesheet_line.id,
+                'verb': 'reported_time',
+                'target': 'project.work, %d' % task.id,
+                'project': task.parent.id,
             })
 
         # Send the email since all thats required is done
@@ -1615,11 +1760,19 @@ class Project:
         :param task_id: ID of task
         :param tag_id: ID of tag
         """
+        Activity = Pool().get('nereid.activity')
         task = cls.get_task(task_id)
 
         cls.write(
             [task], {'tags': [('add', [tag_id])]}
         )
+        Activity.create({
+            'actor': request.nereid_user.id,
+            'object_': 'project.work.tag, %d' % tag_id,
+            'verb': 'added_tag_to_task',
+            'target': 'project.work, %d' % task.id,
+            'project': task.parent.id,
+        })
 
         if request.method == 'POST':
             flash('Tag added to task %s' % task.name)
@@ -1637,11 +1790,19 @@ class Project:
         :param task_id: ID of task
         :param tag_id: ID of tag
         """
+        Activity = Pool().get('nereid.activity')
         task = cls.get_task(task_id)
 
         cls.write(
             [task], {'tags': [('unlink', [tag_id])]}
         )
+        Activity.create({
+            'actor': request.nereid_user.id,
+            'object_': 'project.work, %d' % task.id,
+            'verb': 'removed_tag_from_task',
+            'target': 'project.work, %d' % task.parent.id,
+            'project': task.parent.id,
+        })
 
         if request.method == 'POST':
             flash('Tag removed from task %s' % task.name)
@@ -1700,6 +1861,7 @@ class Project:
         :param task_id: Id of Task
         """
         NereidUser = Pool().get('nereid.user')
+        Activity = Pool().get('nereid.activity')
 
         task = cls.get_task(task_id)
 
@@ -1714,6 +1876,13 @@ class Project:
                 'participants': [('add', [new_assignee.id])]
             })
             task.history[-1].send_mail()
+            Activity.create({
+                'actor': request.nereid_user.id,
+                'object_': 'project.work, %d' % task.id,
+                'verb': 'assigned_task_to',
+                'target': 'nereid.user, %d' % new_assignee.id,
+                'project': task.parent.id,
+            })
             if request.is_xhr:
                 return jsonify({
                     'success': True,
@@ -1852,6 +2021,20 @@ class Tag(ModelSQL, ModelView):
         '''
         return "#999"
 
+    def _json(self):
+        '''
+        Serialize the tag and returns a dictionary.
+        '''
+        return {
+            "url": url_for(
+                'project.work.render_task_list', project_id=self.project.id,
+                state="opened", tag=self.id
+            ),
+            "objectType": self.__name__,
+            "id": self.id,
+            "displayName": self.name,
+        }
+
     @classmethod
     @login_required
     def create_tag(cls, project_id):
@@ -1861,6 +2044,7 @@ class Tag(ModelSQL, ModelView):
         :params project_id: Project id for which need to be created
         """
         Project = Pool().get('project.work')
+        Activity = Pool().get('nereid.activity')
 
         project = Project.get_project(project_id)
 
@@ -1871,10 +2055,17 @@ class Tag(ModelSQL, ModelView):
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            cls.create({
+            tag = cls.create({
                 'name': request.form['name'],
                 'color': request.form['color'],
                 'project': project.id
+            })
+            Activity.create({
+                'actor': request.nereid_user.id,
+                'object_': 'project.work.tag, %d' % tag.id,
+                'verb': 'created_tag',
+                'target': 'project.work, %d' % project.id,
+                'project': project.id,
             })
 
             flash("Successfully created tag")
@@ -1930,7 +2121,7 @@ class TaskTags(ModelSQL):
 
         # Migration
         if table.table_exist(cursor, 'project_work_tag_rel'):
-            table.table_exist(
+            table.table_rename(
                 cursor, 'project_work_tag_rel', 'project_work-project_work_tag'
             )
 
@@ -1989,6 +2180,19 @@ class ProjectHistory(ModelSQL, ModelView):
         Return current datetime in utcformat as default for date.
         '''
         return datetime.utcnow()
+
+    def _json(self):
+        '''
+        Serialize the history and returns a dictionary.
+        '''
+        return {
+            "url": url_for(
+                'project.work.render_task_list', comment=self.comment.id
+            ),
+            "objectType": self.__name__,
+            "id": self.id,
+            "displayName": self.display_name,
+        }
 
     @classmethod
     def create_history_line(cls, project, changed_values):
@@ -2110,7 +2314,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     commit_url = fields.Char('Commit URL', required=True)
     commit_id = fields.Char('Commit Id', required=True)
 
-    def commit_github_hook_handler(self):
+    @classmethod
+    def commit_github_hook_handler(cls):
         """
         Handle post commit posts from GitHub
         See https://help.github.com/articles/post-receive-hooks
@@ -2143,7 +2348,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
-                    self.create({
+                    cls.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2155,7 +2360,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     })
         return 'OK'
 
-    def commit_bitbucket_hook_handler(self):
+    @classmethod
+    def commit_bitbucket_hook_handler(cls):
         """
         Handle post commit posts from bitbucket
         See https://confluence.atlassian.com/display/BITBUCKET/POST+Service+Management
@@ -2187,7 +2393,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
-                    self.create({
+                    cls.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2217,6 +2423,7 @@ def invitation_new_user_handler(nereid_user_id):
         Invitation = Pool().get('project.work.invitation')
         Project = Pool().get('project.work')
         NereidUser = Pool().get('nereid.user')
+        Activity = Pool().get('nereid.activity')
 
     except KeyError:
         # Just return silently. This KeyError is cause if the module is not
@@ -2265,4 +2472,21 @@ def invitation_new_user_handler(nereid_user_id):
         [invitation.project], {
             'participants': [('add', [nereid_user_id])]
         }
+    )
+    Activity.create({
+        'actor': nereid_user_id,
+        'object_': 'project.work, %d' % invitation.project.id,
+        'verb': 'joined_project',
+        'project': invitation.project.id,
+    })
+
+
+class Activity:
+    '''
+    Nereid user activity
+    '''
+    __name__ = "nereid.activity"
+
+    project = fields.Many2One(
+        'project.work', 'Project', domain=[('type', '=', 'project')]
     )

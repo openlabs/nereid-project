@@ -19,6 +19,7 @@
 
     <link href="{{ STATIC }}css/bootstrap.css" rel="stylesheet">
     <link href="{{ STATIC }}css/font-awesome.css" rel="stylesheet">
+    <link href="{{ STATIC }}css/custom.css" rel="stylesheet"> 
     <link href="{{ STATIC }}css/bootstrap-responsive.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ STATIC }}css/jquery.meow.css" type="text/css" media="screen" title="no title" charset="utf-8">
     <link href="{{ STATIC }}css/chosen.css" type="text/css" rel="stylesheet" />
@@ -26,6 +27,16 @@
     <link href="{{ STATIC }}css/prettify.css" type="text/css" rel="stylesheet" />
     <link href="{{ STATIC }}css/ui-lightness/jquery-ui-1.8.21.custom.css" type="text/css" rel="stylesheet" />
     <script type="text/javascript" src="{{ STATIC }}js/prettify/prettify.js"></script>
+    <script type="text/template" id="popover2-template">
+      <div class="popover" onmouseover="$(this).mouseleave(function() {$(this).hide(); });">
+        <div class="arrow"></div>
+        <div class="popover-inner">
+          <div class="popover-content">
+            <p></p>
+          </div>
+        </div>
+      </div>
+    </script>
 
     {% block extra_head %}
     {% endblock %}
@@ -46,9 +57,15 @@
 
         // Activate toltips
         $("a[rel='tooltip']").tooltip();
+        $("img[rel='tooltip']").tooltip();
+        $("a[rel='popover2']").popover({
+          template: $("#popover2-template").html(),
+        });
+        $("a[rel='popover']").popover()
 
         // Change all timeago dates
         jQuery("abbr.timeago").timeago();
+
       });
     </script>
   </head>
@@ -107,6 +124,7 @@
  
     <!-- Other JS -->
     <script src="{{ STATIC }}js/jquery.min.js"></script>
+    <script src="{{ STATIC }}js/jquery-ui.js"></script>
     <script src="{{ STATIC }}js/bootstrap.js"></script>
     <script src="{{ STATIC }}js/chosen.jquery.min.js"></script>
     <script src="{{ STATIC }}js/jquery.timeago.js"></script>

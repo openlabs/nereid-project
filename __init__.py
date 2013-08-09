@@ -8,9 +8,11 @@
 '''
 from trytond.pool import Pool
 
-from project import WebSite, ProjectUsers, ProjectInvitation, \
-    ProjectWorkInvitation, Project, Tag, TaskTags, \
-    ProjectHistory, ProjectWorkCommit
+from project import (
+    WebSite, ProjectUsers, ProjectInvitation,
+    ProjectWorkInvitation, TimesheetEmployeeDay, Project, Tag,
+    TaskTags, ProjectHistory, ProjectWorkCommit, Activity,
+)
 from company import Company, CompanyProjectAdmins, NereidUser
 
 
@@ -22,11 +24,13 @@ def register():
         ProjectUsers,
         ProjectInvitation,
         ProjectWorkInvitation,
+        TimesheetEmployeeDay,
         Project,
         Tag,
         TaskTags,
         ProjectHistory,
         ProjectWorkCommit,
+        Activity,
         Company,
         CompanyProjectAdmins,
         NereidUser,
