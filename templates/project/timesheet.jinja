@@ -21,8 +21,8 @@
       <div class="span8">
         <ul id="myTab" class="nav nav-tabs">
           <li class="active"><a href="#tab-calendar" data-toggle="tab">Calendar</a></li>
-          <li class=""><a href="#tab-timesheet-lines" data-toggle="tab">Timesheet Lines</a></li>
           <li class=""><a href="#tab-workweek-lines" data-toggle="tab">Weekly Analysis</a></li>
+          <li class=""><a href="#tab-timesheet-lines" data-toggle="tab">Timesheet Lines</a></li>
         </ul>
       </div>
       <div class="span1">
@@ -70,12 +70,6 @@
       })
       .done(function(data){
         $("div#workweek-lines").html(data.work_week);
-        $("div#timesheet-lines").html('');
-        for (line in data.lines) {
-            $("div#timesheet-lines").append(data.lines[line]);
-        }
-        // Change all timeago dates
-        jQuery("abbr.timeago").timeago();
         callback(data.day_totals);
         $("img#loading").hide();
         $('#timesheet-tabs').tab();
@@ -91,6 +85,27 @@
     var load_calendar = function() {
       $('#calendar').fullCalendar({
         header: {right: 'today month,basicWeek prev,next'},
+        eventClick: function(calEvent, jsEvent, view) {
+            $("img#loading").show();
+            $("div#timesheet-lines").html('loading...');
+            $('#myTab a:last').tab('show');
+            $.ajax({
+                url: "{{ url_for('project.work.render_timesheet', project_id=project.id) }}",
+                data: {
+                    timesheet_lines_of: calEvent.id
+                }
+            })
+            .done(function(data){
+		$("div#timesheet-lines").html('');
+		for (line in data.lines) {
+		    $("div#timesheet-lines").append(data.lines[line]);
+		}
+                // Change all timeago dates
+               jQuery("abbr.timeago").timeago();
+               $("img#loading").hide();
+            });
+
+        },
         eventSources: [
           {
             events: function(start, end, callback) {

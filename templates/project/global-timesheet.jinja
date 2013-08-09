@@ -66,7 +66,6 @@
   $(document).ready(function(){
     var fetchFromTryton = function(start, end, callback, event_type) {
       $("img#loading").show();
-      $("div#timesheet-lines").html('loading...');
       $("div#workweek-lines").html('loading...');
       $.ajax({
           url: "{{ url_for('project.work.render_global_timesheet') }}",
@@ -100,6 +99,28 @@
     var load_calendar = function() {
       $('#calendar').fullCalendar({
         header: {right: 'today month,basicWeek prev,next'},
+        eventClick: function(calEvent, jsEvent, view) {
+            $("img#loading").show();
+            $("div#timesheet-lines").html('loading...');
+            $('#myTab a:last').tab('show');
+            $.ajax({
+                url: "{{ url_for('project.work.render_global_timesheet') }}",
+                data: {
+                    timesheet_lines_of: calEvent.id
+                }
+            })
+            .done(function(data){
+		$("div#timesheet-lines").html('');
+		for (line in data.lines) {
+		    $("div#timesheet-lines").append(data.lines[line]);
+		}
+                // Change all timeago dates
+               jQuery("abbr.timeago").timeago();
+               $("img#loading").hide();
+            });
+
+        },
+
         eventSources: [
           {
             events: function(start, end, callback) {
