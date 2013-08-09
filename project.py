@@ -1846,7 +1846,7 @@ class Project:
             TimesheetLine.create({
                 'employee': request.nereid_user.employee.id,
                 'hours': request.form['hours'],
-                'work': task.id
+                'work': task.work.id,
             })
 
         flash("Time has been marked on task %s" % task.name)
