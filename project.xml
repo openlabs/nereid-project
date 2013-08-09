@@ -74,6 +74,11 @@ of this repository contains the full copyright notices and license terms. -->
           <field name="name">ProjectWorkHistory</field>
           <field name="model" search="[('model', '=', 'project.work.history')]"/>
         </record>
+        <record model="nereid.activity.allowed_model"
+                id="activity_allowed_model_timesheet_line">
+          <field name="name">TimesheetLine</field>
+          <field name="model" search="[('model', '=', 'timesheet.line')]"/>
+        </record>
 
         <record id="permission_project_admin" model="nereid.permission">
           <field name="name">Project Admin</field>
