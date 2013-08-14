@@ -1924,6 +1924,8 @@ class Project:
         """
         Change the constraint dates
         """
+        Activity = Pool().get('nereid.activity')
+
         task = cls.get_task(task_id)
 
         data = {
@@ -1942,6 +1944,12 @@ class Project:
                 constraint_finish, '%m/%d/%Y')
 
         cls.write([task], data)
+        Activity.create({
+            'actor': request.nereid_user.id,
+            'object_': 'project.work, %d' % task.id,
+            'verb': 'changed_date',
+            'project': task.parent.id,
+        })
 
         if request.is_xhr:
             return jsonify({
@@ -2209,8 +2217,6 @@ class ProjectHistory(ModelSQL, ModelView):
         '''
         Serialize the history and returns a dictionary.
         '''
-        # TODO: Return changed value also. So that it is possible to handle all
-        #       history events separately.
         return {
             "url": url_for(
                 'project.work.render_task', project_id=self.project.parent.id,
@@ -2219,6 +2225,11 @@ class ProjectHistory(ModelSQL, ModelView):
             "objectType": self.__name__,
             "id": self.id,
             "displayName": self.rec_name,
+            "comment": self.comment,
+            "new_state": self.new_state,
+            "new_progress_state": self.new_progress_state,
+            "new_assignee": self.new_assigned_to._json() if\
+                self.new_assigned_to else None,
         }
 
 

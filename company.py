@@ -56,6 +56,16 @@ class NereidUser:
         select=True,
     )
 
+    def _json(self):
+        '''
+        Serialize NereidUser and return a dictonary.
+        '''
+        result = super(NereidUser, self)._json()
+        result['image'] = {
+            'url': self.get_profile_picture(size=20),
+        }
+        return result
+
     def is_project_admin(self):
         """
         Returns True if the user is in the website admins list
