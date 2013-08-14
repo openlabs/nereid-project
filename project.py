@@ -36,12 +36,14 @@ from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
-from trytond.tools import get_smtp_server, datetime_strftime
+from trytond.tools import get_smtp_server
 from trytond.backend import TableHandler
 
 __all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation',
     'TimesheetEmployeeDay', 'ProjectWorkInvitation', 'Project', 'Tag',
-    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'Activity',]
+    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'Activity',
+    'TimesheetLine',
+]
 __metaclass__ = PoolMeta
 
 
@@ -385,11 +387,13 @@ class Project:
         }
         if self.type == 'project':
             rv['url'] = url_for(
-                'project.work.render_project', active_id=self.id
+                'project.work.render_project', project_id=self.id
             )
         else:
+            # TODO: Convert self.parent to self.project
             rv['url'] = url_for(
-                'project.work.render_task', active_id=self.id
+                'project.work.render_task', project_id=self.parent.id,
+                task_id=self.id,
             )
         return rv
 
@@ -1846,7 +1850,7 @@ class Project:
             TimesheetLine.create({
                 'employee': request.nereid_user.employee.id,
                 'hours': request.form['hours'],
-                'work': task.id
+                'work': task.work.id,
             })
 
         flash("Time has been marked on task %s" % task.name)
@@ -1920,6 +1924,8 @@ class Project:
         """
         Change the constraint dates
         """
+        Activity = Pool().get('nereid.activity')
+
         task = cls.get_task(task_id)
 
         data = {
@@ -1938,6 +1944,12 @@ class Project:
                 constraint_finish, '%m/%d/%Y')
 
         cls.write([task], data)
+        Activity.create({
+            'actor': request.nereid_user.id,
+            'object_': 'project.work, %d' % task.id,
+            'verb': 'changed_date',
+            'project': task.parent.id,
+        })
 
         if request.is_xhr:
             return jsonify({
@@ -1994,6 +2006,26 @@ class Project:
 
         flash("The estimated hours have been changed for this task.")
         return redirect(request.referrer)
+
+    @login_required
+    def stream(self):
+        '''
+        Return stream for a project.
+        '''
+        Activity = Pool().get('nereid.activity')
+
+        self.can_read(request.nereid_user)
+        page = request.args.get('page', 1, int)
+
+        domain = [('project', '=', self.id)]
+        activities = Pagination(Activity, domain, page, 20)
+        items = filter(
+            None, map(lambda activity: activity.serialize(), activities)
+        )
+        return jsonify({
+            'totalItems': activities.count,
+            'items': items,
+        })
 
 
 class Tag(ModelSQL, ModelView):
@@ -2187,12 +2219,19 @@ class ProjectHistory(ModelSQL, ModelView):
         '''
         return {
             "url": url_for(
-                'project.work.render_task_list', comment=self.comment.id
+                'project.work.render_task', project_id=self.project.parent.id,
+                task_id=self.project.id,
             ),
             "objectType": self.__name__,
             "id": self.id,
-            "displayName": self.display_name,
+            "displayName": self.rec_name,
+            "comment": self.comment,
+            "new_state": self.new_state,
+            "new_progress_state": self.new_progress_state,
+            "new_assignee": self.new_assigned_to._json() if\
+                self.new_assigned_to else None,
         }
+
 
     @classmethod
     def create_history_line(cls, project, changed_values):
@@ -2479,6 +2518,28 @@ def invitation_new_user_handler(nereid_user_id):
         'verb': 'joined_project',
         'project': invitation.project.id,
     })
+
+
+class TimesheetLine:
+    '''
+    Timesheet Lines
+    '''
+    __name__ = 'timesheet.line'
+
+    def _json(self):
+        '''
+        Serialize timesheet line and returns a dictionary.
+        '''
+        # Render url for timesheet line is task on which this time is marked
+        return {
+            "url": url_for(
+                'project.work.render_task', project_id=self.work.parent.id,
+                task_id=self.work.id,
+            ),
+            "objectType": self.__name__,
+            "id": self.id,
+            "displayName": "%dh %dm" % (self.hours, (self.hours * 60) % 60),
+        }
 
 
 class Activity:

@@ -273,5 +273,14 @@
             <field name="sequence" eval="60" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+
+        <!-- Project Activities -->
+        <record id="project_activity_stream" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/project-&lt;int:active_id&gt;/stream</field>
+            <field name="endpoint">project.work.stream</field>
+            <field name="sequence" eval="50" />
+            <field name="http_method_get" eval="True"/>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>
