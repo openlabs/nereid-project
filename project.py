@@ -2387,6 +2387,12 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
+                    commit_hook = cls.search([
+                        ('commit_id', '=', commit['id']),
+                        ('project', '=', project),
+                    ])
+                    if commit_hook:
+                        continue
                     cls.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
