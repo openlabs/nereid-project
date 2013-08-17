@@ -23,7 +23,8 @@ class Company:
     """
     __name__ = "company.company"
 
-    #: Administrators for project management. Only admins can create new 
+    #: Administrators for project management.Only admins can create new
+    #: project.
     project_admins = fields.Many2Many(
         'company.company-nereid.user', 'company', 'user',
         'Project Administrators'
@@ -52,9 +53,7 @@ class NereidUser:
 
     #: Allow the nereid user to be connected to an internal employee. This
     #: indicates that the user is an employee and not a regular participant
-    employee = fields.Many2One('company.employee', 'Employee',
-        select=True,
-    )
+    employee = fields.Many2One('company.employee', 'Employee', select=True)
 
     def _json(self):
         '''

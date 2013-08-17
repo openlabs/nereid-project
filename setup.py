@@ -33,28 +33,31 @@ requires = [
 ]
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):
-        requires.append('trytond_%s >= %s.%s, < %s.%s' %
-                (dep, major_version, minor_version, major_version,
-                    minor_version + 1))
-requires.append('trytond >= %s.%s, < %s.%s' %
-        (major_version, minor_version, major_version, minor_version + 1))
+        requires.append(
+            'trytond_%s >= %s.%s, < %s.%s' %
+            (dep, major_version, minor_version, major_version,
+                minor_version + 1)
+        )
+requires.append(
+    'trytond >= %s.%s, < %s.%s' %
+    (major_version, minor_version, major_version, minor_version + 1)
+)
 
-setup(name='trytond_nereid_project',
+setup(
+    name='trytond_nereid_project',
     version=info.get('version', '0.0.1'),
     description=info.get('description', ''),
     author=info.get('author', ''),
     author_email=info.get('email', ''),
     url=info.get('website', ''),
-    download_url="http://downloads.openlabs.co.in/" + \
-            info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
     package_dir={'trytond.modules.nereid_project': '.'},
     packages=[
         'trytond.modules.nereid_project',
         'trytond.modules.nereid_project.tests'
     ],
     package_data={
-        'trytond.modules.nereid_project': info.get('xml', []) \
-                + info.get('translation', []) + ['tryton.cfg',],
+        'trytond.modules.nereid_project': info.get('xml', [])
+        + info.get('translation', []) + ['tryton.cfg'],
     },
     classifiers=[
         'Development Status :: 4 - Beta',
