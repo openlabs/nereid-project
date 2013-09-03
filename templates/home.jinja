@@ -38,7 +38,7 @@ $(document).ready(function(){
       </li>
       {% for project in projects %}
       <li>
-        <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-tasks"></i> {{ project.name }}</a>
+        <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-tasks"></i> {{ project.rec_name }}</a>
       </li>
       {% endfor %}
 
@@ -48,7 +48,7 @@ $(document).ready(function(){
       </li>
       {% for task in tasks %}
       <li>
-        <a href="#"><i class="icon-tasks"></i> {{ task.name }}</a>
+        <a href="#"><i class="icon-tasks"></i> {{ task.rec_name }}</a>
       </li>
       {% endfor %}
       {% endif %}

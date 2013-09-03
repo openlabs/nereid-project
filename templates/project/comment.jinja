@@ -9,7 +9,7 @@
     <i class="icon-time"></i> 
     <strong>{{ line.employee.name }}</strong> worked for <strong>{{ line.hours|float_to_time }}</strong> on <strong>{{ line.date|dateformat('long') }}</strong>
     {% if related_task %}
-    on <strong><a href="{{ url_for('project.work.render_task', task_id=related_task.id, project_id=related_task.parent.id) }}">{{ related_task.name }}</a></strong>
+    on <strong><a href="{{ url_for('project.work.render_task', task_id=related_task.id, project_id=related_task.parent.id) }}">{{ related_task.rec_name }}</a></strong>
     {% endif %}
     <small class="pull-right">
       <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(line.create_date) }}">{{ request.nereid_user.aslocaltime(line.create_date) }}</abbr>

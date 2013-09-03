@@ -24,7 +24,7 @@
   <ul class="nav nav-tabs nav-stacked">
     {% for project in projects %}
     <li>
-      <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-tasks"></i> {{ project.name }}</a>
+      <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-tasks"></i> {{ project.rec_name }}</a>
     </li>
     {% endfor %}
 

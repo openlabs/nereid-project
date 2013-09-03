@@ -15,7 +15,7 @@ REPLY ABOVE THIS LINE TO POST AN ANSWER
     <div style="width:100%; height:auto; padding:10px 0px 20px 0px ;border-bottom:solid 1px #C0C0C0">
       <div style=" float:left; width:auto;">
         <b>Project </b><a href="{{ url_for('project.work.render_project', project_id=history.project.parent.id, _external=True) }}"
-          style=' text-decoration:none; color:#2E9AFE'> {{ history.project.parent.name }} </a> &#8594; 
+          style=' text-decoration:none; color:#2E9AFE'> {{ history.project.parent.rec_name }} </a> &#8594; 
         <b>Task </b><a href="{{ url_for('project.work.render_task', task_id=history.project.work.id, project_id=history.project.parent.id, _external=True) }}"
           style=' text-decoration:none; color:#2E9AFE'> {{ history.project.work.name }} </a>  
       </div>

@@ -11,7 +11,7 @@
 {% block main %}
 <div class="span12">
   <div class="page-header">
-    <h3>Project files<small> related to {{ project.name }}</small></h3>
+    <h3>Project files<small> related to {{ project.rec_name }}</small></h3>
   </div>
   <table class="table table-striped">
     <thead>
@@ -64,7 +64,7 @@
         <td>#{{ attachment.id }}</td>
         <td><strong>{{ attachment.name }}</strong> ({{ guess_type(attachment.name, False)[0] }})</td>
         <td>
-          <a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id) }}">#{{ task.id }}: {{ task.name }}</a>
+          <a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id) }}">#{{ task.id }}: {{ task.rec_name }}</a>
         </td>
         <td>{{ attachment.description or _('No Description') }}</td>
         {% if attachment.type == 'data' %}

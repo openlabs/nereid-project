@@ -43,7 +43,7 @@ class TestCompany(NereidTestCase):
         Return templates
         """
         self.templates = {
-            'localhost/login.jinja': '',
+            'login.jinja': '',
         }
         return self.templates.get(name)
 
@@ -54,50 +54,53 @@ class TestCompany(NereidTestCase):
 
         with Transaction().start(DB_NAME, USER, CONTEXT):
 
-            currency = self.Currency.create({
+            currency, = self.Currency.create([{
                 'name': 'US Dollar',
                 'code': 'USD',
                 'symbol': '$',
-            })
-            company = self.Company.create({
+            }])
+            company_party, = self.Party.create([{
                 'name': 'Openlabs',
+            }])
+            company, = self.Company.create([{
+                'party': company_party.id,
                 'currency': currency.id,
-            })
-            party1 = self.Party.create({
+            }])
+            party1, = self.Party.create([{
                 'name': 'Non registered user',
-            })
+            }])
 
             # Create guest user
-            guest_user = self.NereidUser.create({
+            guest_user, = self.NereidUser.create([{
                 'party': party1.id,
                 'display_name': 'Guest User',
                 'email': 'guest@openlabs.co.in',
                 'password': 'password',
                 'company': company.id,
-            })
+            }])
 
-            party2 = self.Party.create({
+            party2, = self.Party.create([{
                 'name': 'Registered User1',
-            })
-            registered_user1 = self.NereidUser.create({
+            }])
+            registered_user1, = self.NereidUser.create([{
                 'party': party2.id,
                 'display_name': 'Registered User',
                 'email': 'email@example.com',
                 'password': 'password',
                 'company': company.id,
-            })
+            }])
 
             # Create nereid project site
             url_map, = self.URLMap.search([], limit=1)
             en_us, = self.Language.search([('code', '=', 'en_US')])
-            nereid_project_website = self.Website.create({
+            nereid_project_website, = self.Website.create([{
                 'name': 'localhost',
                 'url_map': url_map.id,
                 'company': company.id,
                 'application_user': USER,
                 'default_language': en_us.id,
                 'guest_user': guest_user.id,
-            })
+            }])
             self.Company.write([company], {
                 'project_admins': [('add', [registered_user1.id])],
             })
