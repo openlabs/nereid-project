@@ -369,7 +369,7 @@ class Project:
                 'display_name': self.assigned_to.display_name,
             }
 
-        return {
+        value = {
             'id': self.id,
             'name': self.name,
             'type': self.type,
@@ -380,19 +380,24 @@ class Project:
             'attachments': len(self.attachments),
             'progress_state': self.progress_state,
             'comment': self.comment,
-            'effort': self.effort,
-            'total_effort': self.total_effort,
+            'create_date': self.create_date.isoformat(),
             'constraint_finish_time': (
                 self.constraint_finish_time and
                 self.constraint_finish_time.isoformat() or None,
             )
         }
+        if self.type == 'task':
+            # Computing the effort for project is expensive
+            value['effort'] = self.effort
+            value['total_effort'] = self.total_effort
+        return value
 
     def _json(self):
         '''
         Serialize the work and returns a dictionary
         '''
         rv = {
+            'create_date': self.create_date.isoformat(),
             'id': self.id,
             'displayName': self.name,
             'type': self.type,
@@ -1049,6 +1054,7 @@ class Project:
 
         if request.is_xhr:
             response = cls.serialize(task)
+            response['comments'] = [comment._json() for comment in comments]
             return jsonify(response)
 
         return render_template(
@@ -2072,6 +2078,7 @@ class Tag(ModelSQL, ModelView):
         Serialize the tag and returns a dictionary.
         '''
         return {
+            'create_date': self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task_list', project_id=self.project.id,
                 state="opened", tag=self.id
@@ -2236,10 +2243,12 @@ class ProjectHistory(ModelSQL, ModelView):
         Serialize the history and returns a dictionary.
         '''
         return {
+            "create_date": self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.project.parent.id,
                 task_id=self.project.id,
             ),
+            'updatedBy': self.updated_by._json(),
             "objectType": self.__name__,
             "id": self.id,
             "displayName": self.rec_name,
@@ -2248,7 +2257,7 @@ class ProjectHistory(ModelSQL, ModelView):
             "new_progress_state": self.new_progress_state,
             "new_assignee": (
                 self.new_assigned_to._json() if self.new_assigned_to
-                    else None,
+                    else None
             )
         }
 
@@ -2566,9 +2575,20 @@ class TimesheetLine:
         '''
         Serialize timesheet line and returns a dictionary.
         '''
+        nereid_user_obj = Pool().get('nereid.user')
+
+        try:
+            nereid_user, = nereid_user_obj.search([
+                ('employee', '=', self.employee.id)
+            ], limit=1)
+        except ValueError:
+            nereid_user = {}
+        else:
+            nereid_user = nereid_user._json()
 
         # Render url for timesheet line is task on which this time is marked
         return {
+            'create_date': self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.work.parent.id,
                 task_id=self.work.id,
@@ -2576,6 +2596,7 @@ class TimesheetLine:
             "objectType": self.__name__,
             "id": self.id,
             "displayName": "%dh %dm" % (self.hours, (self.hours * 60) % 60),
+            "updatedBy": nereid_user,
         }
 
 
