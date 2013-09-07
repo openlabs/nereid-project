@@ -11,7 +11,8 @@ from trytond.pool import Pool
 from project import (
     WebSite, ProjectUsers, ProjectInvitation,
     TimesheetEmployeeDay, ProjectWorkInvitation, Project, Tag,
-    TaskTags, ProjectHistory, ProjectWorkCommit, TimesheetLine, Activity
+    TaskTags, ProjectHistory, ProjectWorkCommit, TimesheetLine, Activity,
+    Attachment,
 )
 from company import Company, CompanyProjectAdmins, NereidUser
 
@@ -35,5 +36,6 @@ def register():
         Company,
         CompanyProjectAdmins,
         NereidUser,
+        Attachment,
         module='nereid_project', type_='model',
     )

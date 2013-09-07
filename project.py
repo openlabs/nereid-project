@@ -43,7 +43,7 @@ __all__ = [
     'WebSite', 'ProjectUsers', 'ProjectInvitation',
     'TimesheetEmployeeDay', 'ProjectWorkInvitation', 'Project', 'Tag',
     'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'TimesheetLine',
-    'Activity'
+    'Activity', 'Attachment',
 ]
 __metaclass__ = PoolMeta
 
@@ -2436,6 +2436,14 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     })
         return 'OK'
 
+    def _json(self):
+        return {
+            'create_date': self.create_date.isoformat(),
+            "objectType": self.__name__,
+            "id": self.id,
+            "updatedBy": self.nereid_user._json(),
+        }
+
     @classmethod
     def commit_bitbucket_hook_handler(cls):
         """
@@ -2609,3 +2617,18 @@ class Activity:
     project = fields.Many2One(
         'project.work', 'Project', domain=[('type', '=', 'project')]
     )
+
+
+class Attachment:
+    '''
+    Ir Attachment
+    '''
+    __name__ = "ir.attachment"
+
+    def _json(self):
+        return {
+            'create_date': self.create_date.isoformat(),
+            "objectType": self.__name__,
+            "id": self.id,
+            "updatedBy": self.updated_by._json(),
+        }
