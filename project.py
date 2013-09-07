@@ -2630,5 +2630,5 @@ class Attachment:
             'create_date': self.create_date.isoformat(),
             "objectType": self.__name__,
             "id": self.id,
-            "updatedBy": self.updated_by._json(),
+            "updatedBy": self.uploaded_by._json(),
         }
