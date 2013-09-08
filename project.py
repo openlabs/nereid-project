@@ -364,10 +364,7 @@ class Project:
         """
         assigned_to = None
         if self.assigned_to:
-            assigned_to = {
-                'id': self.assigned_to.id,
-                'display_name': self.assigned_to.display_name,
-            }
+            assigned_to = self.assigned_to._json()
 
         value = {
             'id': self.id,
@@ -383,11 +380,12 @@ class Project:
             'create_date': self.create_date.isoformat(),
             'constraint_finish_time': (
                 self.constraint_finish_time and
-                self.constraint_finish_time.isoformat() or None,
+                self.constraint_finish_time.isoformat() or None
             )
         }
         if self.type == 'task':
             # Computing the effort for project is expensive
+            value['hours'] = self.hours
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
         return value

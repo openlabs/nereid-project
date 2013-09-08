@@ -9,7 +9,7 @@
 """
 from datetime import datetime
 
-from nereid import request
+from nereid import request, jsonify, login_required
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelSQL, fields
 
@@ -63,7 +63,20 @@ class NereidUser:
         result['image'] = {
             'url': self.get_profile_picture(size=20),
         }
+        result['email'] = self.email
         return result
+
+    @classmethod
+    @login_required
+    def profile(cls):
+        """
+        User profile
+        """
+        if request.method == "GET" and request.is_xhr:
+            user, = cls.browse([request.nereid_user.id])
+            return jsonify(user._json())
+        return super(NereidUser, cls).profile()
+
 
     def is_project_admin(self):
         """
