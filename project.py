@@ -616,18 +616,22 @@ class Project:
         self.can_write(request.nereid_user)
 
         if request.method == 'POST':
+            if request.is_xhr and request.json:
+                name = request.json['name']
+            else:
+                name = request.form['name']
             data = {
                 'parent': self.id,
-                'name': request.form['name'],
+                'name': name,
                 'type': 'task',
-                'comment': request.form.get('description', False),
+                'comment': request.form.get('description', None),
                 'tags': [('set', request.form.getlist('tags', int))]
             }
 
             constraint_start_time = request.form.get(
-                'constraint_start_time', False)
+                'constraint_start_time', None)
             constraint_finish_time = request.form.get(
-                'constraint_finish_time', False)
+                'constraint_finish_time', None)
             if constraint_start_time:
                 data['constraint_start_time'] = datetime.strptime(
                     constraint_start_time, '%m/%d/%Y')
@@ -645,7 +649,7 @@ class Project:
             })
 
             email_receivers = [p.email for p in self.all_participants]
-            if request.form.get('assign_to', False):
+            if request.form.get('assign_to', None):
                 assignee = NereidUser(request.form.get('assign_to', type=int))
                 self.write([task], {
                     'assigned_to': assignee.id,
@@ -654,8 +658,10 @@ class Project:
                     ]
                 })
                 email_receivers = [assignee.email]
-            flash("Task successfully added to project %s" % self.name)
             task.send_mail(email_receivers)
+            if request.is_xhr:
+                return jsonify(task.serialize())
+            flash("Task successfully added to project %s" % self.name)
             return redirect(
                 url_for(
                     'project.work.render_task',
