@@ -77,7 +77,6 @@ class NereidUser:
             return jsonify(user._json())
         return super(NereidUser, cls).profile()
 
-
     def is_project_admin(self):
         """
         Returns True if the user is in the website admins list
