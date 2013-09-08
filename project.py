@@ -563,6 +563,12 @@ class Project:
         """
         # TODO: Convert to instance method
         project = cls.get_project(project_id)
+        if request.is_xhr:
+            rv = project.serialize()
+            rv['participants'] = [
+                p._json() for p in project.participants
+            ]
+            return jsonify(rv)
         return render_template(
             'project/project.jinja', project=project, active_type_name="recent"
         )
