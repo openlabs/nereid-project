@@ -86,6 +86,15 @@ class ProjectUsers(ModelSQL):
     )
 
     @classmethod
+    def __setup__(cls):
+        super(ProjectUsers, cls).__setup__()
+        cls._sql_constraints += [(
+            'check_user',
+            'UNIQUE(project, user)',
+            'Users must be unique per project'
+        )]
+
+    @classmethod
     def __register__(cls, module_name):
         '''
         Register class and update table name to new.

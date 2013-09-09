@@ -1218,6 +1218,35 @@ class TestNereidProject(NereidTestCase):
                     self.assertTrue(json.loads(response.data)['success'])
                     self.assertEqual(response.status_code, 200)
 
+    def test_0190_constraints(self):
+        """
+        Checks unique constraint on project and nereid user
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+
+            # Create Project
+            project = self.Project.create({
+                'name': 'ABC',
+                'type': 'project',
+                'company': data['company'].id,
+                'parent': False,
+                'state': 'opened',
+            })
+
+            # Add participant to project
+            self.ProjectUsers.create({
+                'project': project.id,
+                'user': data['registered_user2'].id,
+            })
+            self.assertRaises(
+                Exception, self.ProjectUsers.create,
+                {
+                    'project': project.id,
+                    'user': data['registered_user2'].id,
+                }
+            )
+
 
 def suite():
     "Nereid test suite"
