@@ -1013,8 +1013,12 @@ class Project:
 
         filter_domain = [
             ('type', '=', 'task'),
-            ('assigned_to', '=', request.nereid_user.id)
         ]
+        if request.args.get('watched'):
+            # Show all tasks watched, not assigned
+            filter_domain.append(('participants', '=', request.nereid_user.id))
+        else:
+            filter_domain.append(('assigned_to', '=', request.nereid_user.id))
         query = request.args.get('q', None)
         if query:
             # This search is probably the suckiest search in the
