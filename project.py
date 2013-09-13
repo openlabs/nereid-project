@@ -13,7 +13,7 @@ import tempfile
 import json
 import warnings
 import time
-import dateutil
+import dateutil.parser
 import calendar
 from collections import defaultdict
 from datetime import datetime, date
@@ -2414,6 +2414,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         See https://help.github.com/articles/post-receive-hooks
         """
         NereidUser = Pool().get('nereid.user')
+        Activity = Pool().get('nereid.activity')
+        Project = Pool().get('project.work')
 
         if request.method == "POST":
             payload = json.loads(request.form['payload'])
@@ -2434,7 +2436,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                         r'pull request #(\d+)', commit['message']
                     )
                 ])
-                for project in projects - pull_requests:
+                for project in Project.browse(projects - pull_requests):
                     local_commit_time = dateutil.parser.parse(
                         commit['timestamp']
                     )
@@ -2447,7 +2449,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     ])
                     if commit_hook:
                         continue
-                    cls.create({
+                    commit = cls.create({
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2457,6 +2459,13 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                         'commit_url': commit['url'],
                         'commit_id': commit['id']
                     })
+                    Activity.create({
+                        'actor': nereid_users[0].id,
+                        'object_': 'project.work.commit, %d' % commit.id,
+                        'verb': 'made_commit',
+                        'target': 'project.work, %d' % project.id,
+                        'project': project.parent.id,
+                    })
         return 'OK'
 
     def _json(self):
@@ -2465,6 +2474,12 @@ class ProjectWorkCommit(ModelSQL, ModelView):
             "objectType": self.__name__,
             "id": self.id,
             "updatedBy": self.nereid_user._json(),
+            "url": self.commit_url,
+            "displayName": self.commit_message,
+            "repository": self.repository,
+            "repository_url": self.repository_url,
+            "commit_timestamp": self.commit_timestamp,
+            "commit_id": self.commit_id,
         }
 
     @classmethod

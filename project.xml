@@ -80,6 +80,12 @@ of this repository contains the full copyright notices and license terms. -->
           <field name="model" search="[('model', '=', 'timesheet.line')]"/>
         </record>
 
+        <record model="nereid.activity.allowed_model"
+                id="activity_allowed_model_work_commit">
+          <field name="name">ProjectWorkCommit</field>
+          <field name="model" search="[('model', '=', 'project.work.commit')]"/>
+        </record>
+
         <record id="permission_project_admin" model="nereid.permission">
           <field name="name">Project Admin</field>
           <field name="value">project.admin</field>
