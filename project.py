@@ -397,6 +397,10 @@ class Project:
             value['hours'] = self.hours
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
+        else:
+            value['all_participants'] = [
+                participant._json() for participant in self.all_participants
+            ]
         return value
 
     def _json(self):
@@ -1801,6 +1805,7 @@ class Project:
                 'html': html,
                 'state': task.state,
                 'progress_state': task.progress_state,
+                'comment': comment._json(),
             })
         return redirect(request.referrer)
 

@@ -64,6 +64,7 @@ class NereidUser:
             'url': self.get_profile_picture(size=20),
         }
         result['email'] = self.email
+        result['employee'] = self.employee and self.employee.id or None
         return result
 
     @classmethod
