@@ -33,7 +33,7 @@
         <tr>
           <td>
             <a class="task-name" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" rel="tooltip" title="created by {{ task.created_by.display_name }}">
-              <span class="muted">#{{ task.id }}</span> {{ task.name|truncate(50) }}
+              <span class="muted">#{{ task.id }}</span> {{ task.rec_name|truncate(50) }}
             </a>
             <a class="icon-tag add-tags" title="Add Tag" rel="popover" data-placement="bottom" data-html="true" data-animation="true" data-content='
             {% for new_tag in task.parent.tags_for_projects %}
@@ -68,10 +68,10 @@
         <tr>
           <td class="task-footer" colspan="2">
             {% if assigned_to_picture and task.assigned_to %}
-              <img title="{{ task.assigned_to.name }}" src="{{ task.assigned_to.get_profile_picture(size="20", https=True) }}" class="img-circle">
+              <img title="{{ task.assigned_to.display_name }}" src="{{ task.assigned_to.get_profile_picture(size="20", https=True) }}" class="img-circle">
             {% endif %}
             {% if show_project_tag %}
-              <span class="label">{{ task.parent and task.parent.name or '' }}</span>
+              <span class="label">{{ task.parent and task.parent.rec_name or '' }}</span>
             {% endif %}
             {% if task.point_estimation %}
               <span class="size icon pull-right" title="Size">{{ task.point_estimation }}</span>
@@ -96,10 +96,10 @@
           <tr>
             <td>
               {% if assigned_to_picture and task.assigned_to %}
-                <img title="{{ task.assigned_to.name }}" src="{{ task.assigned_to.get_profile_picture(size="20", https=True) }}" class="img-circle">
+                <img title="{{ task.assigned_to.display_name }}" src="{{ task.assigned_to.get_profile_picture(size="20", https=True) }}" class="img-circle">
               {% endif %}
               {% if show_project_tag %}
-                <span class="label">{{ task.parent and task.parent.name or '' }}</span>
+                <span class="label">{{ task.parent and task.parent.rec_name or '' }}</span>
               {% endif %}
               {% if task.point_estimation %}
                 <span class="size icon pull-right" title="Size">{{ task.point_estimation }}</span>
@@ -111,7 +111,7 @@
               <a href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" class="icon icon-comments-alt pull-right">{{ task.history|length }}</a>
 
               <a class="task-name" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" rel="tooltip" title="created by {{ task.created_by.display_name }}">
-                <span class="muted">#{{ task.id }}</span> {{ task.name|truncate(70) }}
+                <span class="muted">#{{ task.id }}</span> {{ task.rec_name|truncate(70) }}
               </a>
               <a class="icon-tag add-tags" title="Add Tag" rel="popover" data-placement="bottom" data-html="true" data-animation="true" data-content='
               {% for new_tag in task.parent.tags_for_projects %}

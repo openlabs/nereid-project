@@ -13,9 +13,9 @@ REPLY ABOVE THIS LINE TO POST AN ANSWER
     <div style="width:100%; height:auto; padding:10px 0px 20px 0px ;border-bottom:solid 1px #C0C0C0">
       <div style=" float:left; width:auto;">
         <b>Project </b><a href="{{ url_for('project.work.render_project', project_id=task.parent.id, _external=True) }}"
-          style=' text-decoration:none; color:#2E9AFE'> {{ task.parent.name }} </a> &#8594;
+          style=' text-decoration:none; color:#2E9AFE'> {{ task.parent.rec_name }} </a> &#8594;
         <b>Task </b><a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }}"
-          style=' text-decoration:none; color:#2E9AFE'> {{ task.name }} </a>  
+          style=' text-decoration:none; color:#2E9AFE'> {{ task.rec_name }} </a>  
       </div>
       <div style=" float:right; width:auto;">
         <span style="text-align:right">{{ task.create_date|dateformat }}</span>

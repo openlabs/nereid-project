@@ -32,9 +32,6 @@ class TestNereidProject(NereidTestCase):
     Creates default values to be used by test cases
     '''
 
-    # pylint: disable-msg=C0103
-    # pylint False trigger Using Invalid name
-
     def setUp(self):
         """
         Set up data used in the tests.
@@ -42,6 +39,7 @@ class TestNereidProject(NereidTestCase):
         """
         trytond.tests.test_tryton.install_module('nereid_project')
         self.ActivityAllowedModel = POOL.get('nereid.activity.allowed_model')
+        self.Work = POOL.get('timesheet.work')
         self.Model = POOL.get('ir.model')
         self.Project = POOL.get('project.work')
         self.Company = POOL.get('company.company')
@@ -65,105 +63,119 @@ class TestNereidProject(NereidTestCase):
             ('X-Requested-With', 'XMLHttpRequest'),
         ]
 
+        self.templates = {
+            'login.jinja': '{{ get_flashed_messages()|safe }}',
+            'project/project.jinja': '{{ project.rec_name }}',
+            'project/home.jinja': '{{ projects|length }}',
+            'project/timesheet.jinja': '{{ employees|length }}',
+            'project/files.jinja':
+                '{{ project.children[0].attachments|length }}',
+            'project/permissions.jinja': '{{ invitations|length }}',
+            'project/plan.jinja': '{{  }}',
+            'project/compare-performance.jinja': '{{ employees|length }}',
+            'project/emails/text_content.jinja': '',
+            'project/emails/html_content.jinja': '',
+            'project/emails/invite_2_project_text.html': '',
+            'project/emails/inform_addition_2_project_text.html': '',
+        }
+
     def create_defaults(self):
         """
         Setup the defaults
         """
-        currency = self.Currency.create({
+        currency, = self.Currency.create([{
             'name': 'US Dollar',
             'code': 'USD',
             'symbol': '$',
-        })
-        company = self.Company.create({
+        }])
+        company_party, = self.Party.create([{
             'name': 'Openlabs',
+        }])
+        company, = self.Company.create([{
+            'party': company_party.id,
             'currency': currency.id,
-        })
+        }])
 
-        party1 = self.Party.create({
+        party1, party2, party3, party4 = self.Party.create([{
             'name': 'Non registered user',
-        })
-
-        # Create guest user
-        guest_user = self.NereidUser.create({
-            'party': party1.id,
-            'display_name': 'Guest User',
-            'email': 'guest@openlabs.co.in',
-            'password': 'password',
-            'company': company.id,
-        })
-
-        # Create registered user
-        party2 = self.Party.create({
-            'name': 'Registered User1',
-        })
-        party3 = self.Party.create({
+        }, {
+            'name': 'Registered User',
+        }, {
             'name': 'Registered User2',
-        })
-        employee1 = self.Employee.create({
-            'company': company.id,
-            'party': party2.id,
-        })
-        employee2 = self.Employee.create({
-            'company': company.id,
-            'party': party3.id,
-        })
-        registered_user1 = self.NereidUser.create({
-            'party': party2.id,
-            'display_name': 'Registered User',
-            'email': 'email@example.com',
-            'password': 'password',
-            'company': company.id,
-            'employee': employee1.id,
-        })
-        registered_user2 = self.NereidUser.create({
-            'party': party3.id,
-            'display_name': 'Registered User2',
-            'email': 'example@example.com',
-            'password': 'password',
-            'company': company.id,
-            'employee': employee2.id,
-        })
-        party4 = self.Party.create({
+        }, {
             'name': 'Registered User3',
-        })
-        registered_user3 = self.NereidUser.create({
-            'party': party4.id,
-            'display_name': 'Registered User3',
-            'email': 'res_user@example.com',
-            'password': 'password',
+        }])
+
+        # Create Employee
+        employee1, employee2 = self.Employee.create([{
             'company': company.id,
-        })
+            'party': party2.id,
+        }, {
+            'company': company.id,
+            'party': party3.id,
+        }])
+
+        # Create guest user, and 3 registered user
+        guest_user, registered_user1, registered_user2, registered_user3, = \
+            self.NereidUser.create([{
+                'party': party1.id,
+                'display_name': 'Guest User',
+                'email': 'guest@openlabs.co.in',
+                'password': 'password',
+                'company': company.id,
+            }, {
+                'party': party2.id,
+                'display_name': 'Registered User1',
+                'email': 'email@example.com',
+                'password': 'password',
+                'company': company.id,
+                'employee': employee1.id,
+            }, {
+                'party': party3.id,
+                'display_name': 'Registered User2',
+                'email': 'example@example.com',
+                'password': 'password',
+                'company': company.id,
+                'employee': employee2.id,
+            }, {
+                'party': party4.id,
+                'display_name': 'Registered User3',
+                'email': 'res_user@example.com',
+                'password': 'password',
+                'company': company.id,
+            }])
+
         self.Company.write([company], {
             'project_admins': [('add', [registered_user1.id])],
             'employees': [('add', [employee1.id])],
         })
         menu_list = self.Action.search([('usage', '=', 'menu')])
-        user1 = self.User.create({
-            'name': 'res_user1',
-            'login': 'res_user1',
-            'password': '1234',
-            'menu': menu_list[0].id,
-            'main_company': company.id,
-            'company': company.id,
-        })
-        user2 = self.User.create({
-            'name': 'res_user2',
-            'login': 'res_user2',
-            'password': '5678',
-            'menu': menu_list[0].id,
-        })
-
+        user1, user2 = self.User.create([
+            {
+                'name': 'res_user1',
+                'login': 'res_user1',
+                'password': '1234',
+                'menu': menu_list[0].id,
+                'main_company': company.id,
+                'company': company.id,
+            }, {
+                'name': 'res_user2',
+                'login': 'res_user2',
+                'password': '5678',
+                'menu': menu_list[0].id,
+            }
+        ])
         # Create nereid project site
         url_map, = self.URLMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')])
-        nereid_project_website = self.Website.create({
+        nereid_project_website, = self.Website.create([{
             'name': 'localhost',
             'url_map': url_map.id,
             'company': company.id,
-            'application_user': user1.id,
+            'application_user': USER,
             'default_language': en_us.id,
             'guest_user': guest_user.id,
-        })
+        }])
 
         # Nereid Permission
         permission = self.Permission.search([
@@ -192,29 +204,6 @@ class TestNereidProject(NereidTestCase):
             'user1': user1,
             'user2': user2,
         }
-
-    def get_template_source(self, name):
-        """
-        Return templates
-        """
-        self.templates = {
-            'localhost/login.jinja': '{{ get_flashed_messages()|safe }}',
-            'localhost/project/project.jinja': '{{ project.name }}',
-            'localhost/project/home.jinja': '{{ projects|length }}',
-            'localhost/project/timesheet.jinja': '{{ employees|length }}',
-            'localhost/project/files.jinja':
-            '{{ project.children[0].attachments|length }}',
-            'localhost/project/permissions.jinja':
-            '{{ invitations|length }}',
-            'localhost/project/plan.jinja': '{{  }}',
-            'localhost/project/compare-performance.jinja':
-            '{{ employees|length }}',
-            'localhost/project/emails/text_content.jinja': '',
-            'localhost/project/emails/html_content.jinja': '',
-            'localhost/project/emails/invite_2_project_text.html': '',
-            'localhost/project/emails/inform_addition_2_project_text.html': '',
-        }
-        return self.templates.get(name)
 
     def test_0010_create_project_when_user_is_not_admin(self):
         """
@@ -379,13 +368,15 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             with app.test_client() as c:
 
@@ -414,20 +405,29 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            self.Project.create({
-                'name': 'ABC',
-                'type': 'project',
-                'company': data['company'].id,
-                'parent': False,
-                'state': 'opened',
-            })
-            self.Project.create({
-                'name': 'PQR',
-                'type': 'project',
-                'company': data['company'].id,
-                'parent': False,
-                'state': 'opened',
-            })
+            work1, work2 = self.Work.create([
+                {
+                    'name': 'ABC',
+                    'company': data['company'].id,
+                },
+                {
+                    'name': 'PQR',
+                    'company': data['company'].id,
+                }
+            ])
+            project1, project2 = self.Project.create([
+                {
+                    'work': work1.id,
+                    'type': 'project',
+                    'state': 'opened',
+                },
+                {
+                    'work': work2.id,
+                    'type': 'project',
+                    'state': 'opened',
+                }
+            ])
+            self.assertEqual(len(self.Project.search([])), 2)
             with app.test_client() as c:
 
                 login_data = {
@@ -458,20 +458,38 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project1 = self.Project.create({
-                'name': 'ABC',
-                'type': 'project',
-                'company': data['company'].id,
-                'parent': False,
-                'state': 'opened',
-            })
-            self.Project.create({
-                'name': 'PQR',
-                'type': 'project',
-                'company': data['company'].id,
-                'parent': False,
-                'state': 'opened',
-            })
+            work = self.Work.create([
+                {
+                    'name': 'ABC',
+                    'company': data['company'].id,
+                },
+                {
+                    'name': 'PQR',
+                    'company': data['company'].id,
+                }
+            ])
+            project1, project2 = self.Project.create([
+                {
+                    'work': work[0].id,
+                    'type': 'project',
+                    'state': 'opened',
+                },
+                {
+                    'work': work[1].id,
+                    'type': 'project',
+                    'state': 'opened',
+                }
+            ])
+            self.assertEqual(len(self.Project.search([])), 2)
+
+            self.Project.write(
+                [project1],
+                {
+                    'participants': [
+                        ('add', [data['registered_user3'].id])
+                    ]
+                }
+            )
 
             with app.test_client() as c:
 
@@ -483,16 +501,6 @@ class TestNereidProject(NereidTestCase):
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
-
-                    self.Project.write(
-                        [project1],
-                        {
-                            'participants': [
-                                ('add', [data['registered_user3'].id])
-                            ]
-                        }
-                    )
-
                     response = c.get('en_US/projects')
 
                     # Total project shown is 1 as nereid user is a participant
@@ -508,13 +516,15 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             with app.test_client() as c:
 
@@ -573,13 +583,15 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             # For project nereid user should be participant of that project
             self.Project.write(
@@ -627,13 +639,15 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             # For project nereid user should be participant of that project
             self.Project.write(
@@ -654,11 +668,11 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     # Create Tags
-                    tag = self.Tag.create({
+                    tag, = self.Tag.create([{
                         'name': 'tag1',
                         'color': 'color1',
                         'project': project.id
-                    })
+                    }])
                     response = c.post('/en_US/tag-%d/-delete' % tag.id)
 
                     # Redirecting back to refer page
@@ -680,13 +694,15 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             with app.test_client() as c:
 
@@ -699,11 +715,11 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     # Create Tags
-                    tag = self.Tag.create({
+                    tag, = self.Tag.create([{
                         'name': 'tag',
                         'color': 'color',
                         'project': project.id
-                    })
+                    }])
 
                     response = c.post(
                         '/en_US/tag-%d/-delete' % tag.id,
@@ -762,25 +778,33 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
-            task1 = self.Project.create({
+            }])
+            work1, work2 = self.Work.create([{
                 'name': 'ABC_task',
+                'company': data['company'].id,
+            }, {
+                'name': 'PQR_task',
+                'company': data['company'].id,
+            }])
+            task1, task2 = self.Project.create([{
+                'work': work1.id,
                 'comment': 'task_desc',
                 'parent': project.id,
-                'company': data['company'].id,
-            })
-            task2 = self.Project.create({
-                'name': 'PQR_task',
+                'type': 'task',
+            }, {
+                'work': work2.id,
                 'comment': 'task2',
                 'parent': project.id,
-                'company': data['company'].id,
-            })
+                'type': 'task',
+            }])
 
             login_data = {
                 'email': 'email@example.com',
@@ -884,27 +908,31 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
-
+            }])
             # Add tasks to project
-            task1 = self.Project.create({
+            work1, = self.Work.create([{
                 'name': 'ABC_task',
+                'company': data['company'].id,
+            }])
+            task1, = self.Project.create([{
+                'work': work1.id,
                 'comment': 'task_desc',
                 'parent': project.id,
-                'company': data['company'].id,
-            })
-            attachment = self.Attachment.create({
+            }])
+            attachment, = self.Attachment.create([{
                 'name': 'Attachment1',
                 'type': 'link',
                 'resource': ('project.work', task1.id),
                 'description': 'desc1',
-            })
+            }])
 
             self.Project.write(
                 [task1],
@@ -934,19 +962,24 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
-            task1 = self.Project.create({
+            }])
+            work1, = self.Work.create([{
                 'name': 'ABC_task',
+                'company': data['company'].id,
+            }])
+            task1, = self.Project.create([{
+                'work': work1.id,
                 'comment': 'task_desc',
                 'parent': project.id,
-                'company': data['company'].id,
-            })
+            }])
             with app.test_client() as c:
 
                 # User Login
@@ -994,19 +1027,21 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
-            invitation = self.ProjectInvitation.create({
+            }])
+            invitation, = self.ProjectInvitation.create([{
                 'email': 'example@example.com',
                 'invitation_code': '123',
                 'nereid_user': data['registered_user3'].id,
                 'project': project.id,
-            })
+            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1024,7 +1059,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.data, '0')
 
-    def test_0180_remove_participants_by_nereid_user(self):
+    def test_0160_remove_participants_by_nereid_user(self):
         """
         Checks if removes participant by user who is not admin, it won't
         remove
@@ -1034,19 +1069,21 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             # Add participant to project
-            participant = self.ProjectUsers.create({
+            participant, = self.ProjectUsers.create([{
                 'project': project.id,
                 'user': data['registered_user2'].id,
-            })
+            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1069,7 +1106,7 @@ class TestNereidProject(NereidTestCase):
                         response.data
                     )
 
-    def test_0160_remove_paricipant_admin(self):
+    def test_0170_remove_paricipant_admin(self):
         """
         Checks remove participant by admin
         """
@@ -1078,19 +1115,21 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
             # Add participant to project
-            participant = self.ProjectUsers.create({
+            participant, = self.ProjectUsers.create([{
                 'project': project.id,
                 'user': data['registered_user2'].id,
-            })
+            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1125,7 +1164,7 @@ class TestNereidProject(NereidTestCase):
                         in response.data
                     )
 
-    def test_0170_remove_invite(self):
+    def test_0180_remove_invite(self):
         """
         Checks removing inviation by non admin user
         """
@@ -1134,20 +1173,22 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
-            invitation = self.ProjectInvitation.create({
+            invitation, = self.ProjectInvitation.create([{
                 'email': 'example@example.com',
                 'invitation_code': '123',
                 'nereid_user': data['registered_user3'].id,
                 'project': project.id,
-            })
+            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1175,7 +1216,7 @@ class TestNereidProject(NereidTestCase):
                     )
                     self.assertEqual(response.status_code, 302)
 
-    def test_0180_resend_invite(self):
+    def test_0190_resend_invite(self):
         """
         Checks if it resend the invitation
         """
@@ -1184,20 +1225,22 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app(DEBUG=True)
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
-                'parent': False,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'state': 'opened',
-            })
+            }])
 
-            invitation = self.ProjectInvitation.create({
+            invitation, = self.ProjectInvitation.create([{
                 'email': 'example@example.com',
                 'invitation_code': '123',
                 'nereid_user': data['registered_user3'].id,
                 'project': project.id,
-            })
+            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1226,25 +1269,29 @@ class TestNereidProject(NereidTestCase):
             data = self.create_defaults()
 
             # Create Project
-            project = self.Project.create({
+            work, = self.Work.create([{
                 'name': 'ABC',
-                'type': 'project',
                 'company': data['company'].id,
+            }])
+
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
                 'parent': False,
                 'state': 'opened',
-            })
+            }])
 
             # Add participant to project
-            self.ProjectUsers.create({
+            self.ProjectUsers.create([{
                 'project': project.id,
                 'user': data['registered_user2'].id,
-            })
+            }])
             self.assertRaises(
                 Exception, self.ProjectUsers.create,
-                {
+                [{
                     'project': project.id,
                     'user': data['registered_user2'].id,
-                }
+                }]
             )
 
 
@@ -1259,4 +1306,3 @@ def suite():
 
 if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite())
-# pylint: enable-msg=C0103

@@ -43,6 +43,7 @@ class TestTask(NereidTestCase):
         """
         trytond.tests.test_tryton.install_module('nereid_project')
         self.ActivityAllowedModel = POOL.get('nereid.activity.allowed_model')
+        self.Work = POOL.get('timesheet.work')
         self.Model = POOL.get('ir.model')
         self.Company = POOL.get('company.company')
         self.Employee = POOL.get('company.employee')
@@ -69,110 +70,113 @@ class TestTask(NereidTestCase):
         """
         Setup the defaults for all tests.
         """
-        currency = self.Currency.create({
+        currency, = self.Currency.create([{
             'name': 'US Dollar',
             'code': 'USD',
             'symbol': '$',
-        })
-        company = self.Company.create({
+        }])
+        company_party, = self.Party.create([{
             'name': 'Openlabs',
+        }])
+        company, = self.Company.create([{
+            'party': company_party.id,
             'currency': currency.id,
-        })
-        party0 = self.Party.create({
+        }])
+        party0, party1, party2, = self.Party.create([{
             'name': 'Non registered user',
-        })
+        }, {
+            'name': 'Registered User1',
+        }, {
+            'name': 'Registered User2',
+        }])
 
         # Create guest user
-        guest_user = self.NereidUser.create({
+        guest_user, = self.NereidUser.create([{
             'party': party0.id,
             'display_name': 'Guest User',
             'email': 'guest@openlabs.co.in',
             'password': 'password',
             'company': company.id,
-        })
+        }])
 
-        party1 = self.Party.create({
-            'name': 'Registered User1',
-        })
-        party2 = self.Party.create({
-            'name': 'Registered User2',
-        })
-
-        employee1 = self.Employee.create({
+        employee1, = self.Employee.create([{
             'company': company.id,
             'party': party1.id,
-        })
-        registered_user1 = self.NereidUser.create({
+        }])
+        registered_user1, = self.NereidUser.create([{
             'party': party1.id,
             'display_name': 'Registered User',
             'email': 'email@example.com',
             'password': 'password',
             'company': company.id,
             'employee': employee1.id,
-        })
-        registered_user2 = self.NereidUser.create({
+        }])
+        registered_user2, = self.NereidUser.create([{
             'party': party2.id,
             'display_name': 'Registered User',
             'email': 'example@example.com',
             'password': 'password',
             'company': company.id,
-        })
+        }])
         self.Company.write([company], {
             'project_admins': [('add', [registered_user1.id])],
             'employees': [('add', [employee1.id])],
         })
         menu_list = self.Action.search([('usage', '=', 'menu')])
-        user1 = self.User.create({
+        user1, = self.User.create([{
             'name': 'res_user1',
             'login': 'res_user1',
             'password': '1234',
             'menu': menu_list[0].id,
             'main_company': company.id,
             'company': company.id,
-        })
-        user2 = self.User.create({
+        }])
+        user2, = self.User.create([{
             'name': 'res_user2',
             'login': 'res_user2',
             'password': '5678',
             'menu': menu_list[0].id,
-        })
+        }])
 
         # Create nereid project site
         url_map, = self.URLMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')])
-        nereid_project_website = self.Website.create({
+        nereid_project_website, = self.Website.create([{
             'name': 'localhost',
             'url_map': url_map.id,
             'company': company.id,
-            'application_user': user1.id,
+            'application_user': USER,
             'default_language': en_us.id,
             'guest_user': guest_user.id,
-        })
+        }])
 
         # Create project
-        project1 = self.Project.create({
+        work1, = self.Work.create([{
             'name': 'ABC',
-            'type': 'project',
             'company': company.id,
+        }])
+        project1, = self.Project.create([{
+            'work': work1.id,
+            'type': 'project',
             'state': 'opened',
-        })
+        }])
 
         # Create Tags
-        tag1 = self.Tag.create({
+        tag1, = self.Tag.create([{
             'name': 'tag1',
             'color': 'color1',
             'project': project1.id
-        })
-        tag2 = self.Tag.create({
+        }])
+        tag2, = self.Tag.create([{
             'name': 'tag2',
             'color': 'color2',
             'project': project1.id
-        })
-        tag3 = self.Tag.create({
+        }])
+        tag3, = self.Tag.create([{
             'name': 'tag3',
             'color': 'color3',
             'project': project1.id
-        })
+        }])
 
         # Nereid Permission
         permission = self.Permission.search([
@@ -187,6 +191,17 @@ class TestTask(NereidTestCase):
             }
         )
 
+        self.templates = {
+            'login.jinja': '{{ get_flashed_messages()|safe }}',
+            'project/comment.jinja': '',
+            'project/emails/text_content.jinja': '',
+            'project/emails/html_content.jinja': '',
+            'project/task.jinja': '{{ task.id }}',
+            'project/comment.jinja': '',
+            'project/tasks-by-employee.jinja': '',
+            'project/project-task-list.jinja': '{{ tasks|length }}',
+        }
+
         return {
             'company': company,
             'employee1': employee1,
@@ -198,6 +213,7 @@ class TestTask(NereidTestCase):
             'guest_user': guest_user,
             'user1': user1,
             'user2': user2,
+            'work1': work1,
             'project1': project1,
             'tag1': tag1,
             'tag2': tag2,
@@ -209,24 +225,33 @@ class TestTask(NereidTestCase):
         Create Default for from create_defaults() Task.
         '''
         data = self.create_defaults()
-        data['task1'] = self.Project.create({
+        data['work2'], = self.Work.create([{
             'name': 'ABC_task',
+            'company': data['company'].id,
+        }])
+        data['task1'], = self.Project.create([{
+            'work': data['work2'].id,
             'comment': 'task_desc',
             'parent': data['project1'].id,
-            'company': data['company'].id,
-        })
-        data['task2'] = self.Project.create({
+        }])
+        data['work3'], = self.Work.create([{
             'name': 'ABC_task2',
+            'company': data['company'].id,
+        }])
+        data['task2'], = self.Project.create([{
+            'work': data['work3'].id,
             'comment': 'task_desc',
             'parent': data['project1'].id,
-            'company': data['company'].id,
-        })
-        data['task3'] = self.Project.create({
+        }])
+        data['work4'], = self.Work.create([{
             'name': 'ABC_task3',
+            'company': data['company'].id,
+        }])
+        data['task3'], = self.Project.create([{
+            'work': data['work4'].id,
             'comment': 'task_desc',
             'parent': data['project1'].id,
-            'company': data['company'].id,
-        })
+        }])
 
         self.Project.write(
             [data['task1'].parent],
@@ -252,18 +277,6 @@ class TestTask(NereidTestCase):
         """
         Return templates.
         """
-        self.templates = {
-            'localhost/login.jinja': '{{ get_flashed_messages()|safe }}',
-            'localhost/project/comment.jinja': '',
-            'localhost/project/emails/text_content.jinja': '',
-            'localhost/project/emails/html_content.jinja': '',
-            'localhost/project/task.jinja': '{{ task.id }}',
-            'localhost/project/comment.jinja': '',
-            'localhost/project/tasks-by-employee.jinja': '',
-            'localhost/project/project-task-list.jinja': '{{ tasks|length }}',
-            'localhost/project/emails/project_text_content.jinja': '{{ task }}',
-            'localhost/project/emails/project_html_content.jinja': '{{ task }}',
-        }
         return self.templates.get(name)
 
     def test_0010_create_task(self):
@@ -954,11 +967,11 @@ class TestTask(NereidTestCase):
             app = self.get_app()
             task = data['task1']
 
-            comment = self.History.create({
+            comment, = self.History.create([{
                 'project': task.id,
                 'updated_by': data['registered_user1'].id,
                 'comment': 'comment1',
-            })
+            }])
             login_data = {
                 'email': 'email@example.com',
                 'password': 'password',
@@ -1105,12 +1118,12 @@ class TestTask(NereidTestCase):
                     )
                     self.assertTrue(
                         self.Project.search([
-                            ('name', '=', 'Task with multiple tags')
+                            ('rec_name', '=', 'Task with multiple tags')
                         ])
                     )
 
                     task, = self.Project.search([
-                        ('name', '=', 'Task with multiple tags'),
+                        ('rec_name', '=', 'Task with multiple tags'),
                     ])
 
                     # Tags added in above created task
