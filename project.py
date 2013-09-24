@@ -54,7 +54,16 @@ PROGRESS_STATES = [
     ('Planning', 'Planning'),
     ('In Progress', 'In Progress'),
     ('Review', 'Review/QA'),
+    ('Done', 'Done'),
 ]
+
+
+def request_wants_json():
+    best = request.accept_mimetypes \
+        .best_match(['application/json', 'text/html'])
+    return best == 'application/json' and \
+        request.accept_mimetypes[best] > \
+        request.accept_mimetypes['text/html']
 
 
 class WebSite:
@@ -397,6 +406,8 @@ class Project:
             value['hours'] = self.hours
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
+            value['project'] = self.project and self.project.id
+            value['created_by'] = self.created_by._json()
         else:
             value['all_participants'] = [
                 participant._json() for participant in self.all_participants
@@ -414,6 +425,7 @@ class Project:
             'type': self.type,
             'objectType': self.__name__,
         }
+        rv.update(self.serialize())
         if self.type == 'project':
             rv['url'] = url_for(
                 'project.work.render_project', project_id=self.id
@@ -1081,7 +1093,10 @@ class Project:
 
         if request.is_xhr:
             response = cls.serialize(task)
-            response['comments'] = [comment._json() for comment in comments]
+            with Transaction().set_context(task=task_id):
+                response['comments'] = [
+                    comment._json() for comment in comments
+                ]
             return jsonify(response)
 
         return render_template(
@@ -1662,10 +1677,15 @@ class Project:
             ('name', '=', attached_file.filename),
             ('resource', '=', resource)
         ]):
-            flash(
-                'File already exists with same name, please choose another ' +
-                'file or rename this file to upload !!'
-            )
+            message = 'File already exists with same name' + \
+                      ', please choose another ' + \
+                      'file or rename this file to upload !!'
+            if request.is_xhr or request_wants_json():
+                return jsonify({
+                    'success': False,
+                    'message': message
+                })
+            flash(message)
             return redirect(request.referrer)
 
         data = {
@@ -1687,12 +1707,14 @@ class Project:
                 'type': 'data'
             })
 
-        Attachment.create(data)
+        attachment = Attachment.create(data)
 
-        if request.is_xhr:
-            return jsonify({
-                'success': True
-            })
+        if request.is_xhr or request_wants_json():
+            with Transaction().set_context(task=work.id):
+                return jsonify({
+                    'success': True,
+                    'data': attachment._json(),
+                })
 
         flash("Attachment added to %s" % work.name)
         return redirect(request.referrer)
@@ -1717,7 +1739,7 @@ class Project:
             'comment': request.form['comment']
         }
 
-        updatable_attrs = ['state', 'progress_state']
+        updatable_attrs = ['progress_state']
         new_participant_ids = []
         current_participant_ids = [p.id for p in task.participants]
         post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
@@ -1728,6 +1750,11 @@ class Project:
             for attr in updatable_attrs:
                 if getattr(task, attr) != request.form.get(attr, None):
                     task_changes[attr] = request.form[attr]
+
+            if task_changes.get('progress_state') == 'Done':
+                task_changes['state'] = 'done'
+            else:
+                task_changes['state'] = 'opened'
 
             new_assignee_id = request.form.get('assigned_to', None, int)
             if not new_assignee_id is None:
@@ -2066,7 +2093,9 @@ class Project:
         page = request.args.get('page', 1, int)
 
         domain = [('project', '=', self.id)]
-        activities = Pagination(Activity, domain, page, 20)
+        activities = Pagination(
+            Activity, domain, page, request.args.get('limit', 20, type=int)
+        )
         items = filter(
             None, map(lambda activity: activity.serialize(), activities)
         )
@@ -2283,6 +2312,7 @@ class ProjectHistory(ModelSQL, ModelView):
             "comment": self.comment,
             "new_state": self.new_state,
             "new_progress_state": self.new_progress_state,
+            "previous_progress_state": self.previous_progress_state,
             "new_assignee": (
                 self.new_assigned_to._json() if self.new_assigned_to
                     else None
@@ -2669,9 +2699,18 @@ class Attachment:
     __name__ = "ir.attachment"
 
     def _json(self):
-        return {
+        rv = {
             'create_date': self.create_date.isoformat(),
             "objectType": self.__name__,
             "id": self.id,
             "updatedBy": self.uploaded_by._json(),
+            "displayName": self.name,
+            "description": self.description,
         }
+        if has_request_context():
+            rv['downloadUrl'] = url_for(
+                'project.work.download_file',
+                attachment_id=self.id,
+                task=Transaction().context.get('task'),
+            )
+        return rv
