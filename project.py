@@ -407,8 +407,8 @@ class Project:
             value['hours'] = self.hours
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
-            value['project'] = self.project and self.project.id
-            value['created_by'] = self.created_by._json()
+            value['project'] = self and self.id
+            value['created_by'] = self.created_by and self.created_by._json()
         else:
             value['all_participants'] = [
                 participant._json() for participant in self.all_participants
@@ -1690,20 +1690,16 @@ class Project:
         attached_file = request.files["file"]
         resource = '%s,%d' % (cls.__name__, work.id)
 
+        filename = attached_file.filename
         if Attachment.search([
-            ('name', '=', attached_file.filename),
+            ('name', '=', filename),
             ('resource', '=', resource)
         ]):
-            message = 'File already exists with same name' + \
-                      ', please choose another ' + \
-                      'file or rename this file to upload !!'
-            if request.is_xhr or request_wants_json():
-                return jsonify({
-                    'success': False,
-                    'message': message
-                })
-            flash(message)
-            return redirect(request.referrer)
+            # try to create a unique filename
+            filename, extension = filename.split('.', 1)
+            filename = '%s-%d.%s' % (
+                filename, time.time(), extension
+            )
 
         data = {
             'resource': resource,
@@ -1720,7 +1716,7 @@ class Project:
         else:
             data.update({
                 'data': attached_file.stream.read(),
-                'name': attached_file.filename,
+                'name': filename,
                 'type': 'data'
             })
 
