@@ -2513,7 +2513,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
             "displayName": self.commit_message,
             "repository": self.repository,
             "repository_url": self.repository_url,
-            "commit_timestamp": self.commit_timestamp,
+            "commit_timestamp": self.commit_timestamp.isoformat(),
             "commit_id": self.commit_id,
         }
 
