@@ -30,6 +30,7 @@ minor_version = int(minor_version)
 requires = [
     'raven',
     'blinker',
+    'simplejson',
 ]
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):

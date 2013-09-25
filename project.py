@@ -10,7 +10,6 @@
 import uuid
 import re
 import tempfile
-import json
 import warnings
 import time
 import dateutil.parser
@@ -22,6 +21,7 @@ from itertools import chain, cycle
 from mimetypes import guess_type
 from email.utils import parseaddr
 
+import simplejson as json
 from babel.dates import parse_date
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
