@@ -1070,7 +1070,7 @@ class Project:
             'project/global-task-list.jinja',
             active_type_name='render_task_list', counts=counts,
             state_filter=state, tasks_by_state=tasks_by_state,
-            states=PROGRESS_STATES
+            states=PROGRESS_STATES[:-1]
         )
 
     @classmethod
@@ -1525,7 +1525,7 @@ class Project:
             'project/tasks-by-employee.jinja',
             tasks_by_employee_by_state=tasks_by_employee_by_state,
             employees=employees,
-            states=PROGRESS_STATES,
+            states=PROGRESS_STATES[:-1],
         )
 
     @classmethod
