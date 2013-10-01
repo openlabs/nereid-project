@@ -10,12 +10,10 @@
 import uuid
 import re
 import tempfile
-import random
-import string
 import json
 import warnings
 import time
-import dateutil
+import dateutil.parser
 import calendar
 from collections import defaultdict
 from datetime import datetime, date
@@ -25,8 +23,10 @@ from mimetypes import guess_type
 from email.utils import parseaddr
 
 from babel.dates import parse_date
-from nereid import (request, abort, render_template, login_required, url_for,
-    redirect, flash, jsonify, render_email, permissions_required)
+from nereid import (
+    request, abort, render_template, login_required, url_for, redirect,
+    flash, jsonify, render_email, permissions_required
+)
 from flask import send_file
 from nereid.ctx import has_request_context
 from nereid.signals import registration
@@ -39,16 +39,18 @@ from trytond.config import CONFIG
 from trytond.tools import get_smtp_server
 from trytond.backend import TableHandler
 
-__all__ = ['WebSite', 'ProjectUsers', 'ProjectInvitation',
+__all__ = [
+    'WebSite', 'ProjectUsers', 'ProjectInvitation',
     'TimesheetEmployeeDay', 'ProjectWorkInvitation', 'Project', 'Tag',
-    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'Activity',
-    'TimesheetLine',
+    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'TimesheetLine',
+    'Activity', 'Attachment',
 ]
 __metaclass__ = PoolMeta
 
 
 calendar.setfirstweekday(calendar.SUNDAY)
 PROGRESS_STATES = [
+    (None, ''),
     ('Backlog', 'Backlog'),
     ('Planning', 'Planning'),
     ('In Progress', 'In Progress'),
@@ -85,12 +87,21 @@ class ProjectUsers(ModelSQL):
     )
 
     @classmethod
+    def __setup__(cls):
+        super(ProjectUsers, cls).__setup__()
+        cls._sql_constraints += [(
+            'check_user',
+            'UNIQUE(project, user)',
+            'Users must be unique per project'
+        )]
+
+    @classmethod
     def __register__(cls, module_name):
         '''
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
-        table  = TableHandler(cursor, cls, module_name)
+        table = TableHandler(cursor, cls, module_name)
         super(ProjectUsers, cls).__register__(module_name)
         # Migration
         if table.table_exist(cursor, 'project_work_nereid_user_rel'):
@@ -148,8 +159,10 @@ class ProjectInvitation(ModelSQL, ModelView):
         """
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
-            flash("Sorry! You are not allowed to remove invited users." +
-                " Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to remove invited users." +
+                " Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST':
@@ -160,8 +173,10 @@ class ProjectInvitation(ModelSQL, ModelView):
                     'success': True,
                 })
 
-            flash("Invitation to the user has been voided."
-                "The user can no longer join the project unless reinvited")
+            flash(
+                "Invitation to the user has been voided."
+                "The user can no longer join the project unless reinvited"
+            )
         return redirect(request.referrer)
 
     @login_required
@@ -176,7 +191,7 @@ class ProjectInvitation(ModelSQL, ModelView):
 
         if request.method == 'POST':
             subject = '[%s] You have been re-invited to join the project' \
-                % self.project.name
+                % self.project.rec_name
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
                 subject=subject, to=self.email,
@@ -184,8 +199,10 @@ class ProjectInvitation(ModelSQL, ModelView):
                 invitation=self
             )
             server = get_smtp_server()
-            server.sendmail(CONFIG['smtp_from'], [self.email],
-                email_message.as_string())
+            server.sendmail(
+                CONFIG['smtp_from'], [self.email],
+                email_message.as_string()
+            )
             server.quit()
 
             if request.is_xhr:
@@ -253,7 +270,8 @@ class Project:
     """
     __name__ = 'project.work'
 
-    history = fields.One2Many('project.work.history', 'project',
+    history = fields.One2Many(
+        'project.work.history', 'project',
         'History', readonly=True
     )
     participants = fields.Many2Many(
@@ -261,8 +279,9 @@ class Project:
         'Participants'
     )
 
-    tags_for_projects = fields.One2Many('project.work.tag', 'project',
-        'Tags', states={
+    tags_for_projects = fields.One2Many(
+        'project.work.tag', 'project', 'Tags',
+        states={
             'invisible': Eval('type') != 'project',
             'readonly': Eval('type') != 'project',
         }
@@ -305,8 +324,10 @@ class Project:
         PROGRESS_STATES, 'Progress State',
         depends=['state', 'type'], select=True,
         states={
-            'invisible': (Eval('type') != 'task') | (Eval('state') != 'opened'),
-            'readonly': (Eval('type') != 'task') | (Eval('state') != 'opened'),
+            'invisible':
+            (Eval('type') != 'task') | (Eval('state') != 'opened'),
+            'readonly':
+            (Eval('type') != 'task') | (Eval('state') != 'opened'),
         }
     )
 
@@ -353,14 +374,11 @@ class Project:
         """
         assigned_to = None
         if self.assigned_to:
-            assigned_to = {
-                'id': self.assigned_to.id,
-                'display_name': self.assigned_to.display_name,
-            }
+            assigned_to = self.assigned_to._json()
 
-        return {
+        value = {
             'id': self.id,
-            'name': self.name,
+            'name': self.rec_name,
             'type': self.type,
             'parent': self.parent and self.parent.id or None,
             # Task specific
@@ -369,19 +387,31 @@ class Project:
             'attachments': len(self.attachments),
             'progress_state': self.progress_state,
             'comment': self.comment,
-            'effort': self.effort,
-            'total_effort': self.total_effort,
-            'constraint_finish_time': self.constraint_finish_time and \
-                self.constraint_finish_time.isoformat() or None,
+            'create_date': self.create_date.isoformat(),
+            'constraint_finish_time': (
+                self.constraint_finish_time and
+                self.constraint_finish_time.isoformat() or None
+            )
         }
+        if self.type == 'task':
+            # Computing the effort for project is expensive
+            value['hours'] = self.hours
+            value['effort'] = self.effort
+            value['total_effort'] = self.total_effort
+        else:
+            value['all_participants'] = [
+                participant._json() for participant in self.all_participants
+            ]
+        return value
 
     def _json(self):
         '''
         Serialize the work and returns a dictionary
         '''
         rv = {
+            'create_date': self.create_date.isoformat(),
             'id': self.id,
-            'displayName': self.name,
+            'displayName': self.rec_name,
             'type': self.type,
             'objectType': self.__name__,
         }
@@ -436,23 +466,23 @@ class Project:
         return vals
 
     @classmethod
-    def create(cls, values):
+    def create(cls, vlist):
         '''
         Create a Project.
 
-        :param values: Values to create project.
+        :param vlist: List of dictionaries of values to create
         '''
-        if has_request_context():
-            values['created_by'] = request.nereid_user.id
-            if values['type'] == 'task':
-                values.setdefault('participants', [])
-                values['participants'].append(
-                    ('add', [request.nereid_user.id])
-                )
-        else:
-            # TODO: identify the nereid user through employee
-            pass
-        return super(Project, cls).create(values)
+        for values in vlist:
+            if has_request_context():
+                values['created_by'] = request.nereid_user.id
+                if values['type'] == 'task':
+                    values.setdefault('participants', []).append(
+                        ('add', [request.nereid_user.id])
+                    )
+            else:
+                # TODO: identify the nereid user through employee
+                pass
+        return super(Project, cls).create(vlist)
 
     def can_read(self, user):
         """
@@ -547,6 +577,12 @@ class Project:
         """
         # TODO: Convert to instance method
         project = cls.get_project(project_id)
+        if request.is_xhr:
+            rv = project.serialize()
+            rv['participants'] = [
+                p._json() for p in project.participants
+            ]
+            return jsonify(rv)
         return render_template(
             'project/project.jinja', project=project, active_type_name="recent"
         )
@@ -559,22 +595,29 @@ class Project:
         POST will create a new project
         """
         Activity = Pool().get('nereid.activity')
+        Work = Pool().get('timesheet.work')
+
         if not request.nereid_user.is_project_admin():
-            flash("Sorry! You are not allowed to create new projects." +
-            " Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to create new projects." +
+                " Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            project = cls.create({
-                'name': request.form['name'],
+            project, = cls.create([{
+                'work': Work.create([{
+                    'name': request.form['name'],
+                    'company': request.nereid_website.company.id,
+                }])[0].id,
                 'type': 'project',
-            })
-            Activity.create({
+            }])
+            Activity.create([{
                 'actor': request.nereid_user.id,
                 'object_': 'project.work, %d' % project.id,
                 'verb': 'created_project',
                 'project': project.id,
-            })
+            }])
             flash("Project successfully created.")
             return redirect(
                 url_for('project.work.render_project', project_id=project.id)
@@ -591,6 +634,7 @@ class Project:
         """
         NereidUser = Pool().get('nereid.user')
         Activity = Pool().get('nereid.activity')
+        Work = Pool().get('timesheet.work')
 
         project = self.get_project(self.id)
 
@@ -598,20 +642,25 @@ class Project:
         self.can_write(request.nereid_user)
 
         if request.method == 'POST':
+            if request.is_xhr and request.json:
+                name = request.json['name']
+            else:
+                name = request.form['name']
             data = {
                 'parent': self.id,
-                'name': request.form['name'],
+                'work': Work.create([{
+                    'name': name,
+                    'company': request.nereid_website.company.id
+                }])[0].id,
                 'type': 'task',
-                'comment': request.form.get('description', False),
-                'tags': [('set',
-                    request.form.getlist('tags', int)
-                )]
+                'comment': request.form.get('description', None),
+                'tags': [('set', request.form.getlist('tags', int))]
             }
 
             constraint_start_time = request.form.get(
-                'constraint_start_time', False)
+                'constraint_start_time', None)
             constraint_finish_time = request.form.get(
-                'constraint_finish_time', False)
+                'constraint_finish_time', None)
             if constraint_start_time:
                 data['constraint_start_time'] = datetime.strptime(
                     constraint_start_time, '%m/%d/%Y')
@@ -619,17 +668,17 @@ class Project:
                 data['constraint_finish_time'] = datetime.strptime(
                     constraint_finish_time, '%m/%d/%Y')
 
-            task = self.create(data)
-            Activity.create({
+            task, = self.create([data])
+            Activity.create([{
                 'actor': request.nereid_user.id,
                 'object_': 'project.work, %d' % task.id,
                 'verb': 'created_task',
                 'target': 'project.work, %d' % project.id,
                 'project': project.id,
-            })
+            }])
 
             email_receivers = [p.email for p in self.all_participants]
-            if request.form.get('assign_to', False):
+            if request.form.get('assign_to', None):
                 assignee = NereidUser(request.form.get('assign_to', type=int))
                 self.write([task], {
                     'assigned_to': assignee.id,
@@ -638,10 +687,13 @@ class Project:
                     ]
                 })
                 email_receivers = [assignee.email]
-            flash("Task successfully added to project %s" % self.name)
             task.send_mail(email_receivers)
+            if request.is_xhr:
+                return jsonify(task.serialize())
+            flash("Task successfully added to project %s" % self.rec_name)
             return redirect(
-                url_for('project.work.render_task',
+                url_for(
+                    'project.work.render_task',
                     project_id=self.id, task_id=task.id
                 )
             )
@@ -655,23 +707,27 @@ class Project:
         Edit the task
         """
         Activity = Pool().get('nereid.activity')
+        Work = Pool().get('timesheet.work')
+
         task = self.get_task(self.id)
 
-        self.write([task], {
+        Work.write([task.work], {
             'name': request.form.get('name'),
+        })
+        self.write([task], {
             'comment': request.form.get('comment')
         })
-        Activity.create({
+        Activity.create([{
             'actor': request.nereid_user.id,
             'object_': 'project.work, %d' % task.id,
             'verb': 'edited_task',
             'target': 'project.work, %d' % task.parent.id,
             'project': task.parent.id,
-        })
+        }])
         if request.is_xhr:
             return jsonify({
                 'success': True,
-                'name': self.name,
+                'name': self.rec_name,
                 'comment': self.comment,
             })
         return redirect(request.referrer)
@@ -682,7 +738,7 @@ class Project:
         :param receivers: Receivers of email.
         """
         subject = "[#%s %s] - %s" % (
-            self.id, self.parent.name, self.name
+            self.id, self.parent.rec_name, self.rec_name
         )
 
         if not receivers:
@@ -701,13 +757,12 @@ class Project:
             text_template='project/emails/project_text_content.jinja',
             html_template='project/emails/project_html_content.jinja',
             task=self,
-            updated_by=request.nereid_user.name
+            updated_by=request.nereid_user.display_name
         )
 
         #Send mail.
         server = get_smtp_server()
-        server.sendmail(CONFIG['smtp_from'], receivers,
-            message.as_string())
+        server.sendmail(CONFIG['smtp_from'], receivers, message.as_string())
         server.quit()
 
     @classmethod
@@ -805,9 +860,9 @@ class Project:
         ], limit=1)
 
         subject = '[%s] You have been invited to join the project' \
-            % project.name
+            % project.rec_name
         if existing_user:
-            # If participant already existed 
+            # If participant already existed
             if existing_user[0] in project.participants:
                 flash("%s has been already added as a participant \
                     for the project" % existing_user[0].display_name)
@@ -815,7 +870,7 @@ class Project:
 
             email_message = render_email(
                 text_template=
-                    'project/emails/inform_addition_2_project_text.html',
+                'project/emails/inform_addition_2_project_text.html',
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
                 project=project, user=existing_user[0]
             )
@@ -824,20 +879,20 @@ class Project:
                     'participants': [('add', [existing_user[0].id])]
                 }
             )
-            Activity.create({
+            Activity.create([{
                 'actor': existing_user[0].id,
                 'object_': 'project.work, %d' % project.id,
                 'verb': 'joined_project',
                 'project': project.id,
-            })
+            }])
             flash_message = "%s has been invited to the project" \
                 % existing_user[0].display_name
 
         else:
-            new_invite = ProjectInvitation.create({
+            new_invite, = ProjectInvitation.create([{
                 'email': email,
                 'project': project.id,
-            })
+            }])
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
@@ -846,8 +901,10 @@ class Project:
             flash_message = "%s has been invited to the project" % email
 
         server = get_smtp_server()
-        server.sendmail(CONFIG['smtp_from'], [email],
-            email_message.as_string())
+        server.sendmail(
+            CONFIG['smtp_from'], [email],
+            email_message.as_string()
+        )
         server.quit()
 
         if request.is_xhr:
@@ -864,8 +921,10 @@ class Project:
         Activity = Pool().get('nereid.activity')
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
-            flash("Sorry! You are not allowed to remove participants." +
-                " Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to remove participants." +
+                " Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST' and request.is_xhr:
@@ -885,17 +944,17 @@ class Project:
             })
             self.write(
                 map(
-                    lambda rec_id:
-                        self.__class__(rec_id), records_to_update_ids
+                    lambda rec_id: self.__class__(rec_id),
+                        records_to_update_ids
                 ), {'participants': [('unlink', [participant_id])]}
             )
-            Activity.create({
+            Activity.create([{
                 'actor': request.nereid_user.id,
                 'object_': 'nereid.user, %d' % participant_id,
                 'target': 'project.work, %d' % self.id,
                 'verb': 'removed_participant',
                 'project': self.id,
-            })
+            }])
 
             return jsonify({
                 'success': True,
@@ -924,7 +983,7 @@ class Project:
             # This search is probably the suckiest search in the
             # history of mankind in terms of scalability and utility
             # TODO: Figure out something better
-            filter_domain.append(('name', 'ilike', '%%%s%%' % query))
+            filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
 
         tag = request.args.get('tag', None, int)
         if tag:
@@ -972,14 +1031,18 @@ class Project:
 
         filter_domain = [
             ('type', '=', 'task'),
-            ('assigned_to', '=', request.nereid_user.id)
         ]
+        if request.args.get('watched'):
+            # Show all tasks watched, not assigned
+            filter_domain.append(('participants', '=', request.nereid_user.id))
+        else:
+            filter_domain.append(('assigned_to', '=', request.nereid_user.id))
         query = request.args.get('q', None)
         if query:
             # This search is probably the suckiest search in the
             # history of mankind in terms of scalability and utility
             # TODO: Figure out something better
-            filter_domain.append(('name', 'ilike', '%%%s%%' % query))
+            filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
 
         tag = request.args.get('tag', None, int)
         if tag:
@@ -1021,21 +1084,22 @@ class Project:
         task = cls.get_task(task_id)
 
         comments = sorted(
-            task.history + task.timesheet_lines + task.attachments + \
-                task.repo_commits, key=lambda x: x.create_date
+            task.history + task.work.timesheet_lines + task.attachments +
+            task.repo_commits, key=lambda x: x.create_date
         )
 
-        hours={}
-        for line in task.timesheet_lines:
+        hours = {}
+        for line in task.work.timesheet_lines:
             hours[line.employee] = hours.setdefault(line.employee, 0) + \
-                    line.hours
+                line.hours
 
         if request.is_xhr:
             response = cls.serialize(task)
+            response['comments'] = [comment._json() for comment in comments]
             return jsonify(response)
 
         return render_template(
-            'project/task.jinja', task=task, \
+            'project/task.jinja', task=task,
             active_type_name='render_task_list', project=task.parent,
             comments=comments, timesheet_summary=hours
         )
@@ -1045,7 +1109,7 @@ class Project:
     def render_files(cls, project_id):
         project = cls.get_project(project_id)
         other_attachments = chain.from_iterable(
-            [list(task.attachments) for task in project.children if \
+            [list(task.attachments) for task in project.children if
                 task.attachments]
         )
         return render_template(
@@ -1118,8 +1182,9 @@ class Project:
 
         if request.args.get('timesheet_lines_of'):
             # This request only expects timesheet lines and the request comes
-            # in the format date:employee_id:project_id 
-            date, employee_id, project_id = request.args.get('timesheet_lines_of').split(':')
+            # in the format date:employee_id:project_id
+            date, employee_id, project_id = request.args.get(
+                'timesheet_lines_of').split(':')
             domain = [
                 ('date', '=', datetime.strptime(date, '%Y-%m-%d').date()),
                 ('employee', '=', int(employee_id))
@@ -1134,7 +1199,7 @@ class Project:
                 render_template(
                     'project/timesheet-line.jinja', line=line,
                     related_task=cls.get_task_from_work(line.work)
-                ) \
+                )
                 for line in lines[::-1]
             ])
 
@@ -1147,20 +1212,22 @@ class Project:
             'SeaGreen', 'Silver', 'MediumOrchid', 'Olive',
             'maroon', 'PaleTurquoise'
         ])
-        query = '''SELECT 
+        query = '''SELECT
                 timesheet_line.employee,
                 timesheet_line.date,
         '''
+
         if project:
-             query += 'project_work.id AS project,'
+            query += 'project_work.id AS project,'
         else:
-             query += '0 AS project,'
+            query += '0 AS project,'
         query += '''SUM(timesheet_line.hours) AS sum
             FROM timesheet_line
-            JOIN timesheet_work ON timesheet_work.id = timesheet_line.work AND timesheet_work.parent IS NOT NULL
+            JOIN timesheet_work ON timesheet_work.id = timesheet_line.work \
+            AND timesheet_work.parent IS NOT NULL
             JOIN project_work ON project_work.work = timesheet_work.parent
-            WHERE 
-                timesheet_line.date >= %s AND 
+            WHERE
+                timesheet_line.date >= %s AND
                 timesheet_line.date <= %s
         '''
         qargs = [start, end]
@@ -1169,12 +1236,12 @@ class Project:
             query += 'AND project_work.id = %s'
 
         if request.args.get('employee', None) and \
-            request.nereid_user.has_permissions(['project.admin']):
-            qargs.append(request.args.get('employee', None, int))
-            query += 'AND timesheet_line.employee = %s'
+                request.nereid_user.has_permissions(['project.admin']):
+                qargs.append(request.args.get('employee', None, int))
+                query += 'AND timesheet_line.employee = %s'
 
         query += '''
-            GROUP BY 
+            GROUP BY
                 timesheet_line.employee,
                 timesheet_line.date
         '''
@@ -1202,11 +1269,14 @@ class Project:
             for employee, hours in employee_hours.iteritems():
                 total_by_employee[employee] += hours
 
-        work_week =  render_template(
+        work_week = render_template(
             'project/work-week.jinja', data_by_week=hours_by_week_employee,
             total_by_employee=total_by_employee
         )
-        return jsonify(day_totals=day_totals, lines=[], work_week=work_week)
+        return jsonify(
+            day_totals=day_totals, lines=[],
+            work_week=unicode(work_week)
+        )
 
     @classmethod
     @login_required
@@ -1239,7 +1309,7 @@ class Project:
         days.sort()
 
         return jsonify({
-            'categories': map(lambda d:d.strftime('%d-%b'), days),
+            'categories': map(lambda d: d.strftime('%d-%b'), days),
             'series': ['%.2f' % hours_by_day[day] for day in days]
         })
 
@@ -1263,16 +1333,16 @@ class Project:
         end_date = Date.today()
         if request.args.get('end_date'):
             end_date = parse_date(
-                    request.args['end_date'],
-                    locale='en_IN',
-                    #locale=Transaction().context.get('language')
+                request.args['end_date'],
+                locale='en_IN',
+                #locale=Transaction().context.get('language')
             )
         start_date = end_date - relativedelta(months=1)
         if request.args.get('start_date'):
             start_date = parse_date(
-                    request.args['start_date'],
-                    locale='en_IN',
-                    #locale=Transaction().context.get('language')
+                request.args['start_date'],
+                locale='en_IN',
+                #locale=Transaction().context.get('language')
             )
 
         if start_date > end_date:
@@ -1294,9 +1364,8 @@ class Project:
         )
         hours_by_date_by_employee = {}
         for employee_id, line_date, hours in raw_data:
-            hours_by_date_by_employee.setdefault(line_date, {}) \
-                [employee_id] = hours
-
+            hours_by_date_by_employee.setdefault(
+                line_date, {})[employee_id] = hours
         series = []
         for employee_id in employee_ids:
             employee = employees.get(employee_id)
@@ -1304,8 +1373,8 @@ class Project:
                 'name': employee and employee.name or 'Ghost',
                 'type': 'column',
                 'data': map(
-                    lambda d: \
-                        hours_by_date_by_employee.get(d, {}) \
+                    lambda d:
+                        hours_by_date_by_employee.get(d, {})
                         .get(employee_id, 0), categories
                 )
             })
@@ -1326,7 +1395,9 @@ class Project:
         additional.extend([{
             'type': 'line',
             'name': '{0} Avg'.format(serie['name']),
-            'data': [sum(serie['data']) / len(serie['data'])] * len(categories),
+            'data': (
+                [sum(serie['data']) / len(serie['data'])] * len(categories),
+            )
         } for serie in series])
 
         return jsonify(
@@ -1356,10 +1427,11 @@ class Project:
         raw_data = Transaction().cursor.fetchall()
         employee_wise_data = {}
         get_class = lambda h: (h < 4) and 'ganttRed' or \
-                                (h < 6) and 'ganttOrange' or 'ganttGreen'
+            (h < 6) and 'ganttOrange' or 'ganttGreen'
         for employee_id, line_date, hours in raw_data:
             value = {
-                'from': line_date - relativedelta(days=1), # Gantt has a bug of 1 day off
+                'from': line_date - relativedelta(days=1),
+                # Gantt has a bug of 1 day off
                 'to': line_date - relativedelta(days=1),
                 'label': '%.1f' % hours,
                 'customClass': get_class(hours)
@@ -1372,11 +1444,12 @@ class Project:
             employee = employees.get(employee_id)
             gantt_data_append({
                 'name': employee and employee.name or 'Ghost',
-        'desc': '',
+                'desc': '',
                 'values': values,
             })
         gantt_data = sorted(gantt_data, key=lambda item: item['name'].lower())
-        date_handler = lambda o: '/Date(%d)/' % (time.mktime(o.timetuple()) * 1000) \
+        date_handler = lambda o: \
+            '/Date(%d)/' % (time.mktime(o.timetuple()) * 1000) \
             if hasattr(o, 'timetuple') else o
         return json.dumps(gantt_data, default=date_handler)
 
@@ -1396,7 +1469,7 @@ class Project:
         today = Date.today()
         return render_template(
             'project/compare-performance.jinja', employees=employees,
-            start_date=today-relativedelta(days=7),
+            start_date=today - relativedelta(days=7),
             end_date=today
         )
 
@@ -1442,8 +1515,7 @@ class Project:
         open_tasks = cls.search([
             ('state', '=', 'opened'),
             ('assigned_to.employee', '!=', None),
-            ], order=[('assigned_to', 'ASC')]
-        )
+        ], order=[('assigned_to', 'ASC')])
         tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
         for task in open_tasks:
             tasks_by_employee_by_state[task.assigned_to][
@@ -1466,8 +1538,7 @@ class Project:
         '''
         project = cls.get_project(project_id)
         employees = [
-            p.employee for p in project.all_participants \
-                if p.employee
+            p.employee for p in project.all_participants if p.employee
         ]
         if request.is_xhr:
             return cls.get_calendar_data(project)
@@ -1494,18 +1565,18 @@ class Project:
             )
             # TODO: These times are local times of the user, convert them to
             # UTC (Server time) before using them for comparison
-            tasks = cls.search(['AND',
+            tasks = cls.search([
+                'AND',
                 ('type', '=', 'task'),
-                ('parent', '=', project.id),
-                ['OR',
-                    [
-                       ('constraint_start_time', '>=', start),
+                ('parent', '=', project.id), [
+                    'OR', [
+                        ('constraint_start_time', '>=', start),
                     ],
                     [
                         ('constraint_finish_time', '<=', end),
                     ],
                     [
-                       ('actual_start_time', '>=', start),
+                        ('actual_start_time', '>=', start),
                     ],
                     [
                         ('actual_finish_time', '<=', end),
@@ -1518,7 +1589,7 @@ class Project:
             def to_event(task, type="constraint"):
                 event = {
                     'id': task.id,
-                    'title': task.name,
+                    'title': task.rec_name,
                     'url': url_for(
                         'project.work.render_task',
                         project_id=task.parent.id, task_id=task.id),
@@ -1533,9 +1604,9 @@ class Project:
                 return event
 
             return jsonify(
-                result = [
+                result=[
                     # Send all events where there is a start time
-                    to_event(task, event_type) for task in tasks \
+                    to_event(task, event_type) for task in tasks
                         if getattr(task, '%s_start_time' % event_type)
                 ]
             )
@@ -1601,7 +1672,7 @@ class Project:
             # Neither task, nor the project is specified
             raise abort(404)
 
-        attached_file =  request.files["file"]
+        attached_file = request.files["file"]
         resource = '%s,%d' % (cls.__name__, work.id)
 
         if Attachment.search([
@@ -1633,14 +1704,14 @@ class Project:
                 'type': 'data'
             })
 
-        Attachment.create(data)
+        Attachment.create([data])
 
         if request.is_xhr:
             return jsonify({
                 'success': True
             })
 
-        flash("Attachment added to %s" % work.name)
+        flash("Attachment added to %s" % work.rec_name)
         return redirect(request.referrer)
 
     @classmethod
@@ -1676,20 +1747,19 @@ class Project:
                     task_changes[attr] = request.form[attr]
 
             new_assignee_id = request.form.get('assigned_to', None, int)
-            if not new_assignee_id == None:
-                if (new_assignee_id and \
-                        (not task.assigned_to or \
+            if not new_assignee_id is None:
+                if (new_assignee_id and
+                        (not task.assigned_to or
                             new_assignee_id != task.assigned_to.id)) \
-                        or (request.form.get('assigned_to', None) == ""): # Clear the user
+                        or (request.form.get('assigned_to', None) == ""):
+                        # Clear the user
                     history_data['previous_assigned_to'] = \
                         task.assigned_to and task.assigned_to.id or None
                     history_data['new_assigned_to'] = new_assignee_id
                     task_changes['assigned_to'] = new_assignee_id
                     if new_assignee_id and new_assignee_id not in \
-                        current_participant_ids:
+                            current_participant_ids:
                         new_participant_ids.append(new_assignee_id)
-
-
             if task_changes:
                 # Only write change if anything has really changed
                 cls.write([task], task_changes)
@@ -1699,17 +1769,17 @@ class Project:
                 # just create comment since nothing really changed since this
                 # update. This is to cover to cover cases where two users who
                 # havent refreshed the web page close the ticket
-                comment = History.create(history_data)
+                comment, = History.create([history_data])
         else:
             # Just comment, no update to task
-            comment = History.create(history_data)
-        Activity.create({
+            comment, = History.create([history_data])
+        Activity.create([{
             'actor': request.nereid_user.id,
             'object_': 'project.work.history, %d' % comment.id,
             'verb': 'updated_task',
             'target': 'project.work, %d' % task.id,
             'project': task.parent.id,
-        })
+        }])
 
         if request.nereid_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
@@ -1728,18 +1798,18 @@ class Project:
 
         hours = request.form.get('hours', None, type=float)
         if hours and request.nereid_user.employee:
-            timesheet_line = TimesheetLine.create({
+            timesheet_line, = TimesheetLine.create([{
                 'employee': request.nereid_user.employee.id,
                 'hours': hours,
                 'work': task.work.id
-            })
-            Activity.create({
+            }])
+            Activity.create([{
                 'actor': request.nereid_user.id,
                 'object_': 'timesheet.line, %d' % timesheet_line.id,
                 'verb': 'reported_time',
                 'target': 'project.work, %d' % task.id,
                 'project': task.parent.id,
-            })
+            }])
 
         # Send the email since all thats required is done
         comment.send_mail()
@@ -1749,9 +1819,10 @@ class Project:
                 'project/comment.jinja', comment=comment)
             return jsonify({
                 'success': True,
-                'html': html,
+                'html': unicode(html),
                 'state': task.state,
                 'progress_state': task.progress_state,
+                'comment': comment._json(),
             })
         return redirect(request.referrer)
 
@@ -1770,16 +1841,16 @@ class Project:
         cls.write(
             [task], {'tags': [('add', [tag_id])]}
         )
-        Activity.create({
+        Activity.create([{
             'actor': request.nereid_user.id,
             'object_': 'project.work.tag, %d' % tag_id,
             'verb': 'added_tag_to_task',
             'target': 'project.work, %d' % task.id,
             'project': task.parent.id,
-        })
+        }])
 
         if request.method == 'POST':
-            flash('Tag added to task %s' % task.name)
+            flash('Tag added to task %s' % task.rec_name)
             return redirect(request.referrer)
 
         flash("Tag cannot be added")
@@ -1800,16 +1871,16 @@ class Project:
         cls.write(
             [task], {'tags': [('unlink', [tag_id])]}
         )
-        Activity.create({
+        Activity.create([{
             'actor': request.nereid_user.id,
             'object_': 'project.work, %d' % task.id,
             'verb': 'removed_tag_from_task',
             'target': 'project.work, %d' % task.parent.id,
             'project': task.parent.id,
-        })
+        }])
 
         if request.method == 'POST':
-            flash('Tag removed from task %s' % task.name)
+            flash('Tag removed from task %s' % task.rec_name)
             return redirect(request.referrer)
 
         flash("Tag cannot be removed")
@@ -1820,7 +1891,7 @@ class Project:
         """
         Update write to historize everytime an update is made
 
-        :param ids: ids of the projects
+        :param projects: List of active records of projects
         :param values: A dictionary
         """
         WorkHistory = Pool().get('project.work.history')
@@ -1847,13 +1918,13 @@ class Project:
         task = cls.get_task(task_id)
 
         with Transaction().set_user(0):
-            TimesheetLine.create({
+            TimesheetLine.create([{
                 'employee': request.nereid_user.employee.id,
                 'hours': request.form['hours'],
                 'work': task.work.id,
-            })
+            }])
 
-        flash("Time has been marked on task %s" % task.name)
+        flash("Time has been marked on task %s" % task.rec_name)
         return redirect(request.referrer)
 
     @classmethod
@@ -1872,7 +1943,7 @@ class Project:
         new_assignee = NereidUser(int(request.form['user']))
 
         if task.assigned_to == new_assignee:
-            flash("Task already assigned to %s" % new_assignee.name)
+            flash("Task already assigned to %s" % new_assignee.display_name)
             return redirect(request.referrer)
         if task.parent.can_write(new_assignee):
             cls.write([task], {
@@ -1880,19 +1951,18 @@ class Project:
                 'participants': [('add', [new_assignee.id])]
             })
             task.history[-1].send_mail()
-            Activity.create({
+            Activity.create([{
                 'actor': request.nereid_user.id,
                 'object_': 'project.work, %d' % task.id,
                 'verb': 'assigned_task_to',
                 'target': 'nereid.user, %d' % new_assignee.id,
                 'project': task.parent.id,
-            })
+            }])
             if request.is_xhr:
                 return jsonify({
                     'success': True,
                 })
-
-            flash("Task assigned to %s" % new_assignee.name)
+            flash("Task assigned to %s" % new_assignee.display_name)
             return redirect(request.referrer)
         flash("Only employees can be assigned to tasks.")
         return redirect(request.referrer)
@@ -1907,7 +1977,7 @@ class Project:
         task = cls.get_task(task_id)
 
         cls.write([task], {
-            'assigned_to': False
+            'assigned_to': None
         })
 
         if request.is_xhr:
@@ -1944,12 +2014,12 @@ class Project:
                 constraint_finish, '%m/%d/%Y')
 
         cls.write([task], data)
-        Activity.create({
+        Activity.create([{
             'actor': request.nereid_user.id,
             'object_': 'project.work, %d' % task.id,
             'verb': 'changed_date',
             'project': task.parent.id,
-        })
+        }])
 
         if request.is_xhr:
             return jsonify({
@@ -1997,13 +2067,8 @@ class Project:
         estimated_hours = request.form.get(
             'new_estimated_hours', None, type=float
         )
-
         if estimated_hours:
-            self.write([self], {
-                'effort': estimated_hours,
-                }
-            )
-
+            self.write([self], {'effort': estimated_hours})
         flash("The estimated hours have been changed for this task.")
         return redirect(request.referrer)
 
@@ -2043,7 +2108,7 @@ class Tag(ModelSQL, ModelView):
     def __setup__(cls):
         super(Tag, cls).__setup__()
         cls._sql_constraints += [
-           ('unique_name_project', 'UNIQUE(name, project)', 'Duplicate Tag')
+            ('unique_name_project', 'UNIQUE(name, project)', 'Duplicate Tag')
         ]
 
     @staticmethod
@@ -2058,6 +2123,7 @@ class Tag(ModelSQL, ModelView):
         Serialize the tag and returns a dictionary.
         '''
         return {
+            'create_date': self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task_list', project_id=self.project.id,
                 state="opened", tag=self.id
@@ -2082,23 +2148,25 @@ class Tag(ModelSQL, ModelView):
 
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
-            flash("Sorry! You are not allowed to create new tags." +
-                " Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to create new tags." +
+                " Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST':
-            tag = cls.create({
+            tag, = cls.create([{
                 'name': request.form['name'],
                 'color': request.form['color'],
                 'project': project.id
-            })
-            Activity.create({
+            }])
+            Activity.create([{
                 'actor': request.nereid_user.id,
                 'object_': 'project.work.tag, %d' % tag.id,
                 'verb': 'created_tag',
                 'target': 'project.work, %d' % project.id,
                 'project': project.id,
-            })
+            }])
 
             flash("Successfully created tag")
             return redirect(request.referrer)
@@ -2113,8 +2181,10 @@ class Tag(ModelSQL, ModelView):
         """
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
-            flash("Sorry! You are not allowed to delete tags." +
-                " Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to delete tags." +
+                " Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST' and request.is_xhr:
@@ -2139,7 +2209,7 @@ class TaskTags(ModelSQL):
     )
 
     tag = fields.Many2One(
-       'project.work.tag', 'Tag', select=1, required=True, ondelete='CASCADE',
+        'project.work.tag', 'Tag', select=1, required=True, ondelete='CASCADE',
     )
 
     @classmethod
@@ -2148,7 +2218,7 @@ class TaskTags(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
-        table  = TableHandler(cursor, cls, module_name)
+        table = TableHandler(cursor, cls, module_name)
         super(TaskTags, cls).__register__(module_name)
 
         # Migration
@@ -2170,17 +2240,19 @@ class ProjectHistory(ModelSQL, ModelView):
 
     # Nereid user who made this update
     updated_by = fields.Many2One('nereid.user', 'Updated By')
-
-
     # States
     previous_state = fields.Selection([
+        (None, ''),
         ('opened', 'Opened'),
         ('done', 'Done'),
-        ], 'Prev. State', select=True)
+    ], 'Prev. State', select=True
+    )
     new_state = fields.Selection([
+        (None, ''),
         ('opened', 'Opened'),
         ('done', 'Done'),
-        ], 'New State', select=True)
+    ], 'New State', select=True
+    )
     previous_progress_state = fields.Selection(
         PROGRESS_STATES, 'Prev. Progress State', select=True
     )
@@ -2218,20 +2290,23 @@ class ProjectHistory(ModelSQL, ModelView):
         Serialize the history and returns a dictionary.
         '''
         return {
+            "create_date": self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.project.parent.id,
                 task_id=self.project.id,
             ),
+            'updatedBy': self.updated_by._json(),
             "objectType": self.__name__,
             "id": self.id,
             "displayName": self.rec_name,
             "comment": self.comment,
             "new_state": self.new_state,
             "new_progress_state": self.new_progress_state,
-            "new_assignee": self.new_assigned_to._json() if\
-                self.new_assigned_to else None,
+            "new_assignee": (
+                self.new_assigned_to._json() if self.new_assigned_to
+                    else None
+            )
         }
-
 
     @classmethod
     def create_history_line(cls, project, changed_values):
@@ -2242,8 +2317,10 @@ class ProjectHistory(ModelSQL, ModelView):
             data = {}
 
             # TODO: Also create a line when assigned user is cleared from task
-            for field in ('assigned_to', 'state', 'progress_state',
-                    'constraint_start_time', 'constraint_finish_time'):
+            for field in (
+                'assigned_to', 'state', 'progress_state',
+                'constraint_start_time', 'constraint_finish_time'
+            ):
                 if field not in changed_values or not changed_values[field]:
                     continue
                 data['previous_%s' % field] = getattr(project, field)
@@ -2257,7 +2334,7 @@ class ProjectHistory(ModelSQL, ModelView):
                     # if an employee made the update
                     pass
                 data['project'] = project.id
-                return cls.create(data)
+                return cls.create([data])
 
     @login_required
     def update_comment(self, task_id):
@@ -2283,7 +2360,7 @@ class ProjectHistory(ModelSQL, ModelView):
             html = render_template('project/comment.jinja', comment=self)
             return jsonify({
                 'success': True,
-                'html': html,
+                'html': unicode(html),
                 'state': task.state,
             })
         return redirect(request.referrer)
@@ -2302,7 +2379,7 @@ class ProjectHistory(ModelSQL, ModelView):
 
         # Prepare the content of email.
         subject = "[#%s %s] - %s" % (
-            self.project.id, self.project.parent.name,
+            self.project.id, self.project.parent.rec_name,
             self.project.work.name,
         )
 
@@ -2330,8 +2407,9 @@ class ProjectHistory(ModelSQL, ModelView):
 
         # Send mail.
         server = get_smtp_server()
-        server.sendmail(CONFIG['smtp_from'], receivers,
-            message.as_string())
+        server.sendmail(
+            CONFIG['smtp_from'], receivers, message.as_string()
+        )
         server.quit()
 
 
@@ -2360,6 +2438,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         See https://help.github.com/articles/post-receive-hooks
         """
         NereidUser = Pool().get('nereid.user')
+        Activity = Pool().get('nereid.activity')
+        Project = Pool().get('project.work')
 
         if request.method == "POST":
             payload = json.loads(request.form['payload'])
@@ -2380,14 +2460,20 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                         r'pull request #(\d+)', commit['message']
                     )
                 ])
-                for project in projects - pull_requests:
+                for project in Project.browse(projects - pull_requests):
                     local_commit_time = dateutil.parser.parse(
                         commit['timestamp']
                     )
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
-                    cls.create({
+                    commit_hook = cls.search([
+                        ('commit_id', '=', commit['id']),
+                        ('project', '=', project),
+                    ])
+                    if commit_hook:
+                        continue
+                    commit, = cls.create([{
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2396,14 +2482,37 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                         'commit_message': commit['message'],
                         'commit_url': commit['url'],
                         'commit_id': commit['id']
-                    })
+                    }])
+                    Activity.create([{
+                        'actor': nereid_users[0].id,
+                        'object_': 'project.work.commit, %d' % commit.id,
+                        'verb': 'made_commit',
+                        'target': 'project.work, %d' % project.id,
+                        'project': project.parent.id,
+                    }])
         return 'OK'
+
+    def _json(self):
+        return {
+            'create_date': self.create_date.isoformat(),
+            "objectType": self.__name__,
+            "id": self.id,
+            "updatedBy": self.nereid_user._json(),
+            "url": self.commit_url,
+            "displayName": self.commit_message,
+            "repository": self.repository,
+            "repository_url": self.repository_url,
+            "commit_timestamp": self.commit_timestamp,
+            "commit_id": self.commit_id,
+        }
 
     @classmethod
     def commit_bitbucket_hook_handler(cls):
         """
         Handle post commit posts from bitbucket
-        See https://confluence.atlassian.com/display/BITBUCKET/POST+Service+Management
+        See below
+        https://confluence.atlassian.com/display/BITBUCKET/
+        POST+Service+Management
         """
         NereidUser = Pool().get('nereid.user')
 
@@ -2424,7 +2533,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 pull_requests = set([
                     int(x) for x in re.findall(
                         r'pull request #(\d+)', commit['message']
-                )])
+                    )
+                ])
                 for project in projects - pull_requests:
                     local_commit_time = dateutil.parser.parse(
                         commit['utctimestamp']
@@ -2432,19 +2542,24 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     commit_timestamp = local_commit_time.astimezone(
                         dateutil.tz.tzutc()
                     )
-                    cls.create({
+                    cls.create([{
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
                         'repository': payload['repository']['name'],
-                        'repository_url': payload['canon_url'] + \
-                            payload['repository']['absolute_url'],
+                        'repository_url': (
+                            payload['canon_url'] +
+                            payload['repository']['absolute_url']
+                        ),
                         'commit_message': commit['message'],
-                        'commit_url': payload['canon_url'] + \
-                        payload['repository']['absolute_url'] + \
-                            "changeset/" + commit['raw_node'],
-                            'commit_id': commit['raw_node']
-                    })
+                        'commit_url': (
+                            payload['canon_url'] +
+                            payload['repository']['absolute_url'] +
+                            "changeset/" +
+                            commit['raw_node']
+                        ),
+                        'commit_id': commit['raw_node']
+                    }])
         return 'OK'
 
 
@@ -2492,7 +2607,7 @@ def invitation_new_user_handler(nereid_user_id):
     nereid_user = NereidUser(nereid_user_id)
 
     subject = '[%s] %s Accepted the invitation to join the project' \
-        % (invitation.project.name, nereid_user.display_name)
+        % (invitation.project.rec_name, nereid_user.display_name)
 
     receivers = [
         p.email for p in invitation.project.company.project_admins if p.email
@@ -2512,12 +2627,12 @@ def invitation_new_user_handler(nereid_user_id):
             'participants': [('add', [nereid_user_id])]
         }
     )
-    Activity.create({
+    Activity.create([{
         'actor': nereid_user_id,
         'object_': 'project.work, %d' % invitation.project.id,
         'verb': 'joined_project',
         'project': invitation.project.id,
-    })
+    }])
 
 
 class TimesheetLine:
@@ -2530,8 +2645,20 @@ class TimesheetLine:
         '''
         Serialize timesheet line and returns a dictionary.
         '''
+        nereid_user_obj = Pool().get('nereid.user')
+
+        try:
+            nereid_user, = nereid_user_obj.search([
+                ('employee', '=', self.employee.id)
+            ], limit=1)
+        except ValueError:
+            nereid_user = {}
+        else:
+            nereid_user = nereid_user._json()
+
         # Render url for timesheet line is task on which this time is marked
         return {
+            'create_date': self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.work.parent.id,
                 task_id=self.work.id,
@@ -2539,6 +2666,7 @@ class TimesheetLine:
             "objectType": self.__name__,
             "id": self.id,
             "displayName": "%dh %dm" % (self.hours, (self.hours * 60) % 60),
+            "updatedBy": nereid_user,
         }
 
 
@@ -2551,3 +2679,18 @@ class Activity:
     project = fields.Many2One(
         'project.work', 'Project', domain=[('type', '=', 'project')]
     )
+
+
+class Attachment:
+    '''
+    Ir Attachment
+    '''
+    __name__ = "ir.attachment"
+
+    def _json(self):
+        return {
+            'create_date': self.create_date.isoformat(),
+            "objectType": self.__name__,
+            "id": self.id,
+            "updatedBy": self.uploaded_by._json(),
+        }

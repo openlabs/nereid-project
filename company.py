@@ -9,7 +9,7 @@
 """
 from datetime import datetime
 
-from nereid import request
+from nereid import request, jsonify, login_required
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelSQL, fields
 
@@ -23,7 +23,8 @@ class Company:
     """
     __name__ = "company.company"
 
-    #: Administrators for project management. Only admins can create new 
+    #: Administrators for project management.Only admins can create new
+    #: project.
     project_admins = fields.Many2Many(
         'company.company-nereid.user', 'company', 'user',
         'Project Administrators'
@@ -52,9 +53,7 @@ class NereidUser:
 
     #: Allow the nereid user to be connected to an internal employee. This
     #: indicates that the user is an employee and not a regular participant
-    employee = fields.Many2One('company.employee', 'Employee',
-        select=True,
-    )
+    employee = fields.Many2One('company.employee', 'Employee', select=True)
 
     def _json(self):
         '''
@@ -64,7 +63,20 @@ class NereidUser:
         result['image'] = {
             'url': self.get_profile_picture(size=20),
         }
+        result['email'] = self.email
+        result['employee'] = self.employee and self.employee.id or None
         return result
+
+    @classmethod
+    @login_required
+    def profile(cls):
+        """
+        User profile
+        """
+        if request.method == "GET" and request.is_xhr:
+            user, = cls.browse([request.nereid_user.id])
+            return jsonify(user._json())
+        return super(NereidUser, cls).profile()
 
     def is_project_admin(self):
         """

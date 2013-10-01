@@ -10,8 +10,9 @@ from trytond.pool import Pool
 
 from project import (
     WebSite, ProjectUsers, ProjectInvitation,
-    ProjectWorkInvitation, TimesheetEmployeeDay, Project, Tag,
-    TaskTags, ProjectHistory, ProjectWorkCommit, Activity, TimesheetLine,
+    TimesheetEmployeeDay, ProjectWorkInvitation, Project, Tag,
+    TaskTags, ProjectHistory, ProjectWorkCommit, TimesheetLine, Activity,
+    Attachment,
 )
 from company import Company, CompanyProjectAdmins, NereidUser
 
@@ -23,17 +24,18 @@ def register():
         WebSite,
         ProjectUsers,
         ProjectInvitation,
-        ProjectWorkInvitation,
         TimesheetEmployeeDay,
+        ProjectWorkInvitation,
         Project,
         Tag,
         TaskTags,
         ProjectHistory,
         ProjectWorkCommit,
+        TimesheetLine,
         Activity,
         Company,
         CompanyProjectAdmins,
         NereidUser,
-        TimesheetLine,
+        Attachment,
         module='nereid_project', type_='model',
     )

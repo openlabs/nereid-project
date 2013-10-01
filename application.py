@@ -24,16 +24,16 @@ print '%s/static/' % cwd
 CONFIG = dict(
 
     # The name of database
-    DATABASE_NAME = 'openlabs_tryton',
+    DATABASE_NAME='openlabs_tryton',
 
-    EMAIL_FROM = 'info@openlabs.co.in',
+    EMAIL_FROM='info@openlabs.co.in',
     # Static file root. The root location of the static files. The static/ will
     # point to this location. It is recommended to use the web server to serve
     # static content
-    STATIC_FILEROOT = '%s/static/' % cwd,
+    STATIC_FILEROOT='%s/static/' % cwd,
 
     # Tryton Config file path
-    TRYTON_CONFIG = '%s/etc/trytond.conf' % app_root_path,
+    TRYTON_CONFIG='%s/etc/trytond.conf' % app_root_path,
 
     # Cache backend type
     #CACHE_TYPE = 'werkzeug.contrib.cache.MemcachedCache',
@@ -45,11 +45,11 @@ CONFIG = dict(
     #CACHE_MEMCACHED_SERVERS = ['mc1:11211', 'mc2:11211'],
 
     # If the application is to be configured in the debug mode
-    DEBUG = False,
+    DEBUG=False,
 
-    TEMPLATE_LOADER_CLASS = 'nereid.templating.FileSystemLoader',
-    TEMPLATE_SEARCH_PATH = '%s' % cwd,
-    TRANSLATIONS_PATH = '%s/i18n/' % cwd,
+    TEMPLATE_LOADER_CLASS='nereid.templating.FileSystemLoader',
+    TEMPLATE_SEARCH_PATH='%s' % cwd,
+    TRANSLATIONS_PATH='%s/i18n/' % cwd,
 )
 
 app = Nereid()
@@ -61,6 +61,7 @@ app.jinja_env.globals.update({
     'datetime': datetime,
 })
 
+
 def float_to_time(hours):
     "Converts a float of hours into readable hours and mins"
     return "%dh %dm" % (hours, (hours * 60) % 60)
@@ -71,7 +72,10 @@ babelized_app = Babel(app)
 application = babelized_app.app.wsgi_app
 
 application = Sentry(
-    application, Client('http://2d6a2e5316fb481993b3eeb6123d7203:80855a8b88354bf5acca271f574b79db@sentry.openlabs.co.in/10')
+    application, Client(
+        'http://2d6a2e5316fb481993b3eeb6123d7203:'
+        '80855a8b88354bf5acca271f574b79db@sentry.openlabs.co.in/10'
+    )
 )
 
 # If the file is launched from the CLI then launch the app using the debug
@@ -90,5 +94,5 @@ if __name__ == '__main__':
     app.debug = False
     app.static_folder = '%s/static' % (cwd,)
     app.session_interface.session_store = \
-            FilesystemSessionStore('/tmp', session_class=Session)
+        FilesystemSessionStore('/tmp', session_class=Session)
     app.run('0.0.0.0')

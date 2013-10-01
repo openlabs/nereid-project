@@ -8,11 +8,11 @@
 <li class="divider">/</li>
 <li><a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}">{{ _('Tasks') }}</a></li>
 <li class="divider">/</li>
-<li><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}">{{ task.name }}</a></li>
+<li><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}">{{ task.rec_name }}</a></li>
 {% endblock %}
 
 {% block title %}
-{{ _("Task #%d: " % task.id) + task.name }}
+{{ _("Task #%d: " % task.id) + task.rec_name }}
 {% endblock %}
 
 {% block left %}
@@ -257,7 +257,7 @@
   <div class="modal-body">
     <div class="alert alert-block alert-error task-delete-message">
       <h5><i class="icon-warning-sign" style="font-size:32px;"></i> Unexpected bad things will happen if you don't read this</h5>
-      <h6>This action CANNOT be undone. This will delete the <strong>{{ task.name }}</strong> task, time logged and comments permanently.</h6>
+      <h6>This action CANNOT be undone. This will delete the <strong>{{ task.rec_name }}</strong> task, time logged and comments permanently.</h6>
       <hr/>
       <a href="{{ url_for('project.work.delete_task', task_id=task.id) }}" class="btn btn-danger">{{ _('Delete') }}</a>
       <a class="btn cancel-delete-task" data-dismiss="modal">{{ _('Cancel') }}</a>
@@ -313,7 +313,7 @@
       <p>{{ task.created_by.display_name or task.create_uid.name }} reported <abbr title="{{ request.nereid_user.aslocaltime(task.create_date) }}" class="timeago"> on {{ request.nereid_user.aslocaltime(task.create_date) }}</abbr>
       </p>
       <input type="text" id="task-{{ task.id }}" 
-        class="input-xlarge span6" style="display:none" value="{{ task.name }}">
+        class="input-xlarge span6" style="display:none" value="{{ task.rec_name }}">
       <sup>
         <a data-url="{{ url_for("project.work.edit_task", active_id=task.id) }}" class="btn save-edited-task" style="display:none" rel="tooltip" title="Edit Task Name">
           <i class="icon-save"></i>
@@ -322,7 +322,7 @@
       </sup>
       <h3 class="task-name btn-edit-task-area">
         <a class="btn pull-right btn-edit-task" style="display:none" input="#task-{{ task.id }}"><i class="icon-edit"></i> Edit</a>
-        #{{ task.id }}: {{ task.name }}
+        #{{ task.id }}: {{ task.rec_name }}
       </h3>
       <div class="btn-group span5">
         <a class="btn pull-left" data-toggle="modal" href="#change-dates">
