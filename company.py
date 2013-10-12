@@ -65,6 +65,7 @@ class NereidUser:
         }
         result['email'] = self.email
         result['employee'] = self.employee and self.employee.id or None
+        result['permissions'] = [p.value for p in self.permissions]
         return result
 
     @classmethod
