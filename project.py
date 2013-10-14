@@ -284,7 +284,7 @@ class Project:
         'project.work', 'Project',
         domain=[
             ('type', '=', 'project')
-        ], states=STATES,
+        ], states={'invisible': Eval('type') != 'project'},
     ), 'get_parent_project')
 
     def get_parent_project(self, name):
