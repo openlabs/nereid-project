@@ -425,7 +425,7 @@ class Project:
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
             value['project'] = self.project and self.project.id
-            value['created_by'] = self.created_by._json()
+            value['created_by'] = self.created_by and self.created_by._json()
         else:
             value['all_participants'] = [
                 participant._json() for participant in self.all_participants
