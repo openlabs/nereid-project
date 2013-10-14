@@ -278,6 +278,24 @@ class Project:
     """
     __name__ = 'project.work'
 
+    # This function field returns the project of a task even if the tree
+    # involves a much deeper subtask structure
+    project = fields.Function(fields.Many2One(
+        'project.work', 'Project',
+        domain=[
+            ('type', '=', 'project')
+        ], states=STATES,
+    ), 'get_parent_project')
+
+    def get_parent_project(self, name):
+        """
+        Gets the parent of this project
+        """
+        # TODO: Make this function work even with highly nested tasks
+        if self.parent:
+            return self.parent.id
+        return self.id
+
     history = fields.One2Many(
         'project.work.history', 'project',
         'History', readonly=True
