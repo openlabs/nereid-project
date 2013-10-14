@@ -99,7 +99,7 @@ class ProjectUsers(ModelSQL):
         super(ProjectUsers, cls).__setup__()
         cls._sql_constraints += [(
             'check_user',
-            'UNIQUE(project, user)',
+            'UNIQUE(project, "user")',
             'Users must be unique per project'
         )]
 
