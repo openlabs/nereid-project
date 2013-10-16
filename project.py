@@ -2706,6 +2706,20 @@ class Activity:
         'project.work', 'Project', domain=[('type', '=', 'project')]
     )
 
+    @classmethod
+    def get_activity_stream_domain(cls):
+        '''
+        Returns the domain to get activity stream of project where current user
+        is participant
+        '''
+        return [
+            'OR', [
+                ('project.participants', '=', request.nereid_user.id),
+            ], [
+                ('actor', '=', request.nereid_user.id)
+            ]
+        ]
+
 
 class Attachment:
     '''
