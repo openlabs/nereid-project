@@ -846,16 +846,8 @@ class TestNereidProject(NereidTestCase):
                 )
                 self.assertEqual(response.status_code, 302)
 
-                # Check Flash Message
-                response = c.get('/en_US/login')
-                self.assertTrue(
-                    u'File already exists with same name, please choose ' +
-                    'another file or rename this file to upload !!' in
-                    response.data
-                )
-
-                # No same file added in same task
-                self.assertEqual(len(self.Attachment.search([])), 2)
+                # Same file is added in same task
+                self.assertEqual(len(self.Attachment.search([])), 3)
 
                 # Add same file content with different file name
                 response = c.post(
@@ -870,10 +862,10 @@ class TestNereidProject(NereidTestCase):
 
                 # 2nd file with same content is added successfully
                 response = c.get('/en_US/project-%d/-files' % project.id)
-                self.assertEqual(response.data, '2')
+                self.assertEqual(response.data, '3')
 
                 # Total file added in attachments
-                self.assertEqual(len(self.Attachment.search([])), 3)
+                self.assertEqual(len(self.Attachment.search([])), 4)
 
     def test_0130_render_files(self):
         """
