@@ -59,6 +59,7 @@ class TestNereidProject(NereidTestCase):
         self.Attachment = POOL.get('ir.attachment')
         self.Permission = POOL.get('nereid.permission')
         self.ProjectUsers = POOL.get('project.work-nereid.user')
+        self.Activity = POOL.get('nereid.activity')
         self.xhr_header = [
             ('X-Requested-With', 'XMLHttpRequest'),
         ]
@@ -165,6 +166,17 @@ class TestNereidProject(NereidTestCase):
                 'menu': menu_list[0].id,
             }
         ])
+        actor_party, = self.Party.create([{
+            'name': 'Actor Party',
+        }])
+
+        self.nereid_user_actor, = self.NereidUser.create([{
+            'party': actor_party.id,
+            'company': company.id,
+            'display_name': actor_party.name,
+            'email': 'actor@email.com',
+        }])
+
         # Create nereid project site
         url_map, = self.URLMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')])
@@ -870,16 +882,8 @@ class TestNereidProject(NereidTestCase):
                 )
                 self.assertEqual(response.status_code, 302)
 
-                # Check Flash Message
-                response = c.get('/en_US/login')
-                self.assertTrue(
-                    u'File already exists with same name, please choose ' +
-                    'another file or rename this file to upload !!' in
-                    response.data
-                )
-
-                # No same file added in same task
-                self.assertEqual(len(self.Attachment.search([])), 2)
+                # Same file is added successfully
+                self.assertEqual(len(self.Attachment.search([])), 3)
 
                 # Add same file content with different file name
                 response = c.post(
@@ -894,10 +898,10 @@ class TestNereidProject(NereidTestCase):
 
                 # 2nd file with same content is added successfully
                 response = c.get('/en_US/project-%d/-files' % project.id)
-                self.assertEqual(response.data, '2')
+                self.assertEqual(response.data, '3')
 
                 # Total file added in attachments
-                self.assertEqual(len(self.Attachment.search([])), 3)
+                self.assertEqual(len(self.Attachment.search([])), 4)
 
     def test_0130_render_files(self):
         """
@@ -1293,6 +1297,196 @@ class TestNereidProject(NereidTestCase):
                     'user': data['registered_user2'].id,
                 }]
             )
+
+    def test_0200_stream_with_project(self):
+        '''
+        Tests that if user is part of project then he must be able to see all
+        the activity streams of projects where he is participant
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app()
+
+            work1, = self.Work.create([{
+                'name': 'Test Project1',
+                'company': data['company'].id,
+            }])
+            work2, = self.Work.create([{
+                'name': 'Test Project2',
+                'company': data['company'].id,
+            }])
+
+            project1, = self.Project.create([{
+                'work': work1.id,
+                'type': 'project',
+                'parent': False,
+                'state': 'opened',
+                'participants': [('set', [data['registered_user1'].id])]
+            }])
+            project2, = self.Project.create([{
+                'work': work2.id,
+                'type': 'project',
+                'parent': False,
+                'state': 'opened',
+                'participants': [('set', [data['registered_user2'].id])]
+            }])
+            project_model, = self.Model.search([
+                ('model', '=', 'project.work')
+            ])
+
+            # Create activities for project 1 the user is part of
+            self.Activity.create([{
+                'verb': 'Add project 1',
+                'actor': self.nereid_user_actor.id,
+                'object_': 'project.work,%s' % project1.id,
+                'project': project1.id,
+            }])
+
+            self.Activity.create([{
+                'verb': 'Add project 1 again',
+                'actor': self.nereid_user_actor.id,
+                'object_': 'project.work,%s' % project1.id,
+                'project': project1.id,
+            }])
+
+            # Create activity for project 2
+            self.Activity.create([{
+                'verb': 'Add project 2',
+                'actor': self.nereid_user_actor.id,
+                'object_': 'project.work,%s' % project2.id,
+                'project': project2.id,
+            }])
+
+            with app.test_client() as c:
+                # Login Success
+                rv = c.post('/en_US/login', data={
+                    'email': 'email@example.com',
+                    'password': 'password',
+                })
+                self.assertEqual(rv.status_code, 302)
+
+                # Stream after login
+                rv = c.get('/en_US/user/activity-stream')
+                self.assertEqual(rv.status_code, 200)
+                rv_json = json.loads(rv.data)
+
+                # There are 2 activities for project-1 and 1 activity for
+                # project-2
+                # So only 2 activities are returned since user is participant
+                # of project-1 only
+                self.assertEqual(rv_json['totalItems'], 2)
+                self.assertTrue(
+                    filter(
+                        lambda item: item['verb'] == 'Add project 1',
+                        rv_json['items']
+                    )
+                )
+                self.assertTrue(
+                    filter(
+                        lambda item: item['verb'] == 'Add project 1 again',
+                        rv_json['items']
+                    )
+                )
+
+                # Activity stream for project-2 should not be there
+                self.assertFalse(
+                    filter(
+                        lambda item: item['verb'] == 'Add project 2',
+                        rv_json['items']
+                    )
+                )
+
+    def test_0200_stream_without_project(self):
+        '''
+        Tests if user is not part of a project then he must be able to see all
+        the activity streams created by him
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app()
+
+            work1, = self.Work.create([{
+                'name': 'Test Project1',
+                'company': data['company'].id,
+            }])
+            work2, = self.Work.create([{
+                'name': 'Test Project2',
+                'company': data['company'].id,
+            }])
+
+            project1, = self.Project.create([{
+                'work': work1.id,
+                'type': 'project',
+                'parent': False,
+                'state': 'opened',
+            }])
+            project2, = self.Project.create([{
+                'work': work2.id,
+                'type': 'project',
+                'parent': False,
+                'state': 'opened',
+                'participants': [('set', [data['registered_user1'].id])]
+            }])
+            project_model, = self.Model.search([
+                ('model', '=', 'project.work')
+            ])
+
+            # Activities created by logged-in user
+            self.Activity.create([{
+                'verb': 'Add project 1',
+                'actor': data['registered_user1'].id,
+                'object_': 'project.work,%s' % project1.id,
+                'project': project1.id,
+            }])
+
+            self.Activity.create([{
+                'verb': 'Add project 1 again',
+                'actor': data['registered_user1'].id,
+                'object_': 'project.work,%s' % project2.id,
+            }])
+
+            # Create activity for different user
+            self.Activity.create([{
+                'verb': 'Add project 2',
+                'actor': self.nereid_user_actor.id,
+                'object_': 'project.work,%s' % project2.id,
+            }])
+
+            with app.test_client() as c:
+                # Login Success
+                rv = c.post('/en_US/login', data={
+                    'email': 'email@example.com',
+                    'password': 'password',
+                })
+                self.assertEqual(rv.status_code, 302)
+
+                # Stream after login
+                rv = c.get('/en_US/user/activity-stream')
+                self.assertEqual(rv.status_code, 200)
+                rv_json = json.loads(rv.data)
+
+                # Only two activities are created by logged-in user
+                self.assertEqual(rv_json['totalItems'], 2)
+                self.assertTrue(
+                    filter(
+                        lambda item: item['verb'] == 'Add project 1',
+                        rv_json['items']
+                    )
+                )
+                self.assertTrue(
+                    filter(
+                        lambda item: item['verb'] == 'Add project 1 again',
+                        rv_json['items']
+                    )
+                )
+
+                # Activity stream created by different user should not be there
+                self.assertFalse(
+                    filter(
+                        lambda item: item['verb'] == 'Add project 2',
+                        rv_json['items']
+                    )
+                )
 
 
 def suite():
