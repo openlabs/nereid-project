@@ -47,10 +47,10 @@ requires.append(
 setup(
     name='trytond_nereid_project',
     version=info.get('version', '0.0.1'),
-    description=info.get('description', ''),
-    author=info.get('author', ''),
-    author_email=info.get('email', ''),
-    url=info.get('website', ''),
+    description='Tryton Nereid Web based Project Management',
+    author='Openlabs Technologies & Consulting (P) Limited',
+    author_email='info@openlabs.co.in',
+    url='http://www.openlabs.co.in/',
     package_dir={'trytond.modules.nereid_project': '.'},
     packages=[
         'trytond.modules.nereid_project',
