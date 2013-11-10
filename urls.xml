@@ -7,190 +7,190 @@
 <tryton>
     <data>
         <record id="rst_to_html" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/rst-to-html</field>
+            <field name="rule">/rst-to-html</field>
             <field name="endpoint">project.work.rst_to_html</field>
             <field name="http_method_post" eval="True"/>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;</field>
+            <field name="rule">/project-&lt;int:project_id&gt;</field>
             <field name="endpoint">project.work.render_project</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_home" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/projects</field>
+            <field name="rule">/projects</field>
             <field name="endpoint">project.work.home</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="create_project" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project/-new</field>
+            <field name="rule">/project/-new</field>
             <field name="endpoint">project.work.create_project</field>
             <field name="sequence" eval="10" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="global_task_list" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/my-tasks</field>
+            <field name="rule">/my-tasks</field>
             <field name="endpoint">project.work.my_tasks</field>
             <field name="sequence" eval="10" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="tasks_by_employee" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/tasks-by-employee</field>
+            <field name="rule">/tasks-by-employee</field>
             <field name="endpoint">project.work.render_tasks_by_employee</field>
             <field name="sequence" eval="10" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_list" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/task-list</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/task-list</field>
             <field name="endpoint">project.work.render_task_list</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/task-&lt;int:task_id&gt;</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/task-&lt;int:task_id&gt;</field>
             <field name="endpoint">project.work.render_task</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_create_task" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:active_id&gt;/task/-new</field>
+            <field name="rule">/project-&lt;int:active_id&gt;/task/-new</field>
             <field name="endpoint">project.work.create_task</field>
             <field name="sequence" eval="20" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_update" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-update</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-update</field>
             <field name="endpoint">project.work.update_task</field>
             <field name="sequence" eval="05" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_create_tag" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/tag/-new</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/tag/-new</field>
             <field name="endpoint">project.work.tag.create_tag</field>
             <field name="sequence" eval="30" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_delete_tag" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/tag-&lt;int:active_id&gt;/-delete</field>
+            <field name="rule">/tag-&lt;int:active_id&gt;/-delete</field>
             <field name="endpoint">project.work.tag.delete_tag</field>
             <field name="sequence" eval="30" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_add_tag_to_task" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/tag-&lt;int:tag_id&gt;/-add</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/tag-&lt;int:tag_id&gt;/-add</field>
             <field name="endpoint">project.work.add_tag</field>
             <field name="sequence" eval="30" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_remove_tag_from_task" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/tag-&lt;int:tag_id&gt;/-remove</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/tag-&lt;int:tag_id&gt;/-remove</field>
             <field name="endpoint">project.work.remove_tag</field>
             <field name="sequence" eval="30" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_history_update" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/comment-&lt;int:active_id&gt;/-update</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/comment-&lt;int:active_id&gt;/-update</field>
             <field name="endpoint">project.work.history.update_comment</field>
             <field name="sequence" eval="05" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_watch" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-watch</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-watch</field>
             <field name="endpoint">project.work.watch</field>
             <field name="sequence" eval="05" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_unwatch" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-unwatch</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-unwatch</field>
             <field name="endpoint">project.work.unwatch</field>
             <field name="sequence" eval="05" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_mark_time" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-mark-time</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-mark-time</field>
             <field name="endpoint">project.work.mark_time</field>
             <field name="sequence" eval="35" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_assign" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-assign</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-assign</field>
             <field name="endpoint">project.work.assign_task</field>
             <field name="sequence" eval="40" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_clear_assigned_user" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-remove-assign</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-remove-assign</field>
             <field name="endpoint">project.work.clear_assigned_user</field>
             <field name="sequence" eval="45" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_permissions" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-permissions</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/-permissions</field>
             <field name="endpoint">project.work.permissions</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_task_files" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-files</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/-files</field>
             <field name="endpoint">project.work.render_files</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_timesheet" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-timesheet</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/-timesheet</field>
             <field name="endpoint">project.work.render_timesheet</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_global_timesheet" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/projects/timesheet</field>
+            <field name="rule">/projects/timesheet</field>
             
             <field name="endpoint">project.work.render_global_timesheet</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_compare_performance" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/projects/-compare-performance</field>
+            <field name="rule">/projects/-compare-performance</field>
             <field name="endpoint">project.work.compare_performance</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_global_gantt" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/projects/-gantt</field>
+            <field name="rule">/projects/-gantt</field>
             <field name="endpoint">project.work.render_global_gantt</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_plan" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-plan</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/-plan</field>
             <field name="endpoint">project.work.render_plan</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_attachment_download" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/attachment-&lt;int:attachment_id&gt;/-download</field>
+            <field name="rule">/attachment-&lt;int:attachment_id&gt;/-download</field>
             <field name="endpoint">project.work.download_file</field>
             <field name="sequence" eval="05" />
             <field name="url_map" ref="nereid.default_url_map" />
        </record>
         <record id="project_attachment_upload" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/attachment/-upload</field>
+            <field name="rule">/attachment/-upload</field>
             <field name="endpoint">project.work.upload_file</field>
             <field name="sequence" eval="50" />
             <field name="http_method_get" eval="True"/>
@@ -198,77 +198,77 @@
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_invite" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:project_id&gt;/-invite</field>
+            <field name="rule">/project-&lt;int:project_id&gt;/-invite</field>
             <field name="endpoint">project.work.invite</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_remove_participant" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:active_id&gt;/participant-&lt;int:participant_id&gt;/-remove</field>
+            <field name="rule">/project-&lt;int:active_id&gt;/participant-&lt;int:participant_id&gt;/-remove</field>
             <field name="endpoint">project.work.remove_participant</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_change_constraint_dates" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/change_constraint_dates</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/change_constraint_dates</field>
             <field name="endpoint">project.work.change_constraint_dates</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_edit_task" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:active_id&gt;/-edit</field>
+            <field name="rule">/task-&lt;int:active_id&gt;/-edit</field>
             <field name="endpoint">project.work.edit_task</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_delete_task" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:task_id&gt;/-delete</field>
+            <field name="rule">/task-&lt;int:task_id&gt;/-delete</field>
             <field name="endpoint">project.work.delete_task</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_reinvite_participant" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/invitation-&lt;int:active_id&gt;/-resend</field>
+            <field name="rule">/invitation-&lt;int:active_id&gt;/-resend</field>
             <field name="endpoint">project.work.invitation.resend_invite</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_remove_invite" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/invitation-&lt;int:active_id&gt;/-remove</field>
+            <field name="rule">/invitation-&lt;int:active_id&gt;/-remove</field>
             <field name="endpoint">project.work.invitation.remove_invite</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_change_estimated_hours" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/task-&lt;int:active_id&gt;/change-estimated-hours</field>
+            <field name="rule">/task-&lt;int:active_id&gt;/change-estimated-hours</field>
             <field name="endpoint">project.work.change_estimated_hours</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_work_commit_github" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/-project/-github-hook</field>
+            <field name="rule">/-project/-github-hook</field>
             <field name="endpoint">project.work.commit.commit_github_hook_handler</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_work_commit_bitbucket" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/-project/-bitbucket-hook</field>
+            <field name="rule">/-project/-bitbucket-hook</field>
             <field name="endpoint">project.work.commit.commit_bitbucket_hook_handler</field>
             <field name="sequence" eval="60" />
             <field name="http_method_post" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
         <record id="project_work_last_7_days" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/-project/-my-last-7-days</field>
+            <field name="rule">/-project/-my-last-7-days</field>
             <field name="endpoint">project.work.get_7_day_performance</field>
             <field name="sequence" eval="60" />
             <field name="url_map" ref="nereid.default_url_map" />
@@ -276,7 +276,7 @@
 
         <!-- Project Activities -->
         <record id="project_activity_stream" model="nereid.url_rule">
-            <field name="rule">/&lt;language&gt;/project-&lt;int:active_id&gt;/stream</field>
+            <field name="rule">/project-&lt;int:active_id&gt;/stream</field>
             <field name="endpoint">project.work.stream</field>
             <field name="sequence" eval="50" />
             <field name="http_method_get" eval="True"/>

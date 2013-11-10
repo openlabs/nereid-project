@@ -33,9 +33,6 @@ class TestTask(NereidTestCase):
     Test Task
     '''
 
-    # pylint: disable-msg=C0103
-    # pylint False trigger Using Invalid name
-
     def setUp(self):
         """
         Set up data used in the tests.
@@ -62,6 +59,7 @@ class TestTask(NereidTestCase):
         self.Permission = POOL.get('nereid.permission')
         self.ProjectWorkCommit = POOL.get('project.work.commit')
         self.Activity = POOL.get('nereid.activity')
+        self.Locale = POOL.get('nereid.website.locale')
         self.xhr_header = [
             ('X-Requested-With', 'XMLHttpRequest'),
         ]
@@ -141,12 +139,18 @@ class TestTask(NereidTestCase):
         # Create nereid project site
         url_map, = self.URLMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')])
+
+        self.locale_en_us, = self.Locale.create([{
+            'code': 'en_US',
+            'language': en_us.id,
+            'currency': currency.id,
+        }])
         nereid_project_website, = self.Website.create([{
             'name': 'localhost',
             'url_map': url_map.id,
             'company': company.id,
             'application_user': USER,
-            'default_language': en_us.id,
+            'default_locale': self.locale_en_us.id,
             'guest_user': guest_user.id,
         }])
 
@@ -293,18 +297,18 @@ class TestTask(NereidTestCase):
             }
 
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Create Task
                     response = c.post(
-                        '/en_US/project-%d/task/-new' % data['project1'].id,
+                        '/project-%d/task/-new' % data['project1'].id,
                         data={
                             'name': 'ABC_task',
                             'description': 'task_desc',
@@ -312,7 +316,7 @@ class TestTask(NereidTestCase):
                     )
                     self.assertEqual(response.status_code, 302)
 
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Task successfully added to project ABC' in
                         response.data
@@ -332,18 +336,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Edit Task
                     response = c.post(
-                        '/en_US/task-%d/-edit' % task.id,
+                        '/task-%d/-edit' % task.id,
                         data={
                             'name': 'ABC_task',
                             'comment': 'task_desc2',
@@ -369,18 +373,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Unwatching task
                     response = c.post(
-                        '/en_US/task-%d/-unwatch' % task.id,
+                        '/task-%d/-unwatch' % task.id,
                         data={},
                         headers=self.xhr_header,
                     )
@@ -393,7 +397,7 @@ class TestTask(NereidTestCase):
 
                     # Watching task
                     response = c.post(
-                        '/en_US/task-%d/-watch' % data['task1'].id,
+                        '/task-%d/-watch' % data['task1'].id,
                         data={},
                         headers=self.xhr_header,
                     )
@@ -418,18 +422,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Add Comment without xhr
                     response = c.post(
-                        '/en_US/task-%d/-update' % task.id,
+                        '/task-%d/-update' % task.id,
                         data={
                             'comment': 'comment1',
                         }
@@ -438,7 +442,7 @@ class TestTask(NereidTestCase):
 
                     # Add Comment with XHR
                     response = c.post(
-                        '/en_US/task-%d/-update' % task.id,
+                        '/task-%d/-update' % task.id,
                         data={
                             'comment': 'comment2',
                         },
@@ -462,18 +466,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Clear Assigned User
                     response = c.post(
-                        '/en_US/task-%d/-remove-assign' % task.id,
+                        '/task-%d/-remove-assign' % task.id,
                         data={},
                         headers=self.xhr_header,
                     )
@@ -495,18 +499,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Assign User
                     response = c.post(
-                        '/en_US/task-%d/-assign' % task.id,
+                        '/task-%d/-assign' % task.id,
                         data={
                             'user': data['registered_user2'].id,
                         },
@@ -518,7 +522,7 @@ class TestTask(NereidTestCase):
 
                     # Change Assigned User
                     response = c.post(
-                        '/en_US/task-%d/-assign' % task.id,
+                        '/task-%d/-assign' % task.id,
                         data={
                             'user': data['registered_user1'].id,
                         }
@@ -539,15 +543,15 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 # Update with state change
                 response = c.post(
-                    '/en_US/task-%d/-update' % task.id,
+                    '/task-%d/-update' % task.id,
                     data={
                         'progress_state': 'Planning',
                         'state': 'opened',
@@ -570,52 +574,52 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # add_tag tag1
                     response = c.post(
-                        '/en_US/task-%d/tag-%d/-add' %
+                        '/task-%d/tag-%d/-add' %
                         (task.id, data['tag1'].id), data={}
                     )
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Tag added to task ABC_task' in response.data
                     )
 
                     # Add_tag tag2
                     response = c.post(
-                        '/en_US/task-%d/tag-%d/-add' %
+                        '/task-%d/tag-%d/-add' %
                         (data['task1'].id, data['tag2'].id), data={}
                     )
 
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Tag added to task ABC_task' in response.data
                     )
 
                     # Remove_tag tag1
                     response = c.post(
-                        '/en_US/task-%d/tag-%d/-remove' %
+                        '/task-%d/tag-%d/-remove' %
                         (data['task1'].id, data['tag1'].id), data={}
                     )
 
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Tag removed from task ABC_task' in response.data
                     )
@@ -633,18 +637,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Render_task_list for project
                     response = c.get(
-                        '/en_US/project-%d/task-list' % data['project1'].id,
+                        '/project-%d/task-list' % data['project1'].id,
                         headers=self.xhr_header,
                     )
 
@@ -666,18 +670,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Render_task_list for project with query 'test'
                     response = c.get(
-                        '/en_US/project-%d/task-list?q=test' %
+                        '/project-%d/task-list?q=test' %
                         data['project1'].id, headers=self.xhr_header,
                     )
 
@@ -688,7 +692,7 @@ class TestTask(NereidTestCase):
 
                     # Render_task_list for project with query 'task3'
                     response = c.get(
-                        '/en_US/project-%d/task-list?q=task3' %
+                        '/project-%d/task-list?q=task3' %
                         data['project1'].id, headers=self.xhr_header,
                     )
 
@@ -710,18 +714,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Render_task_list for project with tag 'tag1'
                     response = c.get(
-                        '/en_US/project-%d/task-list?tag=%d' %
+                        '/project-%d/task-list?tag=%d' %
                         (data['project1'].id, data['tag1'].id),
                         headers=self.xhr_header,
                     )
@@ -733,7 +737,7 @@ class TestTask(NereidTestCase):
 
                     # Render_task_list for project with tag 'tag2'
                     response = c.get(
-                        '/en_US/project-%d/task-list?tag=%d' %
+                        '/project-%d/task-list?tag=%d' %
                         (data['project1'].id, data['tag2'].id),
                         headers=self.xhr_header,
                     )
@@ -761,17 +765,17 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Mark time
                     response = c.post(
-                        '/en_US/task-%d/-mark-time' % task.id,
+                        '/task-%d/-mark-time' % task.id,
                         data={
                             'hours': '8',
                         }
@@ -780,37 +784,37 @@ class TestTask(NereidTestCase):
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Time has been marked on task ABC_task' in
                         response.data
                     )
 
                     # Logout
-                    response = c.get('/en_US/logout')
+                    response = c.get('/logout')
 
                     # Login with other user
-                    response = c.post('/en_US/login', data=login_data2)
+                    response = c.post('/login', data=login_data2)
 
                     # Login Success
                     self.assertEqual(response.status_code, 302)
                     self.assertEqual(
-                        response.location, 'http://localhost/en_US/'
+                        response.location, 'http://localhost/'
                     )
 
                     # Mark time when user is not employee
                     response = c.post(
-                        '/en_US/task-%d/-mark-time' % task.id,
+                        '/task-%d/-mark-time' % task.id,
                         data={
                             'hours': '8',
                         }
                     )
 
                     self.assertEqual(response.status_code, 302)
-                    response = c.get('/en_US/logout')
+                    response = c.get('/logout')
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Only employees can mark time on tasks!' in
                         response.data
@@ -830,18 +834,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Change estimated hours
                     response = c.post(
-                        '/en_US/task-%d/change-estimated-hours' % task.id,
+                        '/task-%d/change-estimated-hours' % task.id,
                         data={
                             'new_estimated_hours': '15',
                         }
@@ -867,18 +871,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Check my tasks
                     response = c.get(
-                        '/en_US/my-tasks', headers=self.xhr_header
+                        '/my-tasks', headers=self.xhr_header
                     )
                     self.assertEqual(
                         len(json.loads(response.data)['items']), 1
@@ -886,7 +890,7 @@ class TestTask(NereidTestCase):
 
                     # Check my tasks with tag1
                     response = c.get(
-                        '/en_US/my-tasks?tag=%d' % data['tag1'].id,
+                        '/my-tasks?tag=%d' % data['tag1'].id,
                         headers=self.xhr_header
                     )
                     self.assertEqual(
@@ -895,7 +899,7 @@ class TestTask(NereidTestCase):
 
                     # Check my tasks with tag2
                     response = c.get(
-                        '/en_US/my-tasks?tag=%d' % data['tag2'].id,
+                        '/my-tasks?tag=%d' % data['tag2'].id,
                         headers=self.xhr_header
                     )
                     self.assertEqual(
@@ -915,17 +919,17 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Render_tasks_by_employee
-                    response = c.get('/en_US/tasks-by-employee')
+                    response = c.get('/tasks-by-employee')
                     self.assertEqual(response.status_code, 200)
 
     def test_0160_render_task(self):
@@ -942,18 +946,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Render_task
                     response = c.get(
-                        '/en_US/project-%d/task-%d' % (task.parent.id, task.id)
+                        '/project-%d/task-%d' % (task.parent.id, task.id)
                     )
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.data, str(task.id))
@@ -977,18 +981,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Update_comment
                     response = c.post(
-                        '/en_US/task-%d/comment-%d/-update' %
+                        '/task-%d/comment-%d/-update' %
                         (task.id, comment.id), data={'comment': 'comment2'},
                         headers=self.xhr_header,
                     )
@@ -1011,18 +1015,18 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
                     # Change_constraint_dates
                     response = c.post(
-                        '/en_US/task-%d/change_constraint_dates' % task.id,
+                        '/task-%d/change_constraint_dates' % task.id,
                         data={
                             'constraint_start_time': '06/24/2013',
                             'constraint_finish_time': '06/30/2013',
@@ -1048,18 +1052,22 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                self.assertEqual(response.location, 'http://localhost/')
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        3
+                    )
                     # Delete_task
                     response = c.post(
-                        '/en_US/task-%d/-delete' % task.id,
+                        '/task-%d/-delete' % task.id,
                         headers=self.xhr_header
                     )
                     self.assertEqual(response.status_code, 200)
@@ -1085,7 +1093,7 @@ class TestTask(NereidTestCase):
                 'password': 'password',
             }
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
                 self.assertEqual(response.status_code, 302)
 
                 with Transaction().set_context(
@@ -1099,7 +1107,7 @@ class TestTask(NereidTestCase):
 
                     # Create Task
                     response = c.post(
-                        '/en_US/project-%d/task/-new' % data['project1'].id,
+                        '/project-%d/task/-new' % data['project1'].id,
                         data={
                             'name': 'Task with multiple tags',
                             'description': 'Multi selection tags field',
@@ -1129,7 +1137,7 @@ class TestTask(NereidTestCase):
                     # Tags added in above created task
                     self.assertEqual(len(task.tags), 3)
 
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Task successfully added to project ABC' in
                         response.data
@@ -1166,7 +1174,7 @@ class TestTask(NereidTestCase):
             }
 
             with app.test_client() as c:
-                response = c.post('/en_US/login', data=login_data)
+                response = c.post('/login', data=login_data)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
@@ -1180,7 +1188,7 @@ class TestTask(NereidTestCase):
 
                     # Check github handler
                     response = c.post(
-                        '/en_US/-project/-github-hook',
+                        '/-project/-github-hook',
                         data={
                             'payload': json.dumps(payload)
                         }

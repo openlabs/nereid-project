@@ -37,7 +37,7 @@ from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server
-from trytond.backend import TableHandler
+from trytond import backend
 
 __all__ = [
     'WebSite', 'ProjectUsers', 'ProjectInvitation',
@@ -110,6 +110,7 @@ class ProjectUsers(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
+        TableHandler = backend.get('TableHandler')
         table = TableHandler(cursor, cls, module_name)
         super(ProjectUsers, cls).__register__(module_name)
         # Migration
@@ -361,13 +362,13 @@ class Project:
             # Display all projects to project admin
             projects = cls.search([
                 ('type', '=', 'project'),
-                ('parent', '=', False),
+                ('parent', '=', None),
             ])
         else:
             projects = cls.search([
                 ('participants', '=', request.nereid_user.id),
                 ('type', '=', 'project'),
-                ('parent', '=', False),
+                ('parent', '=', None),
             ])
         if request.is_xhr:
             return jsonify({
@@ -831,7 +832,7 @@ class Project:
 
         invitations = ProjectInvitation.search([
             ('project', '=', project.id),
-            ('nereid_user', '=', False)
+            ('nereid_user', '=', None)
         ])
         return render_template(
             'project/permissions.jinja', project=project,
@@ -2243,6 +2244,7 @@ class TaskTags(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
+        TableHandler = backend.get('TableHandler')
         table = TableHandler(cursor, cls, module_name)
         super(TaskTags, cls).__register__(module_name)
 

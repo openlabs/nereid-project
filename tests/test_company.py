@@ -37,6 +37,7 @@ class TestCompany(NereidTestCase):
         self.URLMap = POOL.get('nereid.url_map')
         self.Language = POOL.get('ir.lang')
         self.Website = POOL.get('nereid.website')
+        self.Locale = POOL.get('nereid.website.locale')
 
     def get_template_source(self, name):
         """
@@ -93,12 +94,17 @@ class TestCompany(NereidTestCase):
             # Create nereid project site
             url_map, = self.URLMap.search([], limit=1)
             en_us, = self.Language.search([('code', '=', 'en_US')])
+            self.locale_en_us, = self.Locale.create([{
+                'code': 'en_US',
+                'language': en_us.id,
+                'currency': currency.id,
+            }])
             nereid_project_website, = self.Website.create([{
                 'name': 'localhost',
                 'url_map': url_map.id,
                 'company': company.id,
                 'application_user': USER,
-                'default_language': en_us.id,
+                'default_locale': self.locale_en_us.id,
                 'guest_user': guest_user.id,
             }])
             self.Company.write([company], {
@@ -112,7 +118,7 @@ class TestCompany(NereidTestCase):
 
             app = self.get_app()
             with app.test_client() as c:
-                rv = c.post('/en_US/login', data=login_data)
+                rv = c.post('/login', data=login_data)
                 self.assertEqual(rv.status_code, 302)
 
                 # Assert project admin.
