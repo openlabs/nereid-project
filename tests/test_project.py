@@ -60,6 +60,7 @@ class TestNereidProject(NereidTestCase):
         self.Permission = POOL.get('nereid.permission')
         self.ProjectUsers = POOL.get('project.work-nereid.user')
         self.Activity = POOL.get('nereid.activity')
+        self.Locale = POOL.get('nereid.website.locale')
         self.xhr_header = [
             ('X-Requested-With', 'XMLHttpRequest'),
         ]
@@ -180,12 +181,18 @@ class TestNereidProject(NereidTestCase):
         # Create nereid project site
         url_map, = self.URLMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')])
+
+        self.locale_en_us, = self.Locale.create([{
+            'code': 'en_US',
+            'language': en_us.id,
+            'currency': currency.id,
+        }])
         nereid_project_website, = self.Website.create([{
             'name': 'localhost',
             'url_map': url_map.id,
             'company': company.id,
             'application_user': USER,
-            'default_language': en_us.id,
+            'default_locale': self.locale_en_us.id,
             'guest_user': guest_user.id,
         }])
 
@@ -236,21 +243,21 @@ class TestNereidProject(NereidTestCase):
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
-                    response = c.post('/en_US/login', data=login_data)
+                    response = c.post('/login', data=login_data)
                     self.assertEqual(
-                        response.location, 'http://localhost/en_US/'
+                        response.location, 'http://localhost/'
                     )
                     self.assertEqual(response.status_code, 302)
 
                     # Get flash message for logged in user
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'You are now logged in. Welcome Registered User2' in
                             response.data
                     )
 
                     # Create project when user is not admin
-                    response = c.post('/en_US/project/-new', data={
+                    response = c.post('/project/-new', data={
                         'name': 'ABC',
                         'type': 'project',
                         'company': data['company'].id,
@@ -260,7 +267,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to create new projects.' +
                         ' Contact your project admin for the same.' in
@@ -285,19 +292,19 @@ class TestNereidProject(NereidTestCase):
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
-                    response = c.post('/en_US/login', data=login_data)
+                    response = c.post('/login', data=login_data)
                     self.assertEqual(
-                        response.location, 'http://localhost/en_US/'
+                        response.location, 'http://localhost/'
                     )
                     self.assertEqual(response.status_code, 302)
                     # Logout user
-                    response = c.get('en_US/logout')
+                    response = c.get('/logout')
                     self.assertEqual(response.status_code, 302)
                     self.assertEqual(
-                        response.location, 'http://localhost/en_US/'
+                        response.location, 'http://localhost/'
                     )
 
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'You have been logged out successfully. Thanks for' +
                         ' visiting us' in response.data
@@ -313,17 +320,17 @@ class TestNereidProject(NereidTestCase):
             app = self.get_app()
 
             with app.test_client() as c:
-                rv = c.get('/en_US/me')
+                rv = c.get('/me')
                 self.assertEqual(rv.status_code, 302)
 
                 with Transaction().set_context(
                         {'company': data['company'].id}):
                     # User Login
-                    response = c.post('/en_US/login', data={
+                    response = c.post('/login', data={
                         'email': 'email@example.com',
                         'password': 'password',
                     })
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'You are now logged in. Welcome Registered User1' in
                         response.data
@@ -334,7 +341,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(len(self.Project.search([])), 0)
 
                     # Create project when nereid user is admin
-                    response = c.post('/en_US/project/-new', data={
+                    response = c.post('/project/-new', data={
                         'name': 'ABC',
                         'type': 'project',
                         'company': data['company'].id,
@@ -343,11 +350,11 @@ class TestNereidProject(NereidTestCase):
                     })
                     self.assertEqual(response.status_code, 302)
                     self.assertEqual(
-                        response.location, 'http://localhost/en_US/project-1'
+                        response.location, 'http://localhost/project-1'
                     )
 
                     # Check Flash message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Project successfully created.' in response.data
                     )
@@ -357,7 +364,7 @@ class TestNereidProject(NereidTestCase):
 
                     # Create project with get request when nereid user is admin
                     # , it will show flash message, and won't create project
-                    response = c.get('/en_US/project/-new', data={
+                    response = c.get('/project/-new', data={
                         'name': 'ABC',
                         'type': 'project',
                         'company': data['company'].id,
@@ -365,7 +372,7 @@ class TestNereidProject(NereidTestCase):
                         'state': 'opened',
                     })
                     self.assertEqual(response.status_code, 302)
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Could not create project. Try again.' in
                         response.data
@@ -399,10 +406,10 @@ class TestNereidProject(NereidTestCase):
 
                 with Transaction().set_context(
                         {'company': data['company'].id}):
-                    response = c.post('/en_US/login', data=login_data)
+                    response = c.post('/login', data=login_data)
                     self.assertEqual(response.status_code, 302)
 
-                    response = c.get('/en_US/project-%d' % project.id)
+                    response = c.get('/project-%d' % project.id)
                     self.assertEqual(response.status_code, 200)
 
                     # Checks if renders the same project that is created
@@ -450,10 +457,10 @@ class TestNereidProject(NereidTestCase):
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
-                    response = c.post('/en_US/login', data=login_data)
+                    response = c.post('/login', data=login_data)
                     self.assertEqual(response.status_code, 302)
 
-                    response = c.get('/en_US/projects')
+                    response = c.get('/projects')
                     self.assertEqual(response.status_code, 200)
 
                     # Total project 2 shown to admin
@@ -506,14 +513,14 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'res_user@example.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
-                    response = c.get('en_US/projects')
+                    response = c.get('/projects')
 
                     # Total project shown is 1 as nereid user is a participant
                     # for that project only
@@ -541,7 +548,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -549,7 +556,7 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/project-%d/tag/-new' % project.id,
+                        '/project-%d/tag/-new' % project.id,
                         data={
                             'name': 'TagProject',
                             'color': 'Black',
@@ -560,7 +567,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Successfully created tag' in response.data
                     )
@@ -568,7 +575,7 @@ class TestNereidProject(NereidTestCase):
                     # Tests for creating tag for specific project with get
                     # request
                     response = c.get(
-                        '/en_US/project-%d/tag/-new' % project.id,
+                        '/project-%d/tag/-new' % project.id,
                         data={
                             'name': 'TagProject',
                             'color': 'Black',
@@ -580,7 +587,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Could not create tag. Try Again' in response.data
                     )
@@ -616,7 +623,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'example@example.com',
                     'password': 'password',
                 })
@@ -624,7 +631,7 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/project-%d/tag/-new' % project.id,
+                        '/project-%d/tag/-new' % project.id,
                         data={
                             'name': 'TagProject',
                             'color': 'Black',
@@ -635,7 +642,7 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to create new tags.' +
                         ' Contact your project admin for the same.' in
@@ -672,7 +679,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'example@example.com',
                     'password': 'password',
                 })
@@ -685,13 +692,13 @@ class TestNereidProject(NereidTestCase):
                         'color': 'color1',
                         'project': project.id
                     }])
-                    response = c.post('/en_US/tag-%d/-delete' % tag.id)
+                    response = c.post('/tag-%d/-delete' % tag.id)
 
                     # Redirecting back to refer page
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to delete tags. Contact' +
                         ' your project admin for the same.' in response.data
@@ -719,7 +726,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -734,7 +741,7 @@ class TestNereidProject(NereidTestCase):
                     }])
 
                     response = c.post(
-                        '/en_US/tag-%d/-delete' % tag.id,
+                        '/tag-%d/-delete' % tag.id,
                         headers=self.xhr_header,
                     )
 
@@ -745,13 +752,13 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 200)
 
                     # Tests for deleting tag for project with get request
-                    response = c.get('/en_US/tag-%d/-delete' % tag.id)
+                    response = c.get('/tag-%d/-delete' % tag.id)
 
                     # Redirecting back to refer page
                     self.assertEqual(response.status_code, 302)
 
                     # Check Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Could not delete tag! Try again.' in response.data
                     )
@@ -767,7 +774,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -775,7 +782,7 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
 
-                    response = c.get('/en_US/projects/-compare-performance')
+                    response = c.get('/projects/-compare-performance')
                     self.assertTrue(response.status_code, 200)
 
                     # Checks number of employees renders
@@ -825,17 +832,17 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
                 # Try uploading files without logging in and
                 # there should be a redirect to login page
-                response = c.post('/en_US/attachment/-upload')
+                response = c.post('/attachment/-upload')
                 self.assertEqual(response.status_code, 302)
 
                 # Login success
-                response = c.post('/en_US/login', data=login_data)
-                self.assertEqual(response.location, 'http://localhost/en_US/')
+                response = c.post('/login', data=login_data)
+                self.assertEqual(response.location, 'http://localhost/')
                 self.assertEqual(response.status_code, 302)
 
                 # Upload file
                 response = c.post(
-                    '/en_US/attachment/-upload',
+                    '/attachment/-upload',
                     data={
                         'file': (StringIO('testfile contents'), 'test1.txt'),
                         'task': task1.id,
@@ -844,7 +851,7 @@ class TestNereidProject(NereidTestCase):
                 )
                 self.assertEqual(response.status_code, 302)
 
-                response = c.get('en_US/login')
+                response = c.get('/login')
                 self.assertTrue(
                     u'Attachment added to ABC_task' in response.data
                 )
@@ -854,7 +861,7 @@ class TestNereidProject(NereidTestCase):
 
                 # Add same file to other task
                 response = c.post(
-                    '/en_US/attachment/-upload',
+                    '/attachment/-upload',
                     data={
                         'file': (StringIO('testfile contents'), 'test1.txt'),
                         'task': task2.id,
@@ -863,7 +870,7 @@ class TestNereidProject(NereidTestCase):
                 )
                 self.assertEqual(response.status_code, 302)
 
-                response = c.get('en_US/login')
+                response = c.get('/login')
                 self.assertTrue(
                     u'Attachment added to PQR_task' in response.data
                 )
@@ -873,7 +880,7 @@ class TestNereidProject(NereidTestCase):
 
                 # Upload same file again
                 response = c.post(
-                    '/en_US/attachment/-upload',
+                    '/attachment/-upload',
                     data={
                         'file': (StringIO('testfile contents'), 'test1.txt'),
                         'task': task1.id,
@@ -887,7 +894,7 @@ class TestNereidProject(NereidTestCase):
 
                 # Add same file content with different file name
                 response = c.post(
-                    '/en_US/attachment/-upload',
+                    '/attachment/-upload',
                     data={
                         'file': (StringIO('testfile contents'), 'test2.txt'),
                         'task': task1.id,
@@ -897,7 +904,7 @@ class TestNereidProject(NereidTestCase):
                 self.assertEqual(response.status_code, 302)
 
                 # 2nd file with same content is added successfully
-                response = c.get('/en_US/project-%d/-files' % project.id)
+                response = c.get('/project-%d/-files' % project.id)
                 self.assertEqual(response.data, '3')
 
                 # Total file added in attachments
@@ -946,7 +953,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -954,7 +961,7 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
 
-                    response = c.get('/en_US/project-%d/-files' % project.id)
+                    response = c.get('/project-%d/-files' % project.id)
                     self.assertEqual(response.data, '1')
 
     def test_0140_download_file(self):
@@ -987,7 +994,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -997,7 +1004,7 @@ class TestNereidProject(NereidTestCase):
 
                     # Upload file
                     response = c.post(
-                        '/en_US/attachment/-upload',
+                        '/attachment/-upload',
                         data={
                             'file': (
                                 StringIO('testfile contents'), 'test.txt'
@@ -1016,7 +1023,7 @@ class TestNereidProject(NereidTestCase):
                     # Download file and the file content must be same as
                     # uploaded
                     response = c.get(
-                        '/en_US/attachment-%d/-download?task=%d' %
+                        '/attachment-%d/-download?task=%d' %
                         (attachment.id, task1.id)
                     )
                     self.assertEqual(response.status_code, 200)
@@ -1049,7 +1056,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -1057,7 +1064,7 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.get(
-                        '/en_US/project-%d/-permissions?invitations=%d' %
+                        '/project-%d/-permissions?invitations=%d' %
                         (project.id, invitation.id)
                     )
                     self.assertEqual(response.status_code, 200)
@@ -1091,7 +1098,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'res_user@example.com',
                     'password': 'password',
                 })
@@ -1099,11 +1106,11 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/project-%d/participant-%d/-remove' %
+                        '/project-%d/participant-%d/-remove' %
                         (project.id, participant.id)
                     )
                     self.assertEqual(response.status_code, 302)
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         'Sorry! You are not allowed to remove participants.' +
                         ' Contact your project admin for the same.' in
@@ -1137,7 +1144,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -1145,7 +1152,7 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/project-%d/participant-%d/-remove' %
+                        '/project-%d/participant-%d/-remove' %
                         (project.id, participant.id),
                         headers=self.xhr_header,
                     )
@@ -1156,13 +1163,14 @@ class TestNereidProject(NereidTestCase):
 
                     # Checks if remove participant by get request
                     response = c.get(
-                        '/en_US/project-%d/participant-%d/-remove' %
+                        '/project-%d/participant-%d/-remove' %
                         (project.id, participant.id)
                     )
+
                     self.assertEqual(response.status_code, 302)
 
                     # Checks Flash Message
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         'Could not remove participant! Try again.'
                         in response.data
@@ -1196,7 +1204,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'example@example.com',
                     'password': 'password',
                 })
@@ -1204,10 +1212,10 @@ class TestNereidProject(NereidTestCase):
                     'company': data['company'].id
                 }):
                     response = c.post(
-                        '/en_US/invitation-%d/-remove' % invitation.id
+                        '/invitation-%d/-remove' % invitation.id
                     )
                     self.assertEqual(response.status_code, 302)
-                    response = c.get('/en_US/login')
+                    response = c.get('/login')
                     self.assertTrue(
                         u'Sorry! You are not allowed to remove invited ' +
                         'users. Contact your project admin for the same.' in
@@ -1216,7 +1224,7 @@ class TestNereidProject(NereidTestCase):
 
                     # Checks by get request
                     response = c.get(
-                        '/en_US/invitation-%d/-remove' % invitation.id
+                        '/invitation-%d/-remove' % invitation.id
                     )
                     self.assertEqual(response.status_code, 302)
 
@@ -1248,7 +1256,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 # User Login
-                response = c.post('/en_US/login', data={
+                response = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
@@ -1257,7 +1265,7 @@ class TestNereidProject(NereidTestCase):
                 }):
 
                     response = c.post(
-                        'en_US/invitation-%d/-resend' % invitation.id,
+                        '/invitation-%d/-resend' % invitation.id,
                         headers=self.xhr_header,
                     )
 
@@ -1359,14 +1367,14 @@ class TestNereidProject(NereidTestCase):
 
             with app.test_client() as c:
                 # Login Success
-                rv = c.post('/en_US/login', data={
+                rv = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream after login
-                rv = c.get('/en_US/user/activity-stream')
+                rv = c.get('/user/activity-stream')
                 self.assertEqual(rv.status_code, 200)
                 rv_json = json.loads(rv.data)
 
@@ -1454,14 +1462,14 @@ class TestNereidProject(NereidTestCase):
 
             with app.test_client() as c:
                 # Login Success
-                rv = c.post('/en_US/login', data={
+                rv = c.post('/login', data={
                     'email': 'email@example.com',
                     'password': 'password',
                 })
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream after login
-                rv = c.get('/en_US/user/activity-stream')
+                rv = c.get('/user/activity-stream')
                 self.assertEqual(rv.status_code, 200)
                 rv_json = json.loads(rv.data)
 
