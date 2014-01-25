@@ -1459,7 +1459,7 @@ class Project:
         for employee_id, values in employee_wise_data.iteritems():
             employee = employees.get(employee_id)
             gantt_data_append({
-                'name': employee and employee.name or 'Ghost',
+                'name': employee and employee.rec_name or 'Ghost',
                 'desc': '',
                 'values': values,
             })
