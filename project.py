@@ -1273,7 +1273,7 @@ class Project:
             day_totals.append({
                 'id': '%s:%s:%s' % (date, employee.id, project_id),
                 'title': '%s (%dh %dm)' % (
-                    employee.name, hours, (hours * 60) % 60
+                    employee.rec_name, hours, (hours * 60) % 60
                 ),
                 'start': date.isoformat(),
                 'color': color_map.setdefault(employee, colors.next()),
@@ -1386,7 +1386,7 @@ class Project:
         for employee_id in employee_ids:
             employee = employees.get(employee_id)
             series.append({
-                'name': employee and employee.name or 'Ghost',
+                'name': employee and employee.rec_name or 'Ghost',
                 'type': 'column',
                 'data': map(
                     lambda d:
