@@ -1212,10 +1212,10 @@ class Project:
                 domain, order=[('date', 'asc'), ('employee', 'asc')]
             )
             return jsonify(lines=[
-                render_template(
+                unicode(render_template(
                     'project/timesheet-line.jinja', line=line,
                     related_task=cls.get_task_from_work(line.work)
-                )
+                ))
                 for line in lines[::-1]
             ])
 
