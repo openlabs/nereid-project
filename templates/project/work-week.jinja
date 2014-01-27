@@ -15,7 +15,7 @@
         <table>
         {% for employee, hours in data_by_week.get(week, {}).iteritems() %}
             <tr>
-            <td>{{ employee.name.split()[0] }} </td>
+            <td>{{ employee.rec_name.split()[0] }} </td>
             <td><span class="badge pull-right">{{ hours|float_to_time }}</span></td>
             </tr>
         {% endfor %}
@@ -27,7 +27,7 @@
         <table>
           {% for employee, hours in total_by_employee.iteritems() %}
           <tr>
-            <td>{{ employee.name.split()[0] }} </td>
+            <td>{{ employee.rec_name.split()[0] }} </td>
             <td><span class="badge pull-right">{{ hours|float_to_time }}</span></td>
           </tr>
           {% endfor %}
