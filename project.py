@@ -1721,7 +1721,7 @@ class Project:
                 'type': 'data'
             })
 
-        attachment = Attachment.create([data])
+        attachment, = Attachment.create([data])
 
         if request.is_xhr or request_wants_json():
             with Transaction().set_context(task=work.id):
