@@ -1211,6 +1211,82 @@ class TestTask(NereidTestCase):
 
                     self.assertEqual(len(activities), 1)
 
+    def test_0220_unique_users_per_project(self):
+        """
+        Refer sentry issue:
+        http://sentry.openlabs.co.in/default/my-openlabs-production/group/2271/
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app()
+
+            # Add participants to project1
+            self.Project.write([data['project1']], {
+                'participants': [
+                    ('add', [
+                        data['registered_user2'].id,
+                        data['registered_user1'].id
+                    ])
+                ]
+            })
+
+            login_data_user1 = {
+                'email': 'email@example.com',
+                'password': 'password',
+            }
+
+            # Nereid User-1 creates a task and assign it to himself
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data_user1)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, 'http://localhost/')
+
+                with Transaction().set_context({'company': data['company'].id}):
+                    response = c.post(
+                        '/project-%d/task/-new' % data['project1'].id,
+                        data={
+                            'name': 'ABC_task',
+                            'description': 'task_desc',
+                            'assign_to': data['registered_user1'].id,
+                        }
+                    )
+                    self.assertEqual(response.status_code, 302)
+
+                    response = c.get('/login')
+                    self.assertTrue(
+                        u'Task successfully added to project ABC' in
+                        response.data
+                    )
+
+            task, = self.Project.search([('type', '=', 'task')])
+
+            login_data_user2 = {
+                'email': 'example@example.com',
+                'password': 'password',
+            }
+
+            # Nereid User-2 updates the task and assigned to himself
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data_user2)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, 'http://localhost/')
+
+                with Transaction().set_context({'company': data['company'].id}):
+                    response = c.post(
+                        '/task-%d/-update' % task.id,
+                        data={
+                            'comment': 'comment1',
+                            'assigned_to': data['registered_user2'].id,
+                            'progress_state': 'In Progress',
+                        },
+                        headers=self.xhr_header,
+                    )
+                    self.assertEqual(response.status_code, 200)
+
 
 def suite():
     "Nereid test suite"

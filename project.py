@@ -1754,7 +1754,7 @@ class Project:
         }
 
         updatable_attrs = ['progress_state']
-        new_participant_ids = []
+        new_participant_ids = set()
         current_participant_ids = [p.id for p in task.participants]
         post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
         if any(post_attrs):
@@ -1783,7 +1783,7 @@ class Project:
                     task_changes['assigned_to'] = new_assignee_id
                     if new_assignee_id and new_assignee_id not in \
                             current_participant_ids:
-                        new_participant_ids.append(new_assignee_id)
+                        new_participant_ids.add(new_assignee_id)
             if task_changes:
                 # Only write change if anything has really changed
                 cls.write([task], task_changes)
@@ -1807,17 +1807,17 @@ class Project:
 
         if request.nereid_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
-            new_participant_ids.append(request.nereid_user.id)
+            new_participant_ids.add(request.nereid_user.id)
 
         for nereid_user in request.form.getlist('notify[]', int):
             # Notify more people if there are people
             # who havent been added as participants
             if nereid_user not in current_participant_ids:
-                new_participant_ids.append(nereid_user)
+                new_participant_ids.add(nereid_user)
 
         if new_participant_ids:
             cls.write(
-                [task], {'participants': [('add', new_participant_ids)]}
+                [task], {'participants': [('add', list(new_participant_ids))]}
             )
 
         hours = request.form.get('hours', None, type=float)
