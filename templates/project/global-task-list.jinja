@@ -1,7 +1,7 @@
 {% extends 'project/home.jinja' %}
 
 {% from "_helpers.jinja" import status_label, render_pagination %}
-{% from "project/_helpers.jinja" import render_task with context %}
+{% from "_helpers.jinja" import render_task with context %}
 
 {% block title %}My Tasks{% endblock %}
 
@@ -19,14 +19,14 @@
 <div class="row-fluid">
   <div class="pagination">
     <ul class="span12">
-      {% for state, state_name in states %}
+      {% for state, state_name in states if state %}
         <li class="span3"><a class="span12">{{ state_name }} ({{ tasks_by_state[state]|length }})</a></li>
       {% endfor %}
     </ul>
   </div>
   <div class="row-fluid">
     <div class="span12">
-    {% for state, state_name in states %}
+    {% for state, state_name in states if state %}
       <div class="span3 tasks-list" progress_state="{{ state }}" id="task-list-{{ state|replace(' ', '_') }}">
         {% for task in tasks_by_state[state] %}
           {{ render_task(task, assigned_to_picture=True, show_project_tag=True) }}
@@ -68,7 +68,7 @@
         else{
           $.meow({
             title: 'Success', 
-            message: 'Successfully updated task status.',
+            message: 'Successfully updated task status of #' + ui.item.attr('task_id'),
           });          
         }
       });

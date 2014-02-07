@@ -1,11 +1,5 @@
 {% extends 'project/project.jinja' %}
 
-{% block extra_head %}
-{{ super() }}
-<link rel='stylesheet' type='text/css' href='{{ STATIC }}css/fullcalendar.css' />
-{% endblock %}
-
-
 {% block breadcrumb %}
 {{ super() }}
 <li class="divider">/</li>
@@ -13,11 +7,8 @@
 {% endblock %}
 
 {% block main %}
-{{ super() }}
-<div class="row-fluid">
-  <div class="span12">
-    <div id='calendar'></div>
-  </div>
+<div class="span12">
+  <div id='calendar'></div>
 </div>
 {% endblock %}
 
@@ -36,7 +27,6 @@
           }
       })
       .done(function(data){
-        console.log(data);
         callback(data.result);
       });
     }
@@ -52,11 +42,15 @@
         {
           events: function(start, end, callback) {
             fetchFromTryton(start, end, callback, 'actual');
-
           },
         }
       ]
     });
   });
 </script>
+{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel='stylesheet' type='text/css' href='{{ STATIC }}css/fullcalendar.css' />
 {% endblock %}

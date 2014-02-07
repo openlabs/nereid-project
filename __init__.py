@@ -18,7 +18,7 @@ from company import Company, CompanyProjectAdmins, NereidUser
 
 
 def register():
-    """This function will register trytond module project_billing
+    """This function will register trytond module nereid_project
     """
     Pool.register(
         WebSite,

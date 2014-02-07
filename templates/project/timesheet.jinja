@@ -25,7 +25,7 @@
           <li class=""><a href="#tab-timesheet-lines" data-toggle="tab">Timesheet Lines</a></li>
         </ul>
       </div>
-      <div class="span1">
+      <div class="span4">
         <select name="employee" id="employee" data-placeholder="Choose an employee..." class="pull-right">
           <option value=""></option>
           {% for employee in employees %}
@@ -38,10 +38,10 @@
       <div class="tab-pane fade active in" id="tab-calendar">
         <div id='calendar'></div>
       </div> 
-      <div class="tab-pane fade" id="tab-timesheet-lines">
+      <div class="tab-pane fade in" id="tab-timesheet-lines">
         <div id='timesheet-lines'></div>
       </div> 
-      <div class="tab-pane fade" id="tab-workweek-lines">
+      <div class="tab-pane fade in" id="tab-workweek-lines">
         <div id='workweek-lines'></div>
       </div> 
     </div>
