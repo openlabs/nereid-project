@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Nereid Project</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="Openlabs Technologies and Consulting (P) Limited">
+
+    <!-- Le styles -->
+    <link href="{{ url_for('project.work.send_static_file', filename='css/bootstrap.css') }}" rel="stylesheet">
+    <link href="{{ url_for('project.work.send_static_file', filename='css/font-awesome.css') }}" rel="stylesheet">
+    <link href="{{ url_for('project.work.send_static_file', filename='css/custom.css') }}" rel="stylesheet">
+
+    <style type="text/css">
+      body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+        background-image: url("{{ url_for('project.work.send_static_file', filename='img/background.png') }}");
+        background-position: initial initial;
+        background-repeat: repeat repeat;
+      }
+      .sidebar-nav {
+        padding: 9px 0;
+      }
+      .fixed {
+        position: fixed;
+      }
+      #footer a {
+        text-decoration: none;
+        color: #555;
+      }
+      .strike {
+        text-decoration: line-through;
+      }
+textarea {
+  border:1px solid #999999;
+  font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+    </style>
+    <link href="{{ url_for('project.work.send_static_file', filename='css/bootstrap-responsive.css') }}" rel="stylesheet">
+    <link href="{{ url_for('project.work.send_static_file', filename='css/pygments.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('project.work.send_static_file', filename='css/jquery.meow.css') }}" type="text/css" media="screen" title="no title" charset="utf-8">
+    <link href="{{ url_for('project.work.send_static_file', filename='css/chosen.css') }}" type="text/css" rel="stylesheet" />
+    <link href="{{ url_for('project.work.send_static_file', filename='css/datepicker.css') }}" type="text/css" rel="stylesheet" />
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Le fav and touch icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="../assets/ico/apple-touch-icon-144-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">
+
+    {% block extra_head %}
+    {% endblock %}
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="{{ url_for('nereid.website.home') }}" style="padding: 5px 20px 0 0 ">
+            <img src="" alt="Nereid Project"/>
+          </a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li {% if active_menu == "home" %}class="active"{% endif %}>
+                <a href="{{ url_for('nereid.website.home') }}">Home</a>
+              </li>
+
+            </ul>
+            <ul class="nav pull-right">
+              {% if request.is_guest_user %}
+              <li>
+                <a href="{{ url_for('nereid.website.login') }}">
+                  <i class="icon-signin"></i> Login
+                </a>
+              </li>
+              {% else %}
+              <li class="display-phone hidden-tablet hidden-desktop"><a href="{{ url_for('nereid.website.logout') }}">Sign Out</a></li>
+              <li class="hidden-phone">
+                <img src="{{ request.nereid_user.get_profile_picture(size=40, https=True) }}" class="img-circle"/>
+              </li>
+              <li class="dropdown pull-right hidden-phone">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                  {{ request.nereid_user.display_name }}
+                  <span class="caret"></span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="{{ url_for('nereid.user.profile') }}">Profile</a></li>
+                 {% if request.nereid_user.employee %}
+                  <li><a href="{{ url_for('project.work.my_tasks', state="opened") }}"><i class="icon-list"></i> {{ _('My tasks') }}</a></li>
+                  <li><a href="{{ url_for('project.work.my_tasks', state="opened", watched='true') }}"><i class="icon-eye-open"></i> {{ _('Tasks I am watching') }}</a></li>
+                  {% endif %}
+                  <li class="divider"></li>
+                  <li><a href="{{ url_for('nereid.website.logout') }}">Sign Out</a></li>
+                </ul>
+              </li>
+              {% endif %}
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+
+    <div class="container-fluid">
+      <div class="row-fluid">
+        {% block container %}
+        <div class="span3" id="left-container">
+          {% block left %}
+
+          {% endblock %}
+        </div><!--/span-->
+
+        <div class="span9" id="main-container">
+          <ul class="breadcrumb">
+          {% block breadcrumb %}
+            <li><a href="{{ url_for('nereid.website.home') }}">Home</a>
+          {% endblock %}
+          </ul>
+          {% block main %}
+          {% endblock %}
+        </div><!--/span-->
+        {% endblock %}
+      </div><!--/row-->
+
+    <div id="footer" class="hidden-phone">
+      <hr>
+    </div>
+
+
+    </div><!--/.fluid-container-->
+
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="{{ url_for('project.work.send_static_file', filename='js/jquery-1.8.1.min.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/jquery-ui.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/bootstrap.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/chosen.jquery.min.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/jquery.timeago.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/jquery.meow.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/jquery.validate.min.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/bootstrap-datepicker.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/underscore.js') }}"></script>
+
+    <script type="text/template" id="popover2-template">
+      <div class="popover" onmouseover="$(this).mouseleave(function() {$(this).hide(); });">
+        <div class="arrow"></div>
+        <div class="popover-inner">
+          <div class="popover-content">
+            <p></p>
+          </div>
+        </div>
+      </div>
+    </script>
+
+    <script>
+      function error_alert(msg){
+        $.meow({
+          title: 'Error',
+          message: msg,
+        });
+      }
+      function success_alert(msg){
+        $.meow({
+          title: 'Success',
+          message: msg,
+        });
+      }
+      $(document).ready(function(){
+        $('.modal').fadeOut();
+        $(".datepicker").datepicker({
+          format: 'mm/dd/yyyy'
+        });
+
+        {# Message flashin #}
+        {% for category, message in get_flashed_messages(with_categories=True) %}
+          $.meow({
+            title: '{{ category }}',
+            message: '{{ message }}',
+            class_name: '{{ category }}'
+          });
+        {% endfor %}
+
+        // Jquery chosen
+        $(".chzn-select").chosen();
+
+        // Activate toltips
+        $("a[rel='tooltip']").tooltip();
+        $("img[rel='tooltip']").tooltip();
+        $("a[rel='popover2']").popover({
+          template: $("#popover2-template").html(),
+        });
+        $("a[rel='popover']").popover()
+
+        // Change all timeago dates
+        jQuery("abbr.timeago").timeago();
+
+      });
+    </script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/highcharts.js') }}"></script>
+    <script src="{{ url_for('project.work.send_static_file', filename='js/modules/exporting.js') }}"></script>
+    {% block scripts %}
+    {% endblock %}
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-12853548-5']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+  </body>
+</html>

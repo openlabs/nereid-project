@@ -1,0 +1,66 @@
+<p style='font-size: 10px; color: rgb(100,100,100);'>
+<span style='color: white'>-----------------------------==-----------------------------</span>
+<br>
+REPLY ABOVE THIS LINE TO POST AN ANSWER
+</p>
+<div class='email' style='font-size: 14px; color: rgb(50,50,50); font-family: Helvetica, Arial; margin: 20px 0'>
+  <div class='header'>
+
+    <h2>
+      <a href="{{ url_for('project.work.home', _external=True) }}" style='text-decoration:none; color:#a01717'>Openlabs Project Management System</a>
+    </h2>
+
+    <div style="width:100%; height:auto; padding:10px 0px 20px 0px ;border-bottom:solid 1px #C0C0C0">
+      <div style=" float:left; width:auto;">
+        <b>Project </b><a href="{{ url_for('project.work.render_project', project_id=task.parent.id, _external=True) }}"
+          style=' text-decoration:none; color:#2E9AFE'> {{ task.parent.name }} </a> &#8594;
+        <b>Task </b><a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }}"
+          style=' text-decoration:none; color:#2E9AFE'> {{ task.work.name }} </a>
+      </div>
+      <div style=" float:right; width:auto;">
+        <span style="text-align:right">{{ task.create_date|dateformat }}</span>
+      </div>
+    </div>
+
+    <p> A new task is created by <b>{{ updated_by }}</b>. </p>
+
+    {% if task.comment or task.constraint_start_time or task.constraint_finish_time or task.assigned_to.display_name %}
+      <div class='desc' style='background:#F2F5A9; padding:1px 1px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+        border-radius: 10px; border-bottom:solid 1px #CCCC5A'>
+        {%- if task.comment -%}
+          {{ task.comment|rst|safe }}
+        {%- endif -%}
+        <p>
+        {%- if task.constraint_start_time -%}
+          Start by <b>{{ task.constraint_start_time|dateformat }}</b>
+        {%- endif -%}
+        {% if task.constraint_finish_time %}
+          Finish by <b>{{ task.constraint_finish_time|dateformat }}</b>
+        {% endif %}
+        </p>
+        <p>
+        {%- if task.assigned_to.display_name -%}
+          Assigned to <b>{{ task.assigned_to.display_name }}</b>
+        {%- endif -%}
+        </p>
+      </div>
+    {% endif %}    
+
+    <div class="info" style="color:#666666; font-size:13px; font-weight:bold">
+      <p>You can <a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }}">
+        view this task online</a> to comment and attach files.</p>
+    </div>
+
+    <div class="more-info" style="color:#666666; font-size:11px; font-weight:normal; line-height:5px; padding:30px 0px 0px0px;">
+      {% for participant in task.participants %}
+        {% if not loop.first and loop.last %}
+          and
+        {% endif %}
+        {% if participant.display_name %}
+          <b>{{ participant.display_name }} </b>
+        {% endif %}
+      {% endfor %} {{ ngettext('is', 'are', task.participants|count) }} subscribed to this task, and will be notified of future replies.
+    </div>
+
+  </div>
+</div>

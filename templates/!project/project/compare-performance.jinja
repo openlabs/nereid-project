@@ -1,0 +1,135 @@
+{% extends 'project/home.jinja' %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel='stylesheet' type='text/css' href="{{ url_for('project.work.send_static_file', filename='css/jquery.gantt.css') }}" />
+{% endblock %}
+
+{% block left %}
+<ul class="nav nav-tabs nav-stacked">
+  <li>
+    <a href="{{ url_for('project.work.home') }}"><i class="icon-arrow-left"></i> Back to projects list</a>
+  </li>
+</ul>
+<div class="row-fluid">
+  <input class="span5 dp" size="16" id="start-date" type="text" value="{{ start_date.strftime('%d-%m-%Y') }}" name="start_date">
+  -
+  <input class="span5 dp" id="end-date" size="16" type="text" value="{{ end_date.strftime('%d-%m-%Y') }}" name="end_date">
+  <select data-placeholder="Choose resources" multiple class="chzn-select span12" id="employee">
+    {% for employee in employees %}
+    <option value="{{ employee.id }}">{{ employee.party.name }}</option>
+    {% endfor %}
+  </select>
+  <a class="btn btn-success load">Run It!</a>
+</div>
+<br/>
+{{ super() }}
+{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.compare_performance') }}">Compare Performance</a></li>
+{% endblock %}
+
+{% block main %}
+<div class="row-fluid">
+  <div class="span12">
+    <div id='line-chart'></div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+{{ super() }}
+<script>
+  $(document).ready(function() {
+  var options = {
+            chart: {
+                renderTo: 'line-chart',
+                marginRight: 160,
+                marginBottom: 50,
+                backgroundColor:'rgba(255, 255, 255, 0.1)'
+            },
+            exporting: {enabled: true},
+            title: {
+                text: 'Daily Performance',
+                x: -20 //center
+            },
+            xAxis: {
+            },
+            yAxis: {
+                title: {
+                    text: 'Hours'
+                },
+                plotLines: [{
+                    value: 0,
+                    width: 1,
+                    color: '#808080'
+                }]
+            },
+            tooltip: {
+                formatter: function() {
+                    if (this.point.name) {
+			return '<b>'+ this.point.name +'</b>: '+ this.y +' hrs';
+                    } else {
+                        return '<b>'+ this.series.name +'</b><br/>'+this.x +': '+ this.y +'hrs';
+                    }
+                }
+            },
+            legend: {
+                layout: 'vertical',
+                align: 'right',
+                verticalAlign: 'top',
+                x: -10,
+                y: 100,
+                borderWidth: 0
+            },
+            plotOptions: {
+                line: {
+                    dataLabels: {
+                        enabled: false
+                    },
+                },
+                spline: {
+                    marker: {
+                        radius: 4,
+                        lineColor: '#666666',
+                        lineWidth: 1
+                    }
+                }
+            },
+            series: [],
+            credits: {
+                enabled: false
+            }
+        };
+
+    var EncodeQueryData = function (data) {
+       var ret = [];
+        $.each(data, function(index, value) {
+          ret.push(encodeURIComponent(value[0]) + "=" + encodeURIComponent(value[1]));
+        });
+       return ret.join("&");
+    }
+
+    $(".load").click(function() {
+      params = [];
+      params.push(['start_date', $("#start-date").val()]);
+      params.push(['end_date', $("#end-date").val()]);
+      $.each($("#employee").val(), function(index, item){
+        params.push(['employee', item]);
+      });
+
+      console.log(params);
+      $.getJSON('{{ url_for('project.work.compare_performance') }}?' + EncodeQueryData(params), function(data) {
+          options.xAxis.categories = data.categories;
+          options.series = data.series;
+          chart = new Highcharts.Chart(options);
+      });
+    });
+    $("input.dp").datepicker({autoclose: true, format: 'dd-mm-yyyy'});
+  });
+</script>
+{% endblock %}

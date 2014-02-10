@@ -1,0 +1,81 @@
+{% extends 'project/project.jinja' %}
+
+{% from "_helpers.jinja" import render_pagination %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_files', project_id=project.id) }}">Files</a></li>
+{% endblock %}
+
+{% block main %}
+<div class="span12">
+  <div class="page-header">
+    <h3>Project files<small> related to {{ project.work.name }}</small></h3>
+  </div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>File ID</th>
+        <th>Name (Mime Type)</th>
+        <th>Uploaded by</th>
+        <th>Description</th>
+        <th>Download</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% if project.attachments %}
+      {% for attachment in project.attachments %}
+      <tr>
+        <td>#{{ attachment.id }}</td>
+        <td><strong>{{ attachment.name }}</strong> ({{ guess_type(attachment.name, False)[0] }})</td>
+        <td>{{ attachment.uploaded_by.name if attachment.uploaded_by else '' }} </td>
+        <td>{{ attachment.description or _('No Description') }}</td>
+        {% if attachment.type == 'data' %}
+        <td><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, project=project.id) }}" class="btn" title="Download File", rel="tooltip"><i class="icon-download"></i></a> ({{ attachment.data_size }} bytes)</td>
+        {% elif attachment.type == 'link' %}
+        <td><a href="{{ attachment.link }}" class="btn" title="Browse File", rel="tooltip"><i class="icon-share-alt"></i></a></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    {% else %}
+    <tr><td>There are no files!</td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+
+  <div class="page-header">
+    <h3>Other files<small> attached to tasks in the project</small></h3>
+  </div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>File ID</th>
+        <th>Name (Mime Type)</th>
+        <th>Task</th>
+        <th>Description</th>
+        <th>Download</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for task in project.children %}
+      {% for attachment in task.attachments %}
+      <tr>
+        <td>#{{ attachment.id }}</td>
+        <td><strong>{{ attachment.name }}</strong> ({{ guess_type(attachment.name, False)[0] }})</td>
+        <td>
+          <a href="{{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id) }}">#{{ task.id }}: {{ task.work.name }}</a>
+        </td>
+        <td>{{ attachment.description or _('No Description') }}</td>
+        {% if attachment.type == 'data' %}
+        <td><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}" class="btn" title="Download File", rel="tooltip"><i class="icon-download"></i></a> ({{ attachment.data_size }} bytes)</td>
+        {% elif attachment.type == 'link' %}
+        <td><a href="{{ attachment.link }}" target="new" class="btn" title="Browse File", rel="tooltip"><i class="icon-share-alt"></i></a></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

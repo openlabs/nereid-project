@@ -1,0 +1,27 @@
+-----------------------------==-----------------------------
+REPLY ABOVE THIS LINE TO POST AN ANSWER
+
+Project {{ task.parent.name }}
+Task {{ task.work.name }}  {{ task.create_date|dateformat }}
+
+A new task is created by {{ updated_by }}.
+
+{% if task.comment %}
+  {{ task.comment }}
+{%- endif -%}
+
+{% if task.constraint_start_time %}
+  Start by {{ task.constraint_start_time }}
+{%- endif -%}
+
+{% if task.constraint_finish_time %}
+  Finish by {{ task.constraint_finish_time }}
+{%- endif -%}
+
+{% if task.assigned_to.display_name %}
+  Assigned to {{ task.assigned_to.display_name }}
+{% endif %}
+
+You can goto {{ url_for('project.work.render_task', task_id=task.id, project_id=task.parent.id, _external=True) }} to view this task online to comment and attach files.
+
+{% for participant in task.participants %}{% if not loop.first and loop.last %}and{% endif %} {% if participant.display_name %}{{ participant.display_name }}{% endif %}{% endfor %} {{ ngettext(' is', ' are', task.participants|count) }} subscribed to this task, and will be notified of future replies.
