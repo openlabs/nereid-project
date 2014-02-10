@@ -1,0 +1,137 @@
+{% extends 'project/project.jinja' %}
+
+{% from "_helpers.jinja" import status_label, render_pagination %}
+{% from "_helpers.jinja" import render_task_tree with context %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened') }}">Tasks</a></li>
+{% endblock %}
+
+{% block main %}
+
+{{ super() }}
+{% set iteration=request.args.get('iteration', None) %}
+
+<div class="row-fluid">
+
+  <div class="row-fluid">
+    {% if not request.args.get('orphans', None) %}
+      <div class="span6">
+        <ul id="task-list-tab" class="nav nav-tabs">
+          <li class="{% if state_filter == None %}active{% endif %} ">
+            <a href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">All Tasks</a>
+          </li>
+          <li class="{% if state_filter == 'opened' %}active{% endif %} ">
+            <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">{{ counts['opened_tasks_count'] }} Open Tasks</a>
+          </li>
+          <li class="{% if state_filter == 'done' %}active{% endif %} ">
+            <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='done', tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">{{ counts['done_tasks_count'] }} Done Tasks</a>
+          </li>
+          {% if request.nereid_user.has_permissions(['project.scrum_master']) and iteration %}
+            <a class="btn icon icon-edit pull-right btn-warning" href="{{ url_for('project.iteration.render', project_id=0, active_id=iteration) }}"> Edit Iteration</a>
+          {% endif %}
+        </ul>
+      </div>
+    {% endif %}
+    <div class="span6 pull-right">
+      <form class="form-search pull-right">
+        <input type="hidden" name="state" value="{{ state_filter }}"/>
+        <div class="input-append">
+
+          <input type="text" class="input-medium search-query" id="search-tasks" 
+            placeholder="Search Tasks" name="q" value="{{ request.args.get('q', '') }}">
+          <button type="submit" class="btn btn-info"><i class="icon-search"></i> Search</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  {# When the project have no task.#}
+  {% if not project.children %}
+    <div class="alert alert-info">
+      <h4>
+        <i class="icon-bell"></i>
+        <font color="#808080">
+          This project has no task yet!
+        </font>
+      </h4>
+      <p>
+        Be the first one to create a task.
+      </p>
+      <a class="btn btn-success" data-toggle="modal" href="#new-task">
+        <i class="icon-plus"></i>
+        {{ _("New Task") }}
+      </a>
+    </div>
+  {% endif %}
+
+  {# For search.#}
+  {% if not tasks and project.children %}
+    <div class="alert alert-block">
+      <h4>
+        <i class="icon-warning-sign"></i>
+          <font color="#808080">
+            No task found in this project matching your search filters.
+          </font>
+      </h4>
+      <p>
+        You can see the list of all tasks in this project
+          <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='None') }}">here</a>
+      </p> 
+    </div>
+  {% endif %}
+
+{% for task in tasks %}
+{{ render_task_tree(task) }}
+{% endfor %}
+</div>
+
+<div class="row-fluid">
+  {% if tasks.pages > 1 %}
+    {{ render_pagination(tasks, None, 'project.work.render_task_list', project_id=project.id, state=request.args.get('state', None), tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None)) }}
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+  $(document).ready(function(){
+    $('a.log-hours').click(function() {
+      $(this).parents("form").find("tr.hours-input").show();
+      $(this).parents("form").find("tr.hours-input input").focus();
+    });
+    $('a.notify-people').click(function() {
+      $(this).parents("form").find("tr.people-to-notify").show();
+      $(this).parents("form").find("tr.people-to-notify select").focus();
+    });
+
+    $("a.watch").click(function() {
+      var btn = $(this)
+      $.ajax({
+        url: btn.attr('data-url'),
+        type: 'POST'
+      })
+      .done(function() {
+        btn.parent("li").children("a.watch").hide();
+        btn.parent("li").addClass("active");
+        btn.parent("li").children("a.unwatch").show();
+      });
+    });
+    $("a.unwatch").click(function() {
+      var btn = $(this)
+      $.ajax({
+        url: btn.attr('data-url'),
+        type: 'POST'
+      })
+      .done(function() {
+        btn.parent("li").children("a.watch").show();
+        btn.parent("li").removeClass("active");
+        btn.parent("li").children("a.unwatch").hide();
+      });
+    });
+  });
+</script>
+{% endblock %}

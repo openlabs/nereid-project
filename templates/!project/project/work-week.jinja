@@ -1,0 +1,39 @@
+<table class="table table-striped table-bordered">
+  <thead>
+    <tr>
+    {% set weeks = data_by_week.keys() %}
+    {% for week in weeks|sort %}
+      <th colspan="1">Days: {{ week }}</th>
+    {% endfor %}
+      <th>Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      {% for week in weeks|sort %}
+      <td>
+        <table>
+        {% for employee, hours in data_by_week.get(week, {}).iteritems() %}
+            <tr>
+            <td>{{ employee.rec_name.split()[0] }} </td>
+            <td><span class="badge pull-right">{{ hours|float_to_time }}</span></td>
+            </tr>
+        {% endfor %}
+          <tr><td>Total</td><td><b>{{ data_by_week.get(week, {}).values()|sum|float_to_time }}</b></td></tr>
+        </table>
+      </td>
+      {% endfor %}
+      <td>
+        <table>
+          {% for employee, hours in total_by_employee.iteritems() %}
+          <tr>
+            <td>{{ employee.rec_name.split()[0] }} </td>
+            <td><span class="badge pull-right">{{ hours|float_to_time }}</span></td>
+          </tr>
+          {% endfor %}
+          <tr><td>Total</td><td><b>{{ total_by_employee.values()|sum|float_to_time }}</b></td></tr>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>

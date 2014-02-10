@@ -1,0 +1,108 @@
+<p style='font-size: 10px; color: rgb(100,100,100);'>
+<span style='color: white'>-----------------------------==-----------------------------</span>
+<br>
+REPLY ABOVE THIS LINE TO POST AN ANSWER
+</p>
+<div class='email' style='font-size: 14px; color: rgb(50,50,50); font-family: Helvetica, Arial; margin: 20px 0'>
+  <div class='header'>
+
+    <div class='sub_header' >
+      <h1>
+        <a href="{{ url_for('project.work.home', _external=True) }}" style='text-decoration:none; color:#a01717'>Openlabs Project Management System</a>
+      </h1>
+    </div>
+
+    <div style="width:100%; height:auto; padding:10px 0px 20px 0px ;border-bottom:solid 1px #C0C0C0">
+      <div style=" float:left; width:auto;">
+        <b>Project </b><a href="{{ url_for('project.work.render_project', project_id=history.project.parent.id, _external=True) }}"
+          style=' text-decoration:none; color:#2E9AFE'> {{ history.project.parent.work.name }} </a> &#8594;
+        <b>Task </b><a href="{{ url_for('project.work.render_task', task_id=history.project.id, project_id=history.project.parent.id, _external=True) }}"
+          style=' text-decoration:none; color:#2E9AFE'> {{ history.project.work.name }} </a>  
+      </div>
+      <div style=" float:right; width:auto;">
+        <span style="text-align:right">{{ history.date|dateformat }}</span>
+      </div>
+    </div>    
+
+    {% if history.new_state == 'done' %}
+      <div class='box' style="background:#81F79E; padding:1px 10px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+        border-radius: 10px; border-bottom:solid 1px #999999">
+    {% elif history.new_state == 'opened' %}
+      <div class='box' style="background:	#8FE7FA; padding:1px 10px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+         border-radius: 10px; border-bottom:solid 1px #999999">
+    {% else %}
+      <div class='box' style="background:#F2F5A9; padding:1px 10px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+        border-radius: 10px; border-bottom:solid 1px #CCCC5A">
+
+    {% endif %} 
+      <p> 
+        {% if history.new_state %}
+          <span style='margin-right: 15px'>Status <b>{{ history.new_state }}</b></span>
+        {% endif %}
+        <span style='margin-right: 15px'><b>{{ history.updated_by.display_name or history.create_uid.name }}</b> On {{ history.date|dateformat }}</span>
+      <p>
+      <p>
+        {%- if history.new_assigned_to.display_name %}
+          <span style='margin-right: 15px'>Assigned to <b>{{ history.new_assigned_to.display_name }}</b><span>
+        {% endif %}
+      </p>
+        {% if history.comment %}
+          {{ history.comment|rst|safe }}
+        {% endif %}
+      </p>
+    </div>
+  
+    {% for h_line in last_history%}
+    
+      {% if loop.index == 1 %}
+        <div class='latest_comment' style="background:#D8D8D8 ; padding:0px 10px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+           border-radius: 10px; border-bottom:dotted 1px #999999">
+
+      {% else %}
+        <div class='comment' style="background:#f5f5f5; padding:0px 10px 1px 10px; margin:10px 0px 0px 0px; -moz-border-radius: 10px;
+          border-radius: 10px; border-bottom:dotted 1px #999999">
+
+      {% endif %}
+      
+        <div class='body' style=' padding: 5px; font-size: 12px'>
+          <p>
+            <span style='margin-right: 15px'><font color="#373435">{{ h_line.updated_by.display_name or h_line.create_uid.name }}, </font><span>
+            <span style='color: rgb(150,150,150);'><font color="gray">{{ h_line.date|dateformat }}</font><span>
+            {% if h_line.new_assigned_to.display_name %}
+              <span style='margin-left: 10px; font-weight: bold; color: white; background-color: #333; padding: 1px 3px;'>
+                Assigned to {{ h_line.new_assigned_to.display_name }}
+              </span>
+            {% endif %}
+            <p>
+            {% if h_line.comment %}
+              {{ h_line.comment|rst|safe }}
+            {% endif %}
+            </p>
+          </p>
+        </div>
+      </div> 
+    
+    {% endfor %}
+
+    <div class="info" style="color:#666666; font-size:13px; font-weight:bold">
+      <p>You can <a href="{{ url_for('project.work.render_task', task_id=history.project.id, project_id=history.project.parent.id, _external=True) }}">
+        view this task online</a> to comment and attach files.
+      </p>
+    </div>
+
+    <div class="more-info" style="color:#666666; font-size:11px; font-weight:normal; line-height:5px; padding:30px 0px 0px0px;">
+      {% for participant in history.project.participants %}
+        {%- if not loop.first and not loop.last -%}
+          ,
+        {% endif %}
+        {% if not loop.first and loop.last %}
+          and
+        {% endif %}
+        {%- if participant.display_name -%}
+          <b>{{ participant.display_name }}</b>
+        {%- endif -%}
+      {% endfor %} {{ ngettext('is', 'are', history.project.participants|count) }} subscribed to this task, and will be notified of future replies.
+    </div>
+
+  </div>
+</div>

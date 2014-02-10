@@ -1,0 +1,144 @@
+{% extends 'project/home.jinja' %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel='stylesheet' type='text/css' href="{{ url_for('project.work.send_static_file', filename='css/fullcalendar.css') }}" />
+{% endblock %}
+
+{% block left %}
+<ul class="nav nav-tabs nav-stacked">
+  <li>
+    <a href="{{ url_for('project.work.home') }}"><i class="icon-arrow-left"></i> Back to projects list</a>
+  </li>
+</ul>
+
+<ul class="nav nav-tabs nav-stacked">
+  <li class="nav-header">
+    Filters
+  </li>
+  <li>
+    <select name="employee" id="employee" data-placeholder="Choose an employee...">
+      <option value=""></option>
+      {% for employee in employees %}
+      <option value="{{ employee.id }}">{{ employee.name }}</option>
+      {% endfor %}
+    </select>
+  </li>
+</ul>
+{{ super() }}
+{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_global_timesheet') }}">Global Timesheet</a></li>
+<li class="pull-right"><img id="loading" class="img" src="{{ url_for('project.work.send_static_file', filename='img/loading-clock.gif') }}"/></li>
+{% endblock %}
+
+{% block main %}
+<div class="row-fluid">
+  <div class="span12">
+    <ul id="myTab" class="nav nav-tabs">
+      <li class="active"><a href="#tab-calendar" data-toggle="tab">Calendar</a></li>
+      <li class=""><a href="#tab-workweek-lines" data-toggle="tab">Weekly Analysis</a></li>
+      <li class=""><a href="#tab-timesheet-lines" data-toggle="tab">Timesheet Lines</a></li>
+    </ul>
+    <div class="tab-content" id="timesheet-tabs">
+      <div class="tab-pane fade active in" id="tab-calendar">
+        <div id='calendar'></div>
+      </div> 
+      <div class="tab-pane fade in" id="tab-timesheet-lines">
+        <div id='timesheet-lines'></div>
+      </div> 
+      <div class="tab-pane fade in" id="tab-workweek-lines">
+        <div id='workweek-lines'></div>
+      </div> 
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+{{ super() }}
+<script type='text/javascript' src='{{ url_for('project.work.send_static_file', filename='js/fullcalendar.min.js') }}'></script>
+<script>
+  $(document).ready(function(){
+    var fetchFromTryton = function(start, end, callback, event_type) {
+      $("img#loading").show();
+      $("div#workweek-lines").html('loading...');
+      $.ajax({
+          url: "{{ url_for('project.work.render_global_timesheet') }}",
+          data: {
+              start: Math.round(start.getTime() / 1000),
+              end: Math.round(end.getTime() / 1000),
+              event_type: event_type,
+              employee: $("select#employee").val()
+          }
+      })
+      .done(function(data){
+        $("div#workweek-lines").html(data.work_week);
+        $("div#timesheet-lines").html('');
+        for (line in data.lines) {
+            $("div#timesheet-lines").append(data.lines[line]);
+        }
+        // Change all timeago dates
+        jQuery("abbr.timeago").timeago();
+        callback(data.day_totals);
+        $("img#loading").hide();
+        $('#timesheet-tabs').tab();
+      });
+    }
+ 
+    $("#employee").chosen({allow_single_deselect: true});
+    $("#employee").chosen().change(function() {
+      // On changing the employee trigger the reload of calendar
+      $("#calendar").fullCalendar( 'refetchEvents' );
+    });
+ 
+    var load_calendar = function() {
+      $('#calendar').fullCalendar({
+        header: {right: 'today month,basicWeek prev,next'},
+        eventClick: function(calEvent, jsEvent, view) {
+            $("img#loading").show();
+            $("div#timesheet-lines").html('loading...');
+            $('#myTab a:last').tab('show');
+            $.ajax({
+                url: "{{ url_for('project.work.render_global_timesheet') }}",
+                data: {
+                    timesheet_lines_of: calEvent.id
+                }
+            })
+            .done(function(data){
+		$("div#timesheet-lines").html('');
+		for (line in data.lines) {
+		    $("div#timesheet-lines").append(data.lines[line]);
+		}
+                // Change all timeago dates
+               jQuery("abbr.timeago").timeago();
+               $("img#loading").hide();
+            });
+
+        },
+
+        eventSources: [
+          {
+            events: function(start, end, callback) {
+              fetchFromTryton(start, end, callback, 'actual');
+
+            },
+          }
+        ]
+      });
+    }
+
+    load_calendar();
+
+    // Make the tabs appear as tabs
+    $('#timesheet-tabs a').click(function (e) {
+      e.preventDefault();
+      $(this).tab('show');
+    })
+  });
+</script>
+{% endblock %}

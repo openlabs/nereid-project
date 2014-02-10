@@ -1,0 +1,1107 @@
+{% extends 'project/project.jinja' %}
+
+{% from '_helpers.jinja' import state_color_css %}
+{% from '_helpers.jinja' import render_time_reported with context %}
+{% from 'project/comment.jinja' import render_comment, render_timesheet_line, render_attachment, render_commit with context %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}?state=opened">{{ _('Tasks') }}</a></li>
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_task', project_id=project.id, task_id=task.id) }}">{{ task.work.name }}</a></li>
+{% endblock %}
+
+{% block title %}
+{{ _("Task #%d: " % task.id) + task.work.name }}
+{% endblock %}
+
+{% block left %}
+
+{{ render_time_reported() }}
+
+{% if request.nereid_user.employee %}
+<div id="my-last-7-days"></div>
+<br/>
+{% endif %}
+
+<ul class="nav nav-tabs nav-stacked">
+  <li>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id) }}"><i class="icon-arrow-left"></i> Back to tasks list</a>
+  </li>
+</ul>
+
+<hr/>
+
+<!--Modal for changing estimated hours-->
+<div class="modal fade" id="change_estimated_hours" aria-hidden="true" style="display: none;">
+
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">×</button>
+    <h4>{{ _('Change estimated hours') }}</h4>  
+  </div>
+
+  <div class="modal-body">
+    <form class="form-vertical well" id="new-estimated-hours-form" method="POST" 
+      action="{{ url_for('project.work.change_estimated_hours', active_id=task.id) }}"
+      onSubmit="return change_estimated_hour_form()">
+      <label for="estimated_hours">Estimated hours</label>
+      <input class="span12" id="new_estimated_hours" name="new_estimated_hours" 
+        value="{{ task.effort }}"/><hr>
+      <button type="submit" a class="btn btn-success"
+        title="Save estimated hours">
+        <i class="icon-save"></i> Save
+      </button>
+    </form>    
+  </div>
+
+</div>
+
+<h4>{{ _('Tags') }}
+  <div class="btn-group pull-right add-tag-to-task">
+    <button class="btn pull-right dropdown-toggle" data-toggle="dropdown" title="Add Tags" rel="tooltip">
+      <i class="icon-tags"></i>
+    </button>
+    <ul class="dropdown-menu" id="add_tag_to_tasks_block">
+      {% for new_tag in task.parent.tags_for_projects if new_tag not in task.tags%}
+      <li id="add-{{ new_tag.id }}">
+        <a title="Add tag {{ new_tag.name }}" rel="tooltip" class="add action-tag-btn" id="{{ new_tag.id }}"
+          data-url="{{ url_for('project.work.add_tag', task_id=task.id, tag_id=new_tag.id) }}">
+          <i class="icon-tag"></i> 
+          <span class="label label-{{ new_tag.color if new_tag.color != 'danger' else 'important' }}">
+             {{ new_tag.name }}
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+      {% if not task.parent.tags_for_projects %}
+      <li>This project has no tags!</li>
+      {% endif %}
+    </ul>
+  </div>
+  {% if not task.tags %}<br><small>{{ _('No tags added yet.') }}</small>{% endif %}
+</h4>
+<br>
+
+{% if task.tags %} 
+    {% for tag in task.tags %}
+    <div class="btn-group span12 remove-tag-from-task" id="remove-{{ tag.id }}">
+      <a class="btn btn-{{ tag.color }} btn-mini"
+        title="View all tasks with {{ tag.name }} tag" rel="tooltip"
+        href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id) }}">
+        {{ tag.name }}
+      </a>
+      <a class="btn btn-{{ tag.color }} btn-mini remove action-tag-btn"
+        title="Remove tag {{ tag.name }}" rel="tooltip" id="{{ tag.id }}"
+        data-url="{{ url_for('project.work.remove_tag', task_id=task.id, tag_id=tag.id) }}">
+        <i class="icon-remove icon-white"></i>  
+      </a>
+    </div>
+    {% endfor %}
+  <div class="clear">&nbsp;</div>
+{% endif %}
+
+
+<hr/>
+<h4>{{ _('Files') }}
+
+  <!-- Modal for attaching files to task -->
+  <div class="modal fade" id="attach-file">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h3>{{ _('Attach a file to task') }} #{{ task.id }}</h3>
+    </div>
+    <div class="modal-body">
+
+      <form class="form-vertical well" id="attach-file-form" method="POST"
+        action="{{ url_for("project.work.upload_file") }}" enctype="multipart/form-data">
+
+        <input type="hidden" name="task" value="{{ task.id }}"/>
+
+        <legend class="attachment-type-link">Add a file from Dropbox</legend>
+        <input type="dropbox-chooser" name="url" style="visibility: hidden;" id="db-chooser"/>
+
+        <br/>
+        <input id="file_type" name="file_type" value="data" type="hidden"/>
+
+        <legend class="attachment-type-file">Or, upload a file from your computer</legend>
+
+        <input class="span12 attachment-type-file" type="file" rel="popover"
+           data-content="Select local file to be attached" data-original-title="File"
+          name="file" id="file"/>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-info pull-right span6 offset3" 
+            id="btn-attach-file" data-loading-text="Uploading...">
+            <i class="icon-plus icon-white"></i> {{ _('Save') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="btn-group pull-right add-file-to-task">
+    <a class="btn pull-right" data-toggle="modal" href="#attach-file" rel="tooltip" title="Attach a file or link"><i class="icon-paper-clip"></i></a>
+  </div>
+  {% if not task.attachments %}<br><small>{{ _('No files attached yet.') }}</small>{% endif %}
+</h4>
+<br/>
+
+{% if task.attachments %}
+  <ul class="nav nav-tabs nav-stacked">
+    {% for attachment in task.attachments %}
+      <li>
+        {% if attachment.type == 'data' %}
+        <a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}"
+            class="" title="Download File: {{ attachment.name }}", rel="tooltip" style="line-height:10px;">
+          <i class="icon-file"></i>
+        {% elif attachment.type == 'link' %}
+        <a href="{{ attachment.link }}" target="new" class="" title="Download File: {{ attachment.name }}"
+          rel="tooltip" style="line-height:10px;">
+          <i class="icon-link"></i>
+        {% endif %}
+        {{ attachment.name|truncate(35) }}
+        </a>
+      </li>
+    {% endfor %}
+
+  </ul>
+  <div class="clear">&nbsp;</div>
+{% endif %}
+
+<hr/>
+
+<!--Modal for Estimated hours-->
+  <h4>{{ ('Estimated Hours') }} - {{ task.effort }}
+  {% if request.nereid_user.employee %}
+    <div class="btn-group pull-right">
+      <button class="btn pull-right dropdown-toggle" data-toggle="modal" title="Estimated hours" 
+        href="#change_estimated_hours">
+        <i class="icon-time"></i>
+      </button>
+    </div>
+  {% endif %}
+  </h4>
+  <hr>
+
+{% if not request.nereid_user.employee %}
+<h4>{{ _('Time Spent') }}
+{% else %}
+<h4>{{ _('Time Spent') }}
+{% endif %}
+  {% if False and request.nereid_user.employee %}
+
+  <!-- Modal for marking time on  task -->
+  <div class="modal fade" id="mark-time">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h3>{{ _('Mark your time on task') }}</h3>
+    </div>
+    <div class="modal-body">
+      <form class="form-vertical well" id="mark-time-form" method="POST" 
+          action="{{ url_for('project.work.mark_time', task_id=task.id) }}"
+          onSubmit="return checkform()" name="marktimeform">
+        <label for="hours">Hours:</label>
+        <input class="span12" type="text" placeholder="2" rel="popover"
+          data-content="Time to be marked in Numeric/Decimal Values only" data-original-title="Hours"
+          name="hours" required="required" id="hours"/>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-info pull-right span6 offset3" 
+            id="btn-mark-time" data-loading-text="Marking Time">
+            <i class="icon-plus icon-white"></i> {{ _('Save') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <a class="btn pull-right" data-toggle="modal" href="#mark-time">
+    <i class="icon-time"></i>
+  </a>
+  {% endif %}
+{% if task.timesheet_lines %}
+  <br/><small> by employee</small>
+</h4>
+<ul class="nav nav-tabs nav-stacked">
+  <li><a><div id="chart_div" ></div></a></li>
+
+  <li class="active">
+    <a><strong>
+    <div class="row-fluid">
+      <div class="span10">
+        {{ _('Total hours') }}
+      </div>
+      <div class="span2 pull-right">
+        {{ task.hours }}
+      </div>
+    </div>
+    </strong></a>
+  </li>
+</ul>
+{% else %}
+  <br><small>{{ _('Nobody has reported time yet') }}</small>
+</h4>
+{% endif %}
+
+<hr>
+<h4>{{ ngettext('%(num)d participant', '%(num)d participants', task.participants|length) }}</h4>
+  {% for participant in task.participants %}
+  <a href="" rel="tooltip" title="{{ participant.display_name }}"><img src="{{ participant.get_profile_picture(size="30") }}" alt="{{ participant.display_name }}" class="img-rounded"/></a>
+  {% endfor %}
+
+{% if request.nereid_user.is_project_admin() %}
+<hr>
+<h4>Delete task
+
+<!-- Modal for warning about deletion of task -->
+<div class="modal fade" id="modal-delete-task">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">×</button>
+    <h4>{{ _('Are you ABSOLUTELY sure?') }}</h4>
+  </div>
+  <div class="modal-body">
+    <div class="alert alert-block alert-error task-delete-message">
+      <h5><i class="icon-warning-sign" style="font-size:32px;"></i> Unexpected bad things will happen if you don't read this</h5>
+      <h6>This action CANNOT be undone. This will delete the <strong>{{ task.work.name }}</strong> task, time logged and comments permanently.</h6>
+      <hr/>
+      <a href="{{ url_for('project.work.delete_task', task_id=task.id) }}" class="btn btn-danger">{{ _('Delete') }}</a>
+      <a class="btn cancel-delete-task" data-dismiss="modal">{{ _('Cancel') }}</a>
+    </div>
+  </div>
+</div>
+<a class="btn btn-danger pull-right delete-task" data-toggle="modal" href="#modal-delete-task"><i class="icon-minus-sign"></i></a>
+<br/>
+<small>{{ _('Once deleted, there is no going back') }}</small>
+</h4>
+{% endif %}
+
+{% endblock %}
+
+{% block main %}
+{{ super() }}
+<!-- Modal for changing constraint dates on a task -->
+  <div class="modal fade" id="change-dates">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal">×</button>
+      <h3>{{ _('Change constraint dates') }}</h3>
+    </div>
+    <div class="modal-body">
+      <form class="form-vertical well" id="change-dates-form" method="POST" 
+          action="{{ url_for('project.work.change_constraint_dates', task_id=task.id) }}"
+          onSubmit="return checkdateform()" name="changedateform">
+          <div class="input-append date datepicker" data-date="{{ task.constraint_start_time and task.constraint_start_time.strftime('%m/%d/%Y') }}">
+            <label>Start by: </label>
+            <input class="datepicker" type="text" name="constraint_start_time" readonly="" value="{{ task.constraint_start_time and task.constraint_start_time.strftime('%m/%d/%Y') }}">
+            <span class="add-on" rel="tooltip" title="Select Start Date"><i class="icon-calendar"></i></span>
+          </div>
+          <div class="input-append date datepicker" data-date="{{ task.constraint_finish_time and task.constraint_finish_time.strftime('%m/%d/%Y') }}">
+            <label>Finish by: </label>
+            <input class="datepicker" type="text" name="constraint_finish_time" readonly="" value="{{ task.constraint_finish_time and task.constraint_finish_time.strftime('%m/%d/%Y') }}">
+            <span class="add-on" rel="tooltip" title="Select Finish Date"><i class="icon-calendar"></i></span>
+          </div>
+          <a class="btn clear-constraint-dates"
+            title="Clear Dates" rel="tooltip">
+            <i class="icon-remove-sign"></i> Clear
+          </a>
+          <button type="submit"a class="btn btn-success change-constraint-dates"
+            title="Save changed dates" rel="tooltip">
+            <i class="icon-save"></i> Save
+          </button>
+      </form>
+    </div>
+  </div>
+
+<br>
+<div class="row-fluid">
+  <div class="span12">
+    <div class="task-bg" id="comments-content">
+      <p>{{ task.created_by.display_name or task.create_uid.name }} reported <abbr title="{{ request.nereid_user.aslocaltime(task.create_date) }}" class="timeago"> on {{ request.nereid_user.aslocaltime(task.create_date) }}</abbr>
+      </p>
+      <input type="text" id="task-{{ task.id }}" 
+        class="input-xlarge span6" style="display:none" value="{{ task.work.name }}">
+      <sup>
+        <a data-url="{{ url_for("project.work.edit_task", active_id=task.id) }}" class="btn save-edited-task" style="display:none" rel="tooltip" title="Edit Task Name">
+          <i class="icon-save"></i>
+        </a>
+        <a class="btn cancel-edit-task" style="display:none" rel="tooltip" title="Cancel"><i class="icon-remove-sign"></i></a>
+      </sup>
+      <h3 class="task-name btn-edit-task-area">
+        <a class="btn pull-right btn-edit-task" style="display:none" input="#task-{{ task.id }}"><i class="icon-edit"></i> Edit</a>
+        #{{ task.id }}: {{ task.work.name }}
+      </h3>
+      <div class="btn-group span5">
+        <a class="btn pull-left" data-toggle="modal" href="#change-dates">
+          {% if task.constraint_start_time %} <span class="label label-info"> Start by {{ task.constraint_start_time|dateformat }}</span>{% endif %}
+          {% if task.constraint_finish_time %} <span class="label label-warning"> Finish by {{ task.constraint_finish_time|dateformat }}</span> {% endif %}
+          {% if not task.constraint_start_time and not task.constraint_finish_time %}<span class="label label-warning"> No start and finish dates defined</span>{% endif %}
+        </a>
+        <a class="btn disabled btn-{{ state_color_css(task.state, 'button') }}">
+          <strong>{{ task.state.upper() }}</strong>
+        </a>
+      </div>
+      <div class="gray-bg row-fluid">
+        <div class="btn-group pull-right">
+          <a class="btn dropdown-toggle assign-user-label" data-toggle="dropdown">
+            <i class="icon-user"></i> {% if not task.assigned_to %}Assign to{% else %}Assigned to {{ task.assigned_to.display_name }}{% endif %}
+            <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu">
+            {% for participant in task.all_participants %}
+            <li {% if participant.id == task.assigned_to.id %}class="active"{% endif %}>
+              <a class="assign-user" data-user="{{ participant.id }}">
+              <span><img class="img" src="{{ participant.get_profile_picture(size="20", https=True) }}"></span>
+              <span class="name">{{ participant.display_name }}</span>
+              </a>
+            </li>
+            {% endfor %}
+            <li class="divider"></li>
+            <li>
+              <a class="btn-clear-assigned-user" 
+                title="Clear assigned user" rel="tooltip">
+                <i class="icon-refresh"></i> Clear User
+              </a>
+            </li>
+          </ul>
+          <a class="btn watch" {% if request.nereid_user in task.participants %}style="display:none"{% endif %}><i class="icon-eye-open"></i> Watch</a>
+          <a class="btn unwatch" {% if request.nereid_user not in task.participants %}style="display:none"{% endif %}><i class="icon-eye-close"></i> Un-Watch</a>
+        </div>
+      </div>
+      <br/>
+      <a data-url="{{ url_for("project.work.edit_task", active_id=task.id) }}" class="btn save-edited-task-description" style="display:none" rel="tooltip" title="Edit Task Description">
+        <i class="icon-save"></i> Save
+      </a>
+      <a class="btn cancel-edit-task-description" style="display:none" rel="tooltip" title="Cancel"><i class="icon-remove-sign"></i> Cancel</a>
+      <textarea class="input-xlarge span12" id="task-description-{{ task.id }}" rows="3"
+                name="comment" style="display:none">{{ task.comment }}</textarea>
+      <div class="task-description-edit-area">
+      <a class="btn pull-right btn-edit-task-description" style="display:none" input="#task-description-{{ task.id }}"><i class="icon-edit"></i> Edit</a>
+      <p>
+        {% if task.comment %}
+          {{ task.comment|rst|safe }}
+        {% else %}
+          No description given.
+        {% endif %}
+      </p>
+      </div>
+    </div>
+  </div>
+</div>
+<hr/>
+
+<div class="row-fluid">
+  <div class="span12"> 
+    <div id="comments">
+      {% if comments|length > 3 %}
+      <div class="row-fluid task-show-all-updates" style="cursor: hand; cursor: pointer;">
+        <div class="breadcrumb">
+            <a class="task-show-all-updates">
+              <i class="icon-comments-alt"></i> 
+              View {{ comments|length - 3 }} more updates
+            </a>
+        </div>
+      </div>
+      {% endif %}
+      {% for comment in comments %}
+        {% if comment.__name__ == 'project.work.history' %}
+          {{ render_comment(comment, hide=loop.revindex > 3) }}
+        {% elif comment.__name__ == 'timesheet.line' %}
+          {{ render_timesheet_line(comment, hide=loop.revindex > 3) }}
+        {% elif comment.__name__ == 'ir.attachment' %}
+          {{ render_attachment(comment, hide=loop.revindex > 3) }}
+        {% elif comment.__name__ == 'project.work.commit' %}
+          {{ render_commit(comment, hide=loop.revindex > 3) }}
+        {% endif %}
+      {% endfor %}
+    </div>
+    {{ new_comment_box(task) }}
+  </div>
+
+</div>
+{% endblock %}
+
+
+{% macro new_comment_box(task) %}
+<div class="row-fluid">
+  <div class="span12">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td colspan="4">
+            <div class="control-group">
+              <textarea placeholder="Reply or change status" style="background-color: none"
+                class="input-xlarge span12" id="comment" rows="3"
+                name="comment"></textarea>
+            </div>
+            {% if task.progress_state in ('In Progress', 'Review') and datetime.datetime.today().month == 1 and datetime.datetime.today().day < 15 %}
+              <div class="alert">
+                <strong>Happy new year!</strong> Just to remind you to update the copyright year, if you have'nt done it yet.
+               </div>
+            {% endif %}
+            <p id="rst-preview"></p>
+          </td>
+        </tr>
+
+        <tr>
+          <td><i class="icon-user"></i> Assign to:</td>
+          <td colspan="1">
+            <select id="assigned_to" data-placeholder="Assign this task to someone">
+              <option value=""></option>
+              {% for participant in task.parent.all_participants %}
+              <option value="{{ participant.id }}" {% if participant.id == task.assigned_to.id %}selected{% endif %}>{{ participant.display_name }}</option>
+              {% endfor %}
+            </select>
+          </td>
+            <td class="state-td" {% if task.state != 'opened' %}style="display:none"{% endif %}><i class="icon-bookmark"></i> State:</td>
+            <td colspan="1" class="state-td" {% if task.state != 'opened' %}style="display:none"{% endif %}>
+              <select data-placeholder="Select State" id="progress_state" name="progress_state">
+                <option value="Backlog" {% if task.progress_state == 'Backlog' %}selected{% endif %}>Backlog</option>
+                <option value="Planning" {% if task.progress_state == 'Planning'%}selected{% endif %}>Planning</option>
+                <option value="In Progress" {% if task.progress_state == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Review" {% if task.progress_state == 'Review' %}selected{% endif %}>Review / QA</option>
+                <optgroup label="Close / Resolve">
+                  <option value="done">Done</option>
+                </optgroup>
+              </select>
+            </td>
+        </tr>
+
+        <tr id="notify">
+          <td><i class="icon-group"></i> Notify:</td>
+          <td colspan="3">
+            <select data-placeholder="Choose people to notify" style="min-width:500px;" multiple class="chzn-select span12" id="notify">
+              {% for participant in task.parent.all_participants %}
+              <option value="{{ participant.id }}" {% if participant in task.participants %}selected{% endif %}>{{ participant.display_name }}</option>
+              {% endfor %}
+            </select>
+          </td>
+        </tr>
+
+        {% if request.nereid_user.employee %}
+        <tr id="log-hours">
+          <td><i class="icon-time"></i> Hours:</td>
+          <td colspan="3">
+            <div class="control-group">
+              <div class="input-append">
+                <input class="input-xxlarge"  type="text" id="comment_hours" name="comment_hours" placeholder="How many hours did you put into this task ?"/>
+                <span class="add-on">hours</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+
+        <tr>
+          <div class="btn-group" data-toggle="buttons-checkbox">
+            <a id="notify" class="btn" rel="tooltip" title="Notify People"><i class="icon-group"></i></a>
+            {% if request.nereid_user.employee %}
+            <a id="log-hours" class="btn active" rel="tooltip" title="Log Hours"><i class="icon-time"></i></a>
+            {% endif %}
+          </div>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row-fluid">
+  <div class="btn-group">
+    <a class="btn btn-comment-save btn-info"
+      data-loading-text="Updating task..." name="#new-comment"
+      data-state="opened" 
+      {% if task.state != 'opened' %}style="display:none"{% endif %}
+      href="#new-comment"><i class="icon-edit icon-white"></i> Save</a>
+    <a class="btn btn-comment-save" data-action="reopen"
+      {% if task.state != 'done' %}style="display:none"{% endif %}
+      data-loading-text="Updating task..." name="#new-comment" 
+      data-state="done" 
+      href="#new-comment"><i class="icon-folder-open"></i> Save &amp; Reopen</a>
+  </div>
+</div>
+{% endmacro %}
+
+{% block scripts %}
+{{ super() }}
+
+<script>
+  function reset_for_new_comment() {
+    // Hide the row for notification
+    $('tr#notify').hide();
+    {% if not request.nereid_user.employee %}
+    $("tr#log-hours").hide();
+    {% endif %} 
+
+    // Make sure the buttons are toggled out
+    $("a#notify").removeClass('active');
+
+    // Empty the comment box and preview
+    $("textarea#comment").val('');
+    $("p#rst-preview").html('');
+    $("input#comment_hours").val('');
+  }
+</script>
+
+<script>
+  $(document).ready(function() {
+    reset_for_new_comment();
+    $("a#notify").click(function(){
+      $('tr#notify').toggle();
+    });
+    $("a#log-hours").click(function(){
+      $("tr#log-hours").toggle();
+    });
+    // Configure chosen field with option to clear user
+    $("select#assigned_to").chosen({allow_single_deselect: true});
+    $("select#progress_state").chosen();
+
+    // Allow preview for RST fields
+    $('textarea#comment').bind('input keyup', function(){
+        var $this = $(this);
+        var delay = 1000; // 2 seconds delay after last input
+
+        clearTimeout($this.data('timer'));
+        $this.data('timer', setTimeout(function(){
+            $this.removeData('timer');
+
+            // Delayed oprtations
+            $.post(
+              "{{ url_for('project.work.rst_to_html') }}",
+              {text: $("textarea#comment").val()},
+              function(data){
+                $("p#rst-preview").html(data);
+              }
+            );
+        }, delay));
+    });
+
+    $('a.btn-comment-save').click(function() {
+      var btn = $(this);
+      var textbox = $("textarea#comment");
+      var comment = textbox.val();
+      var notify = $("select#notify").val();
+      var comment_hours = $("input#comment_hours").val();
+      if (comment.length == 0) {
+        alert('Oops! Seems like an empty comment');
+      {% if request.nereid_user.employee %}
+      } else if (comment_hours.length == 0) {
+        alert('Oops! Seems like you forgot to mark time');
+      } else if (comment_hours > 12) {
+        alert('Seems like you have worked hard! But do not mark more than 12 hours.');
+      {% endif %}
+      } else {
+        btn.button('loading');
+        var data = {
+          hours: comment_hours,
+          comment: comment,
+          notify: notify,
+          assigned_to: $("select#assigned_to").val(),
+          progress_state: $("select#progress_state").val(),
+          state: 'opened'
+        };
+        if ($("select#progress_state").val() == 'done') {
+          data['state'] = 'done'
+          data['progress_state'] = 'Done'
+        }
+        if (btn.attr('data-action') == 'reopen') {
+          data['state'] = 'opened'
+          data['progress_state'] = 'Backlog'
+        }
+        $.ajax({
+          url: '{{ url_for("project.work.update_task", task_id=task.id) }}',
+          type: 'POST',
+          data: data
+        })
+        .done(function(data){
+            if (data.success) {
+              console.log(data);
+              reset_for_new_comment();
+              $("div#comments").append(data.html + "<hr/>");
+              $("abbr.timeago").timeago();
+              if (data.state == 'opened') {
+                $("a[data-state='opened']").show();
+                $("a[data-state='done']").hide();
+                $("td.state-td").show();
+                $("select#progress_state option:contains('Backlog')").attr('selected');
+              } else {
+                $("a[data-state='opened']").hide();
+                $("a[data-state='done']").show();
+                $("td.state-td").hide();
+              }
+
+            } else {
+              alert(data.error);
+            }
+          })
+        .fail(function(){ alert('Update Failed!'); })
+        .always(function(){ btn.button('reset'); });
+      }
+    });
+
+    // Code for editing the comments
+    var bind_edit = function() {
+      if ($(this).attr('textarea')) {
+        $($(this).attr('textarea')).show();
+        $($(this).siblings('a.btn-save-comment')).show();
+        $($(this).siblings('a.btn-cancel-comment')).show();
+        $(this).removeClass('btn-edit-comment').addClass('btn-edit-comment-disabled').hide();
+        $($(this).attr('displayed-div')).hide();
+      }
+    }
+    $('.btn-edit-comment').click(bind_edit);
+
+    // On cancelling change back to old comment
+    var bind_cancel = function() {
+        $($(this).attr('textarea')).hide();
+        $($(this).attr('displayed-div')).show();
+        $(this).siblings('a.btn-save-comment').hide();
+        $(this).hide();
+        $(this).siblings('.btn-edit-comment-disabled').removeClass('btn-edit-comment-disabled').addClass('btn-edit-comment').show();
+    }
+    $('a.btn-cancel-comment').click(bind_cancel);
+
+    // Bind save behavior
+    var bind_save = function() {
+      var btn=$(this);
+      $.ajax({
+        url: $(this).attr('comment-url'),
+        type: 'POST',
+        data: {
+          comment: $($(this).attr('textarea')).val()
+        }
+      })
+      .done(function(data){
+        btn.parents("div.comment").replaceWith(data.html);
+        // Set the hover behaviour on areas with edit buttons again
+        $('.btn-edit-comment').click(bind_edit);
+        $('a.btn-save-comment').click(bind_save);
+        $('a.btn-cancel-comment').click(bind_cancel);
+        $(".btn-edit-comment-area").hover(
+          function(){$(this).find(".btn-edit-comment").show();}, 
+          function(){$(this).find(".btn-edit-comment").hide();}
+        );
+        $("abbr.timeago").timeago();
+      })
+      .fail(function() {alert("Update failed")})
+      .always();
+    }
+    $('a.btn-save-comment').click(bind_save);
+
+    // Make edit buttons visible on hovers
+    $(".btn-edit-comment-area").hover(
+      function(){$(this).find(".btn-edit-comment").show();}, 
+      function(){$(this).find(".btn-edit-comment").hide();}
+    );
+    $(".btn-edit-task-area").hover(
+      function(){$(this).find(".btn-edit-task").show();}, 
+      function(){$(this).find(".btn-edit-task").hide();}
+    );
+
+    $('.btn-edit-task').click(function() {
+      $('.task-name').hide();
+      $('.btn-edit-task').hide();
+      $($(this).attr('input')).show();
+      $('.save-edited-task').show();
+      $('.cancel-edit-task').show();
+    });
+
+    $('.cancel-edit-task').click(function() {
+      $('input#task-{{ task.id }}').hide();
+      $('.btn-edit-task').show();
+      $('.task-name').show();
+      $('.save-edited-task').hide();
+      $('.cancel-edit-task').hide();
+    });
+
+    $('.save-edited-task').click(function() {
+      var url = $(this).attr('data-url');
+      $.ajax({
+        url: url,
+        type: "POST",
+        data: {
+          name: $('input#task-{{ task.id }}').val(),
+          comment: $('textarea#task-description-{{ task.id }}').val(),
+        }
+      })
+      .done(function(data) {
+        $('input#task-{{ task.id }}').hide();
+        $('.btn-edit-task').show();
+        $('.task-name').replaceWith('<h3 class="task-name">#{{ task.id }}: ' + data.name + '</h3>');
+        $('.save-edited-task').hide();
+        $('.cancel-edit-task').hide();
+      })
+      .fail(function(){ alert('Update Failed!'); });
+    });
+
+    $(".task-description-edit-area").hover(
+      function(){$(this).parent().find(".btn-edit-task-description").show();}, 
+      function(){$(this).parent().find(".btn-edit-task-description").hide();}
+    );
+
+    $('.btn-edit-task-description').click(function() {
+      $('.task-description-edit-area').hide();
+      $($(this).attr('input')).show();
+      $('.save-edited-task-description').show();
+      $('.cancel-edit-task-description').show();
+    });
+
+    $('.cancel-edit-task-description').click(function() {
+      $('textarea#task-description-{{ task.id }}').hide();
+      $('.task-description-edit-area').show();
+      $('.btn-edit-task-description').show();
+      $('.save-edited-task-description').hide();
+      $('.cancel-edit-task-description').hide();
+    });
+
+    $('.save-edited-task-description').click(function() {
+      var url = $(this).attr('data-url');
+      $.ajax({
+        url: url,
+        type: "POST",
+        data: {
+          name: $('input#task-{{ task.id }}').val(),
+          comment: $('textarea#task-description-{{ task.id }}').val(),
+        }
+      })
+      .done(function(data) {
+        document.location.reload(false);
+      })
+      .fail(function(){ alert('Update Failed!'); });
+    });
+
+    $("a.watch").click(function() {
+      $.ajax({
+        url: "{{ url_for('project.work.watch', task_id=task.id) }}",
+        type: 'POST'
+      })
+      .done(function() {
+        $("a.watch").hide();
+        $("a.unwatch").show();
+      });
+    });
+    $("a.unwatch").click(function() {
+      $.ajax({
+        url: "{{ url_for('project.work.unwatch', task_id=task.id) }}",
+        type: 'POST'
+      })
+      .done(function() {
+        $("a.watch").show();
+        $("a.unwatch").hide();
+      });
+    });
+
+    // Assign Task
+    $("a.btn-assign-user").click(function() {
+      $("ul.assign-list").toggle();
+    });
+
+    $("a.assign-user").click(function() {
+      var me = $(this)
+      var user_name = me.children('span.name').text()
+      $('a.assign-user-label').addClass('disabled').html('<i class="icon-user"></i> Assigning to '+ user_name + ' <span class="caret"></span>');
+      $.ajax({
+        url: "{{ url_for('project.work.assign_task', task_id=task.id) }}",
+        type: "POST",
+        data: { 
+          user: $(this).attr('data-user')
+        }
+      })
+      .done(function(data) {
+        $('a.assign-user-label').removeClass('disabled').html('<i class="icon-user"></i> Assigned to '+ user_name + ' <span class="caret"></span>');
+      })
+      .fail(function(){ alert('Update Failed!'); });
+    });
+
+    $("a.btn-clear-assigned-user").click(function() {
+      var me = $(this)
+      $.ajax({
+        url: "{{ url_for('project.work.clear_assigned_user', task_id=task.id) }}",
+        type: "POST",
+      })
+      .done(function(data) {
+        window.location = window.location.href;
+      });
+    });
+
+    // Add/Remove tag from task
+    $(".action-tag-btn").click(function(){
+      tag_id = $(this).attr('id');
+      var me = $(this);
+      $.ajax({
+        url: $(this).attr('data-url'),
+        type: 'POST'
+      })
+      .done(function(data) {
+        window.location = window.location.href;
+      });
+    });
+
+    // popover
+    $("input").popover({
+      placement: 'bottom',
+      trigger: 'focus'
+    });
+
+    $('.clear-constraint-dates').click(function() {
+      $(this).parent().find('input.datepicker').val('');
+    });
+
+    // Expand and show all comments
+    $("a.task-show-all-updates").click(function() {
+      $("div.task-show-all-updates").hide();
+      $("div.task-update").show();
+    });
+
+  });
+</script>
+
+{% if task.timesheet_lines %}
+<script>
+  $(document).ready(function(){
+
+    var pie_options = {
+        chart: {
+            renderTo: 'chart_div',
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            backgroundColor:'rgba(255, 255, 255, 0.1)'
+        },
+        exporting: {enabled:false},
+        title: {
+            text: 'Work Contribution'
+        },
+        tooltip: {
+          pointFormat: '{series.name}: <b>{point.y} ({point.percentage}%)</b>',
+          percentageDecimals: 1
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: false
+                },
+                showInLegend: true
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: 'Work Share',
+            data: []
+        }],
+        credits: {
+          enabled: false
+        }
+    };
+    
+    {% for employee, hours in timesheet_summary.iteritems() %}
+    pie_options.series[0].data.push({
+      name: "{{ employee.rec_name }}",
+      y: {{ hours }}
+      {% if request.nereid_user.employee == employee %}
+      ,sliced: true
+      {% endif %}
+    });
+    {% endfor %}
+
+    pie_chart = new Highcharts.Chart(pie_options);
+
+  });
+</script>
++{% endif %}
+<script>
+  $(document).ready(function(){
+    // popover
+    $("input").popover({
+      placement: 'bottom',
+      trigger: 'focus'
+    });
+  });
+  function checkform() {
+    var hours = document.marktimeform.hours.value
+    if (parseFloat(hours)==hours) {
+      return true;
+    } else {
+      alert("Time to be marked in Numeric/Decimal Values only")
+      return false;
+    };
+  };
+
+  function checkdateform() {
+    var start_time = document.changedateform.constraint_start_time.value
+    var finish_time = document.changedateform.constraint_finish_time.value
+    if (start_time=='None') {
+      document.changedateform.constraint_start_time.value = ''
+    }
+    if (finish_time=='None') {
+      document.changedateform.constraint_finish_time.value = ''
+    }
+    return true;
+  };
+
+  function change_estimated_hour_form() {
+    var estimated_time = $("input#new_estimated_hours").val()
+    if (parseFloat(estimated_time)==estimated_time) {
+        return true;
+    } else {
+        alert("Estimated time should be in Numeric/Decimal Values only")
+        return false;
+    }
+    return true;
+  };
+</script>
+
+<script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="9k8zaxe6ntt1jul"></script>
+<script type="text/javascript">
+    function type_is_link() {
+      $("input#file_type").val('link');
+      $('.attachment-type-file').hide(1000);
+    }
+    function type_is_local_file() {
+      $("input#file_type").val('data');
+      $('.attachment-type-link').hide(1000);
+      $('.dropbox-chooser').hide(1000);
+    }
+    function clear_file_type() {
+      $("input#file_type").val('');
+      $('.attachment-type-file').show(1000);
+      $('.attachment-type-link').show(1000);
+      $('.dropbox-chooser').show(1000);
+      $('.dropbox-chooser-used').removeClass('dropbox-chooser-used');
+    }
+    document.getElementById("db-chooser").addEventListener("DbxChooserSuccess",
+        function(e) {
+            $("#db-chooser").val(e.files[0].link);
+            type_is_link();
+        }, false);
+    document.getElementById("db-chooser").addEventListener("DbxChooserCancel",
+        function(e) {
+            clear_file_type();
+        }, false);
+    $(document).ready(function() {
+      $('input#file').change(function() {
+        if ($('input#file').val().length > 0) {
+            type_is_local_file();
+        } else {
+            clear_file_type();
+        }
+      });
+    });
+</script>
+
+
+{% if request.nereid_user.employee %}
+{# my last 7 days #}
+<script>
+$(document).ready(function() {
+  var options = {
+      chart: {
+          renderTo: 'my-last-7-days',
+          type: 'column',
+          marginBottom: 50,
+          backgroundColor:'rgba(255, 255, 255, 0.1)'
+      },
+      exporting: {enabled: false},
+      title: {
+          text: 'My last 7 Days',
+          x: -20 //center
+      },
+      xAxis: {
+          categories: []
+      },
+      yAxis: {
+          title: {
+              text: 'Hours'
+          },
+          plotLines: [{
+              value: 0,
+              width: 1,
+              color: '#808080'
+          }]
+      },
+      tooltip: {
+        formatter: function() {
+            var emp_name = '{{ request.nereid_user.employee.rec_name.split(' ')|first }}';
+            rv = '<b>';
+            if (this.y < 4) {
+              rv += 'WTF ' + emp_name + ' ?';
+            } else if (this.y < 6) {
+              rv += 'U just made it!';
+            } else {
+              rv += emp_name + " u're on fire!";
+            }
+            rv += '</b><br/>'+ this.x +': '+ this.y +'hrs';
+            return rv;
+          }
+      },
+      legend: {
+        enabled: false
+      },
+      series: [
+        {
+          name: 'Me',
+          data: []
+        }, 
+      ],
+      credits: {
+        enabled: false
+      }
+  };
+  $.get("/-project/-my-last-7-days", function(data) {
+    options['xAxis']['categories'] = data['categories'];
+    $.each(data['series'], function(index, value){
+      var data = {};
+      data.y = parseFloat(value);
+      if (data.y < 4) {
+        data.color = "#dd514c";
+      } else if (data.y < 6) {
+        data.color = "#faa732";
+      } else {
+        data.color = "#5eb95e";
+      } 
+      options['series'][0]['data'].push(data)
+    });
+    chart = new Highcharts.Chart(options);
+  })
+
+  // Drag and drop file upload
+  $('#comment')
+    .on('dragover', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $(this).addClass("drop-upload");
+      $("#comment").attr("placeholder", "Drop here to upload files");
+    })
+    .on('dragleave', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $(this).removeClass("drop-upload");
+      $("#comment").attr("placeholder", "Reply or change status");
+    })
+    .on('drop', function(e) {
+      $(this).removeClass("drop-upload");
+      $("#comment").attr("placeholder", "Reply or change status");
+      if(e.originalEvent.dataTransfer) {
+        if(e.originalEvent.dataTransfer.files.length) {
+          e.preventDefault();
+          e.stopPropagation();
+          var form_data = new FormData();
+          form_data.append('file', e.originalEvent.dataTransfer.files[0]);
+          form_data.append('task', $("input[name='task']").val());
+          $.ajax({
+            url: $("#attach-file-form").attr('action'),
+            type: 'POST',
+            data: form_data,
+            processData: false,
+            contentType: false
+          })
+          .done(function(data) {
+              location.reload();
+          });
+	  $('body').css('cursor', 'wait');
+        }
+      }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

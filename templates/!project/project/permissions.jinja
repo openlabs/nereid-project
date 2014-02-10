@@ -1,0 +1,175 @@
+{% extends 'project/project.jinja' %}
+
+{% macro render_participant(user, remove_button=True) %}
+  <div class="well span4">
+    <div class="row-fluid" id="user-{{ user.id }}">
+      <div class="span4">
+        <img src="{{ user.get_profile_picture(size="60", https=True) }}" alt="{{ user.display_name }}" class="img-circle" rel="tooltip" title="{{ user.email }}"/>
+      </div>
+      <div class="">
+        <strong>{{ user.display_name }}</strong><br>
+        <a href="mailto:{{ user.email }}" rel="tooltip" title="Send Email"><i class="icon-envelope"></i></a>
+        <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', user=user.id) }}" rel="tooltip" title="View open tasks"><i class="icon-tasks"></i></a>
+        {% if remove_button and request.nereid_user.is_project_admin() %}
+        <br>
+        <a class="btn btn-mini btn-danger btn-remove-participant"
+          title="Remove {{ user.display_name }}" rel="tooltip" data-id="{{ user.id }}"
+          data-url="{{ url_for('project.work.remove_participant', active_id=project.id, participant_id=user.id) }}">
+            <i class="icon-minus-sign icon-white"></i> {{ _('Remove') }}
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li>
+  <a href="{{ url_for('project.work.permissions', project_id=project.id) }}">
+    {{ _('People & Permissions') }} 
+  </a>
+</li>
+{% endblock %}
+
+
+{% block main %}
+<div class="page-header">
+  <h4> {{ _("People & Permissions") }}</h4>
+</div>
+<div class="row-fluid">
+  <div class="span6">
+    <form id="invite-participant" class="form-inline" action="{{ url_for('project.work.invite', project_id=project.id) }}" method="post">
+      <input type="email" class="input-large" required="required" id="invite_email" name="email" placeholder="Email">
+      <input type="submit" class="btn" value="Invite People" />
+    </form>
+  </div>
+</div>
+
+{% if request.nereid_user.is_project_admin() and invitations %}
+<div class="page-header">
+  <h4>Invited Users <small>Who have not joined yet</small></h4>
+</div>
+<div class="row-fluid">
+{% for invitation in invitations %}
+<div class="well span4" id="invite-{{ invitation.id }}">
+    <strong>{{ invitation.email }}</strong><br>
+    <a class="btn btn-small btn-reinvite-participant"
+      title="Re-Invite {{ invitation.email }}" rel="tooltip" data-id="{{ invitation.id }}"
+      data-url="{{ url_for('project.work.invitation.resend_invite', active_id=invitation.id) }}">
+        <i class="icon-share-alt icon-white"></i> {{ _('Resend Invite') }}
+    </a>
+    <a class="btn btn-small btn-warning btn-remove-invite"
+      title="Revoke invitation to {{ invitation.email }}" rel="tooltip" data-id="{{ invitation.id }}"
+      data-url="{{ url_for('project.work.invitation.remove_invite', active_id=invitation.id) }}">
+        <i class="icon-minus-sign icon-white"></i> {{ _('Revoke Invitation') }}
+    </a>
+</div>
+{% endfor %}
+</div>
+<hr/>
+{% endif %}
+
+
+<div class="page-header">
+  <h4>Participants</h4>
+</div>
+{% for batch in project.participants|batch(3) %}
+<div class="row-fluid">
+  {% for user in batch %}
+    {{ render_participant(user) }}
+  {% endfor %}
+</div>
+{% endfor %}
+
+<div class="page-header">
+  <h4>Administrators</h4>
+</div>
+{% for btach in project.company.project_admins|batch(3) %}
+  <div class="row-fluid">
+    {% for user in project.company.project_admins %}
+     {{ render_participant(user, remove_button=False) }}
+    {% endfor %}
+  </div>
+{% endfor %}
+<hr/>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+  <script>
+    $(document).ready(function(){
+      // Remove a participant
+      $('.btn-remove-participant').click(function(){
+        $(this).addClass('disabled').text('Deleting...');
+        var user_id = $(this).attr('data-id')
+        $.ajax({
+          url: $(this).attr('data-url'),
+          type: 'POST'
+        })
+        .done(function() {
+          $("div#user-" + user_id).hide();
+        });
+      });
+    });
+  </script>
+  <script>
+    $(document).ready(function(){
+      // Invite a participant
+      $('form#invite-participant').submit(function(e){
+        var btn = $(this).find("input[type=submit]");
+        btn.addClass('disabled').text('Sending Invite...');
+        var emailReg = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
+        email = $("input#invite_email").val();
+        if (!email) {
+          alert("Please enter an email to import" + email);
+          return false;
+        } else if (!emailReg.test(email)) {
+          alert("Invalid Email Address");
+          return false;
+        }
+        return true;
+      });
+    });
+  </script>
+
+  <script>
+    $(document).ready(function(){
+      // Remove an invite
+      $('.btn-remove-invite').click(function(){
+        $(this).addClass('disabled').text('Deleting...');
+        var invite_id = $(this).attr('data-id')
+        $.ajax({
+          url: $(this).attr('data-url'),
+          type: 'POST'
+        })
+        .done(function() {
+          $("div#invite-" + invite_id).hide();
+        });
+      });
+    });
+  </script>
+
+  <script>
+    $(document).ready(function(){
+      // Re-Invite a participant
+      $('.btn-reinvite-participant').click(function(){
+        var btn = $(this);
+        btn.addClass('disabled').text('Sending Invite...');
+        var invite_id = $(this).attr('data-id')
+        $.ajax({
+          url: $(this).attr('data-url'),
+          type: 'POST'
+        })
+        .done(function() {
+          btn.text('Invitation Resent');
+          $.meow({
+            message: email + " has been re-invited to the project."
+          });
+        });
+      });
+    });
+  </script>
+{% endblock %}

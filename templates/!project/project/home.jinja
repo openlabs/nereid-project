@@ -1,0 +1,276 @@
+{% extends 'home.jinja' %}
+
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.home') }}">Projects Home</a></li>
+{% endblock %}
+
+
+{% block left %}
+
+
+  <ul class="nav nav-list">
+    <li>
+      <form class="form-search" action="">
+        <div class="input-append">
+          <input type="text" class="input-medium search-query" placeholder="Search Project" name="query" value="{{ request.args.get('query', '') }}">
+          <button type="submit" class="btn"><i class="icon-search"></i> Search</button>
+        </div>
+      </form>
+    </li>
+  </ul>
+
+  <ul class="nav nav-tabs nav-stacked">
+    {% for project in projects %}
+    <li>
+      <a href="{{ url_for('project.work.render_project', project_id=project.id) }}"><i class="icon-tasks"></i> {{ project.work.name }}</a>
+    </li>
+    {% endfor %}
+
+    {% if request.nereid_user.is_project_admin() %}
+    {# admin only area #}
+    <hr/>
+    <li class="nav-header">
+      {{ _('Administration') }}
+    </li>
+    <li>
+      <a href="{{ url_for('project.work.render_global_timesheet') }}">
+        <i class="icon-time"></i> {{ _("Timesheets") }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('project.work.render_global_gantt') }}">
+        <i class="icon-th"></i> {{ _("Timesheet Gantt") }}
+      </a>
+    </li>
+    <li>
+      <a href="{{ url_for('project.work.compare_performance') }}">
+        <i class="icon-dashboard"></i> {{ _("Performance Graphs") }}
+      </a>
+    </li>
+    <li>
+      <div class="modal fade" id="new-project">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">×</button>
+          <h3>{{ _('Create a New Project') }}</h3>
+        </div>
+        <div class="modal-body">
+          <form class="form-vertical well" id="new-project-form" method="POST" action="{{ url_for('project.work.create_project') }}">
+            <label for="name">Project Name:</label>
+            <input class="span6" type="text" placeholder="ABC Project" name="name" required="required" id="name"/>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-info span5" id="create_new_project" data-loading-text="Creating New Project">
+                <i class="icon-plus icon-white"></i> {{ _('Save') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <a data-toggle="modal" href="#new-project">
+        <i class="icon-plus"></i> {{ _("New Project") }}
+      </a>
+    </li>
+    {% endif %}
+    <hr/>
+    <li>
+      <a href="{{ url_for('project.work.my_tasks', state="opened") }}"><i class="icon-list"></i> {{ _('My tasks') }}</a>
+    </li>
+    {% if request.nereid_user.has_permissions(['project.manager'])  or request.nereid_user.has_permissions(['project.admin'])%}
+    <li>
+      <a href="{{ url_for('project.work.render_tasks_by_employee') }}"><i class="icon-list"></i> {{ _('Tasks by employee') }}</a>
+    </li>
+    {% endif %}
+    <hr/>
+    <li>
+    </li>
+  </ul>
+{% endblock %}
+
+{% block main %}
+  {% if request.nereid_user.employee %}
+  <div class="row-fluid">
+    <div style="min-height:60%" class="span6" id="top-commentors"></div>
+    <div style="min-height:60%" class="span6" id="top-performers"></div>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="text/javascript" charset="utf-8">
+$(document).ready(function(){
+  $('.clear-date').click(function() {
+    $(this).parent().find('input.datepicker').val('');
+  });
+
+  // Client side validation for the form
+  $("form#new-project-form").validate();
+});
+</script>
+<script>
+$(document).ready(function() {
+  if ($("#top-commentors").length) {
+    // If the div exists
+    $.getJSON('/project/stats', function(data){
+      function getColor(value, min, max) {
+        if (value < ((max - min) / 3)) {
+          return "#dd514c";
+        } else if (value < ((max - min) * 2 / 3)) {
+          return "#faa732";
+        } else {
+          return "#5eb95e";
+        }
+      }
+      var timesheet_line_options = {
+            chart: {
+                type: 'bar',
+                renderTo: 'top-performers'
+            },
+            title: {
+                text: 'Top Performers on Time'
+            },
+            subtitle: {
+                text: 'Source: Timesheet Lines'
+            },
+            xAxis: {
+                categories: [],
+                title: {
+                    text: null
+                }
+            },
+            yAxis: {
+                min: 0,
+                title: {
+                    text: 'Time (hours)',
+                    align: 'high'
+                },
+                labels: {
+                    overflow: 'justify'
+                }
+            },
+            tooltip: {
+                valueSuffix: 'hours'
+            },
+            plotOptions: {
+                bar: {
+                    dataLabels: {
+                        enabled: true
+                    }
+                }
+            },
+            legend: {
+                enabled: false
+            },
+            credits: {
+                enabled: false
+            },
+            series: [{
+                name: 'Time',
+                data: []
+            }]
+        };
+      var total_hours = 0;
+      for (i in data.top_time_reporters) {
+        total_hours += data.top_time_reporters[i][2]
+      };
+      var min = 1;
+      var max = 0;
+      for (i in data.top_time_reporters) {
+        var val = data.top_time_reporters[i][2] / total_hours;
+        if (val < min) {min = val};
+        if (val > max) {max = val};
+      };
+
+      for (i in data.top_time_reporters) {
+        var record = data.top_time_reporters[i];
+        timesheet_line_options.xAxis.categories.push(record[1]);
+        timesheet_line_options.series[0].data.push({
+          y: record[2], color: getColor(record[2] / total_hours, min, max)
+        });
+      }
+      timesheet_line_options.subtitle.text = data.start_date + '-' + data.end_date;
+      chart = new Highcharts.Chart(timesheet_line_options);
+
+      // top commentors
+      var commentors_options = {
+            chart: {
+                type: 'bar',
+                renderTo: 'top-commentors'
+            },
+            title: {
+                text: 'Top Users'
+            },
+            subtitle: {
+                text: 'Source: Updates on the system'
+            },
+            xAxis: {
+                categories: [],
+                title: {
+                    text: null
+                }
+            },
+            yAxis: {
+                min: 0,
+                title: {
+                    text: 'Number of Updates',
+                    align: 'high'
+                },
+                labels: {
+                    overflow: 'justify'
+                }
+            },
+            tooltip: {
+                valueSuffix: ''
+            },
+            plotOptions: {
+                bar: {
+                    dataLabels: {
+                        enabled: true
+                    }
+                }
+            },
+            legend: {
+                enabled: false
+            },
+            credits: {
+                enabled: false
+            },
+            series: [{
+                name: '# of updates',
+                data: []
+            }]
+        };
+      var total_updates = 0;
+      for (i in data.top_commentors) {
+        total_updates += data.top_commentors[i][0]
+      };
+      var min = 1;
+      var max = 0;
+      for (i in data.top_commentors) {
+        var val = data.top_commentors[i][0] / total_updates;
+        if (val < min) {min = val};
+        if (val > max) {max = val};
+      };
+      for (i in data.top_commentors) {
+        var record = data.top_commentors[i];
+        commentors_options.xAxis.categories.push(record[1]);
+        commentors_options.series[0].data.push({
+          y: record[0], color: getColor(record[0] / total_updates, min, max)
+        });
+      }
+      commentors_options.subtitle.text = data.start_date + '-' + data.end_date;
+      chart2 = new Highcharts.Chart(commentors_options);
+    });
+  }
+});
+</script>
+<script>
+$(document).ready(function(){
+  $('a').click(function() {
+    _gaq.push(['_trackEvent', '{{ request.nereid_user.name }}', 'Clicked', $(this).text()]);
+  });
+});
+</script>
+{% endblock %}

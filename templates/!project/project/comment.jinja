@@ -1,0 +1,132 @@
+{% from "_helpers.jinja" import state_color_css %}
+
+{% macro render_timedelta(seconds) %}{{ datetime.timedelta(seconds=seconds) }}{% endmacro %}
+
+
+{% macro render_timesheet_line(line, related_task=False, hide=False) %}
+<div class="row-fluid task-update" {% if hide %}style="display:none"{% endif %}>
+  <div class="breadcrumb">
+    <i class="icon-time"></i> 
+    <strong>{{ line.employee.name }}</strong> worked for <strong>{{ line.hours|float_to_time }}</strong> on <strong>{{ line.date|dateformat('long') }}</strong>
+    {% if related_task %}
+    on <strong><a href="{{ url_for('project.work.render_task', task_id=related_task.id, project_id=related_task.parent.id) }}">{{ related_task.work.name }}</a></strong>
+    {% endif %}
+    <small class="pull-right">
+      <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(line.create_date) }}">{{ request.nereid_user.aslocaltime(line.create_date) }}</abbr>
+    </small>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro render_attachment(attachment, hide=False) %}
+{% set link = attachment.type == 'link' and attachment.link or url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) %}
+{% set mimetype = guess_mimetype(attachment.name) and guess_mimetype(attachment.name)[0] or '' %}
+<div class="row-fluid task-update" {% if hide %}style="display:none"{% endif %}>
+  <div class="breadcrumb">
+    <i class="icon-file"></i>
+    <strong>{{ attachment.uploaded_by and attachment.uploaded_by.display_name or attachment.last_user.name }}</strong> 
+    {% if attachment.type == 'data' %}uploaded file{% else %}attached link to{% endif %}
+    <strong><a href="{{ link }}" target="_blank">{{ attachment.name }}</a></strong>
+    <small class="pull-right">
+      <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(attachment.create_date) }}">{{ request.nereid_user.aslocaltime(attachment.create_date) }}</abbr>
+    </small>
+  </div>
+  {% if 'image' in mimetype and 'dropbox' not in link %}
+  <div class="row-fluid" style="padding-bottom:15px">
+    <img src="{{ link }}" class="img-rounded"/><br/>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_comment(comment, hide=False) %}
+<div class="row-fluid comment task-update" {% if hide %}style="display:none"{% endif %}>
+  <div class="span1">
+    {% if comment.updated_by %}
+    <img class="img-rounded" src="{{ comment.updated_by.get_profile_picture(size="50") }}"/>
+    {% endif %}
+  </div>
+  <div class="span11 btn-edit-comment-area comment-border">
+    <div class="arrow-w"></div>
+    <div class="row-fluid">
+      <div class="breadcrumb">
+        <i class="icon-comment"></i> 
+        <strong>{{ comment.updated_by and comment.updated_by.display_name or comment.create_uid.name }}</strong>
+        {% if comment.previous_progress_state %}
+          {% set state = "Done" if comment.previous_state and comment.previous_state == "done" else comment.previous_progress_state %}
+          <span class="label label-{{ state_color_css(state) }}">{{ state }}</span>
+        {% endif %}
+        {% if comment.new_progress_state %}
+          {% set state = "Done" if comment.new_state and comment.new_state == "done" else comment.new_progress_state %}
+          <i class="icon-arrow-right"></i>
+          <span class="label label-{{ state_color_css(state) }}">{{ state }}</span>
+        {% endif %}
+        {% if not comment.new_progress_state and comment.new_state == 'done' %}
+          <span class="label label-{{ state_color_css(comment.project.progress_state) }}">{{ comment.project.progress_state }}</span>
+          <i class="icon-arrow-right"></i>
+          <span class="label label-{{ state_color_css('Done') }}">Done</span>
+        {% endif %}
+        {% if comment.new_assigned_to %}
+        <em>Assigned to </em><span class="label"> {{ comment.new_assigned_to.display_name }}</span>
+        {% endif %}
+        {% if comment.previous_assigned_to and not comment.project.assigned_to %}
+        <em> {{ _('Cleared the assigned user') }}</em>
+        {% endif %}
+        {% if comment.previous_constraint_start_time != comment.new_constraint_start_time %}
+        <span class="label">Start by: {{ comment.previous_constraint_start_time and comment.previous_constraint_start_time|dateformat or comment.create_date|dateformat }} <i class="icon-arrow-right"></i> {{ comment.new_constraint_start_time|dateformat }}</span>
+        {% endif %}
+        {% if comment.previous_constraint_finish_time != comment.new_constraint_finish_time %}
+        <span class="label">Finish by: {{ comment.previous_constraint_finish_time and comment.previous_constraint_finish_time|dateformat or comment.create_date|dateformat }} <i class="icon-arrow-right"></i> {{ comment.new_constraint_finish_time|dateformat }}</span>
+        {% endif %}
+
+        <small class="pull-right">
+          <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(comment.date) }}">{{ request.nereid_user.aslocaltime(comment.date) }}</abbr>
+        </small>
+      </div>
+    </div>
+
+    {% if comment.comment %}
+    <div class="row-fluid">
+      {% if request.nereid_user.is_project_admin() or comment.updated_by == request.nereid_user %}
+      <a class="btn pull-right btn-edit-comment" displayed-div="#comment-display-{{ comment.id }}"
+        textarea="#comment-{{ comment.id }}"
+        style="display:none"><i class="icon-edit"></i> Edit</a>
+      {% endif %}
+      <a class="btn pull-right btn-save-comment" displayed-div="#comment-display-{{ comment.id }}" 
+        textarea="#comment-{{ comment.id }}" comment-url="{{ url_for('project.work.history.update_comment', task_id=comment.project.id, active_id=comment.id) }}"
+        style="display:none"><i class="icon-ok-circle"></i> Save</a>
+      <a class="btn pull-right btn-cancel-comment" displayed-div="#comment-display-{{ comment.id }}" 
+        textarea="#comment-{{ comment.id }}"
+        style="display:none"><i class="icon-remove-circle"></i> Cancel</a>
+      <div id="comment-display-{{ comment.id }}">{{ comment.comment|rst|safe }}</div>
+      <textarea id="comment-{{ comment.id }}" 
+        class="input-xlarge span12" style="display:none">{{ comment.comment }}</textarea>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro render_commit(commit, hide=False) %}
+<div class="row-fluid task-update" {% if hide %}style="display:none"{% endif %}>
+  <div class="breadcrumb">
+    <i class="icon-github"></i> 
+    <strong>{{ commit.nereid_user.display_name }}</strong> pushed to 
+    <strong><a href="{{ commit.repository_url }}" target="new">{{ commit.repository }}</a></strong>
+    <small class="pull-right">
+      <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(commit.commit_timestamp) }}">{{ request.nereid_user.aslocaltime(commit.commit_timestamp) }}</abbr>
+    </small>
+    <br/>
+    <div class="row-fluid">
+    <a href="{{ commit.commit_url }}" style="font-family: Consolas, 'Liberation Mono', Courier, monospace;" target="new" class="span1">{{ commit.commit_id and commit.commit_id[:7] or 'COMMIT ID' }}</a> 
+    <pre class="span11">{{ commit.commit_message }}</pre>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+
+
+{% if comment %}
+{{ render_comment(comment) }}
+{% endif %}

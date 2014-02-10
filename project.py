@@ -7,6 +7,7 @@
     :copyright: (c) 2012-2013 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
+import os
 import uuid
 import re
 import tempfile
@@ -25,9 +26,10 @@ import simplejson as json
 from babel.dates import parse_date, format_date
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
-    flash, jsonify, render_email, permissions_required
+    flash, jsonify, render_email, permissions_required, current_app
 )
 from flask import send_file
+from flask.helpers import send_from_directory
 from nereid.ctx import has_request_context
 from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
@@ -57,6 +59,14 @@ PROGRESS_STATES = [
     ('Review', 'Review/QA'),
     ('Done', 'Done'),
 ]
+
+#: Get the static folder. The static folder also
+#: goes into the site packages
+STATIC_FOLDER = os.path.join(
+    os.path.abspath(
+        os.path.dirname(__file__)
+    ), 'static'
+)
 
 
 def request_wants_json():
@@ -2175,6 +2185,17 @@ class Project:
             end_date=format_date(end_date, locale='en_IN'),
             top_time_reporters=top_time_reporters,
             top_commentors=top_commentors,
+        )
+
+    @classmethod
+    def send_static_file(self, filename):
+        """Function used internally to send static files from the static
+        folder to the browser.
+        """
+        cache_timeout = current_app.get_send_file_max_age(filename)
+        return send_from_directory(
+            STATIC_FOLDER, filename,
+            cache_timeout=cache_timeout
         )
 
 

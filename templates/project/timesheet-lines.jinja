@@ -1,5 +1,1 @@
-{% from 'project/comment.jinja' import render_timesheet_line with context %}
-
-{% for line in lines %}
-{{ render_timesheet_line(line, related_task) }}
-{% endfor %}
+{% extends '!project/project/timesheet-lines.jinja' %}
