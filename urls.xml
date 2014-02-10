@@ -282,5 +282,13 @@
             <field name="http_method_get" eval="True"/>
             <field name="url_map" ref="nereid.default_url_map" />
         </record>
+
+        <record id="top_stats" model="nereid.url_rule">
+            <field name="rule">/project/stats</field>
+            <field name="endpoint">project.work.stats</field>
+            <field name="sequence" eval="60" />
+            <field name="http_method_get" eval="True"/>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
     </data>
 </tryton>

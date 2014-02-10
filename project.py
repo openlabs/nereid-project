@@ -22,7 +22,7 @@ from mimetypes import guess_type
 from email.utils import parseaddr
 
 import simplejson as json
-from babel.dates import parse_date
+from babel.dates import parse_date, format_date
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
     flash, jsonify, render_email, permissions_required
@@ -1029,7 +1029,7 @@ class Project:
 
         tasks = Pagination(cls, filter_domain, page, 10)
         return render_template(
-            'project/project-task-list.jinja', project=project,
+            'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
             state_filter=state, tasks=tasks
         )
@@ -2118,6 +2118,65 @@ class Project:
             'items': items,
         })
 
+    @classmethod
+    @login_required
+    def stats(cls):
+        """
+        Return a JSOn of the performance of employees
+        """
+        Date = Pool().get('ir.date')
+
+        if not request.nereid_user.employee:
+            raise abort(403)
+
+        cursor = Transaction().cursor
+        query = """
+            SELECT
+                count(timesheet_line.id) AS c,
+                party.name AS name,
+                sum(hours) AS hours
+            FROM timesheet_line
+            JOIN company_employee ON company_employee.id=timesheet_line.employee
+            JOIN party_party AS party ON party.id=company_employee.party
+            WHERE timesheet_line.date >= %s AND timesheet_line.date <= %s
+            GROUP BY party.name ORDER BY sum(hours) DESC;
+        """
+        end_date = Date.today()
+        if request.args.get('end_date'):
+            end_date = parse_date(
+                request.args['end_date'],
+                locale='en_IN',
+            )
+        start_date = end_date - relativedelta(months=1)
+        if request.args.get('start_date'):
+            start_date = parse_date(
+                request.args['start_date'],
+                locale='en_IN',
+            )
+        cursor.execute(query, (start_date, end_date))
+        top_time_reporters = cursor.fetchall()
+
+        query = """
+            SELECT count(project_work_history.id) AS c, party.name AS name
+            FROM project_work_history
+            JOIN nereid_user ON nereid_user.id = project_work_history.updated_by
+            JOIN party_party AS party ON party.id = nereid_user.party
+            WHERE
+                project_work_history.create_date >= %s
+                AND project_work_history.create_date <= %s
+                AND nereid_user.employee IS NOT NULL
+            GROUP BY party.name ORDER BY count(project_work_history.id) DESC;
+        """
+        cursor.execute(query, (start_date, end_date))
+        top_commentors = cursor.fetchall()
+
+        return jsonify(
+            start_date=format_date(start_date, locale='en_IN'),
+            end_date=format_date(end_date, locale='en_IN'),
+            top_time_reporters=top_time_reporters,
+            top_commentors=top_commentors,
+        )
+
 
 class Tag(ModelSQL, ModelView):
     "Tags"
@@ -2728,6 +2787,24 @@ class Attachment:
     Ir Attachment
     '''
     __name__ = "ir.attachment"
+
+    active = fields.Boolean("Active")
+    uploaded_by = fields.Many2One("nereid.user", "Uploaded By")
+
+    @staticmethod
+    def default_uploaded_by():
+        """
+        Sets current nereid user as default for uploaded_by
+        """
+        if has_request_context():
+            return request.nereid_user.id
+
+    @staticmethod
+    def default_active():
+        """
+        Sets default for active
+        """
+        return True
 
     def _json(self):
         rv = {

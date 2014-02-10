@@ -40,17 +40,17 @@
   <div class="span12">
     <ul id="myTab" class="nav nav-tabs">
       <li class="active"><a href="#tab-calendar" data-toggle="tab">Calendar</a></li>
-      <li class=""><a href="#tab-timesheet-lines" data-toggle="tab">Timesheet Lines</a></li>
       <li class=""><a href="#tab-workweek-lines" data-toggle="tab">Weekly Analysis</a></li>
+      <li class=""><a href="#tab-timesheet-lines" data-toggle="tab">Timesheet Lines</a></li>
     </ul>
     <div class="tab-content" id="timesheet-tabs">
       <div class="tab-pane fade active in" id="tab-calendar">
         <div id='calendar'></div>
       </div> 
-      <div class="tab-pane fade" id="tab-timesheet-lines">
+      <div class="tab-pane fade in" id="tab-timesheet-lines">
         <div id='timesheet-lines'></div>
       </div> 
-      <div class="tab-pane fade" id="tab-workweek-lines">
+      <div class="tab-pane fade in" id="tab-workweek-lines">
         <div id='workweek-lines'></div>
       </div> 
     </div>
@@ -139,7 +139,6 @@
       e.preventDefault();
       $(this).tab('show');
     })
-    $("#employee_chzn").css("width","150px");
   });
 </script>
 {% endblock %}

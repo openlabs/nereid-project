@@ -1,15 +1,15 @@
-{% from "project/_helpers.jinja" import state_color_css %}
+{% from "_helpers.jinja" import state_color_css %}
 
 {% macro render_timedelta(seconds) %}{{ datetime.timedelta(seconds=seconds) }}{% endmacro %}
 
 
-{% macro render_timesheet_line(line, related_task=False) %}
-<div class="row-fluid">
+{% macro render_timesheet_line(line, related_task=False, hide=False) %}
+<div class="row-fluid task-update" {% if hide %}style="display:none"{% endif %}>
   <div class="breadcrumb">
     <i class="icon-time"></i> 
     <strong>{{ line.employee.name }}</strong> worked for <strong>{{ line.hours|float_to_time }}</strong> on <strong>{{ line.date|dateformat('long') }}</strong>
     {% if related_task %}
-    on <strong><a href="{{ url_for('project.work.render_task', task_id=related_task.id, project_id=related_task.parent.id) }}">{{ related_task.rec_name }}</a></strong>
+    on <strong><a href="{{ url_for('project.work.render_task', task_id=related_task.id, project_id=related_task.parent.id) }}">{{ related_task.work.name }}</a></strong>
     {% endif %}
     <small class="pull-right">
       <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(line.create_date) }}">{{ request.nereid_user.aslocaltime(line.create_date) }}</abbr>
@@ -18,25 +18,29 @@
 </div>
 {% endmacro %}
 
-{% macro render_attachment(attachment) %}
-<div class="row-fluid">
+{% macro render_attachment(attachment, hide=False) %}
+{% set link = attachment.type == 'link' and attachment.link or url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) %}
+{% set mimetype = guess_mimetype(attachment.name) and guess_mimetype(attachment.name)[0] or '' %}
+<div class="row-fluid task-update" {% if hide %}style="display:none"{% endif %}>
   <div class="breadcrumb">
-    <i class="icon-file"></i> 
-    <strong>{{ attachment.uploaded_by and attachment.uploaded_by.display_name or attachment.last_user.name }}</strong> uploaded file
-    {% if attachment.type == 'data' %} 
-    <strong><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}" rel="tooltip" title="Download file">{{ attachment.name }}</a></strong>
-    {% elif attachment.type == 'link' %}
-    <strong><a href="{{ url_for('project.work.download_file', attachment_id=attachment.id, task=task.id) }}" rel="tooltip" title="Browse file">{{ attachment.name }}</a></strong>
-    {% endif %}
+    <i class="icon-file"></i>
+    <strong>{{ attachment.uploaded_by and attachment.uploaded_by.display_name or attachment.last_user.name }}</strong> 
+    {% if attachment.type == 'data' %}uploaded file{% else %}attached link to{% endif %}
+    <strong><a href="{{ link }}" target="_blank">{{ attachment.name }}</a></strong>
     <small class="pull-right">
       <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(attachment.create_date) }}">{{ request.nereid_user.aslocaltime(attachment.create_date) }}</abbr>
     </small>
   </div>
+  {% if 'image' in mimetype and 'dropbox' not in link %}
+  <div class="row-fluid" style="padding-bottom:15px">
+    <img src="{{ link }}" class="img-rounded"/><br/>
+  </div>
+  {% endif %}
 </div>
 {% endmacro %}
 
-{% macro render_comment(comment) %}
-<div class="row-fluid comment">
+{% macro render_comment(comment, hide=False) %}
+<div class="row-fluid comment task-update" {% if hide %}style="display:none"{% endif %}>
   <div class="span1">
     {% if comment.updated_by %}
     <img class="img-rounded" src="{{ comment.updated_by.get_profile_picture(size="50") }}"/>
@@ -57,11 +61,6 @@
           <i class="icon-arrow-right"></i>
           <span class="label label-{{ state_color_css(state) }}">{{ state }}</span>
         {% endif %}
-        {% if comment.new_state == "opened" and comment.previous_state == "done"%}
-          <span class="label label-{{ state_color_css('Done') }}">Done</span>
-          <i class="icon-arrow-right"></i>
-          <span class="label label-{{ state_color_css(comment.project.progress_state) }}">{{ comment.project.progress_state }}</span>
-        {% endif %}
         {% if not comment.new_progress_state and comment.new_state == 'done' %}
           <span class="label label-{{ state_color_css(comment.project.progress_state) }}">{{ comment.project.progress_state }}</span>
           <i class="icon-arrow-right"></i>
@@ -74,10 +73,10 @@
         <em> {{ _('Cleared the assigned user') }}</em>
         {% endif %}
         {% if comment.previous_constraint_start_time != comment.new_constraint_start_time %}
-        <span class="label">Start by: {{ comment.previous_constraint_start_time|dateformat }} <i class="icon-arrow-right"></i> {{ comment.new_constraint_start_time|dateformat }}</span>
+        <span class="label">Start by: {{ comment.previous_constraint_start_time and comment.previous_constraint_start_time|dateformat or comment.create_date|dateformat }} <i class="icon-arrow-right"></i> {{ comment.new_constraint_start_time|dateformat }}</span>
         {% endif %}
         {% if comment.previous_constraint_finish_time != comment.new_constraint_finish_time %}
-        <span class="label">Finish by: {{ comment.previous_constraint_finish_time|dateformat }} <i class="icon-arrow-right"></i> {{ comment.new_constraint_finish_time|dateformat }}</span>
+        <span class="label">Finish by: {{ comment.previous_constraint_finish_time and comment.previous_constraint_finish_time|dateformat or comment.create_date|dateformat }} <i class="icon-arrow-right"></i> {{ comment.new_constraint_finish_time|dateformat }}</span>
         {% endif %}
 
         <small class="pull-right">
@@ -108,8 +107,8 @@
 </div>
 {% endmacro %}
 
-{% macro render_commit(commit) %}
-<div class="row-fluid">
+{% macro render_commit(commit, hide=False) %}
+<div class="row-fluid task-update" {% if hide %}style="display:none"{% endif %}>
   <div class="breadcrumb">
     <i class="icon-github"></i> 
     <strong>{{ commit.nereid_user.display_name }}</strong> pushed to 
@@ -118,7 +117,10 @@
       <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(commit.commit_timestamp) }}">{{ request.nereid_user.aslocaltime(commit.commit_timestamp) }}</abbr>
     </small>
     <br/>
-    <a href="{{ commit.commit_url }}" style="font-family: Consolas, 'Liberation Mono', Courier, monospace;" target="new">{{ commit.commit_id and commit.commit_id[:7] or 'COMMIT ID' }}</a> {{ commit.commit_message }}
+    <div class="row-fluid">
+    <a href="{{ commit.commit_url }}" style="font-family: Consolas, 'Liberation Mono', Courier, monospace;" target="new" class="span1">{{ commit.commit_id and commit.commit_id[:7] or 'COMMIT ID' }}</a> 
+    <pre class="span11">{{ commit.commit_message }}</pre>
+    </div>
   </div>
 </div>
 {% endmacro %}
