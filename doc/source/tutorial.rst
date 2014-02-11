@@ -4,22 +4,20 @@ Nereid Project Tutorial
 =======================
 
 This tutorial gives an overview into how nereid project is organized and how it 
-works with the Tryton project module. Familiarity with the tryton project module 
-is not assumed, but could make the project easier to understand. Follow
+works with the Tryton project module. Familiarity with the tryton project
+module is not assumed, but could make the project easier to understand. Follow
 :ref:`quickstart` before starting this tutorial.
 
 Creating Your First Project
 ----------------------------
 
-Everything within the Project Management system starts out with a project.
-Projects start out with a simple default process, with two phases/states:
-opened, and done. Tasks, Tickets, Attachments, all must belong to a project. So
-let's get started with creating a project... 
+For getting started you need to have a project and team members working on
+it. So let's get started with creating a project.
 
-When logged in as a project admin, see :ref:`admin`, he can create new projects,
-invite new or existing users to the project and change settings related to the
-project. Now when project is created, the whole features regarding that project
-are visible.
+When logged in as a project admin, see :ref:`admin`, the admin can create a
+new project, invite new or existing users to the project and change the
+setting related to the project. Now when project is created, all the feature
+regarding that project is visible.
 
 * Click the New Project button (found at the top right of every Project
   Management Page)
@@ -27,33 +25,36 @@ are visible.
 * A modal window will then slide into view, where you will find fields for
   entering the title of the project. Once you are done, click Save.
 
-* You will now be taken to the Project overview screen, you just created your
-  first project!
+* You will now be taken to the Project overview screen, you have just created
+  your first project!
   
-See the screenshot shown below: 
+See the screen-shot shown below: 
 
 .. _project management screen:
 
 .. image:: images/project-page.png
-   :width: 900
-   :align: center
 
-Projects are assigned and related to clients, project managers and the
-appropriate employees. Each can have separate log-ins that allow them to view
-their specific projects.   
+You can invite your team members to collaborate and work together on a
+project. The invites can be your team member and also your client for
+whom you have created this project.
+
+To invite a use go to **People and Permissions** and enter the email address
+of the person you wanted to invite. An invitation email will be sent to
+the user. The user can now check the project, create tasks, mark time etc.
+
 
 .. note::
-    Only the project admin <:ref:`admin`> can create the project on Project
+    Only the project admin <:ref:`admin`> can create the projects on Project
     Management System.
 
-Creating project on tryton client
+Creating project on Tryton client
 ---------------------------------
 
-Alternatively projects could be created from your preferred Tryton client as
-shown below:
+Alternatively projects could be created from your preferred Tryton client,
+go to Projects from the left panel and follow the steps below:
  
 1. Click the Create New button (found at the top left of every form view in
-   tryton)
+   Tryton)
 
 2. Where you will find fields for entering the title of the project, the type
    (whether project or a task), Company, participants or assignee (if any),
@@ -63,60 +64,44 @@ shown below:
    next to New button.
 
 .. image:: images/create-project.png
-   :width: 700
-   :align: center
 
-Project admin adds the project, or performs any changes through tryton client,
-it gets updated to web-interface, and vice-versa.
+If the project admin adds the project, or performs any changes through Tryton
+client, it also gets updated to web-interface, and vice-versa.
 
-Adding Participants to Project via tryton client
+Adding Participants to Project via Tryton Client
 ------------------------------------------------
 
-The project permissions allow project admin to control exactly what he wants
-his employees to be able to access. The participants to the project can only be
-added by the project admin through tryton client as shown below in the
-screenshot, participants are then allowed to do list of following things - can 
-view project, contributes to the project, create tasks, updates the progress
-made so far, change the state of the task, assign it to other participant of
-that project, mark their contribution time, etc.
+Through project permissions you can control your employees access. The
+participants to the project can only be added by the project admin through
+Tryton client as shown below in the screenshot, participants are then allowed
+to do list of following things - can view project, contributes to the project,
+create tasks, updates the progress made so far, change the state of the task,
+assign the task to other participant of that project, mark their time, etc.
 
-This below figure shows how to add the project participants on tryton client:
+This below figure shows how to add the project participants on Tryton client:
 
 .. image:: images/project-participant.png
-   :width: 700
+
 
 Changing State:
 ```````````````
 
-To change the status of a project, simply change the drop down value located to
-the down-left side. It signifies the state of the project whether it is done or
-opened.
+The project can be in open or done state. Status of the project can be
+changed by a project admin. To close a project simply from the admin page.
 
 .. note:: State can be changed only by project admin
 
 .. _invitation:
 
-Invite others and manage your team via web interface
-----------------------------------------------------
-
-With the multi-user log-ins project admin can control who has access to Project.
-Company's clients, staff, vendors, will all be kept up to date on the projects
-they are assigned to.
-Nereid Project makes it easy to invite others to collaborate on project, and
-lets project admin organize team members for project. For example, project
-admin let certain users view specific project but not other project. 
-
-.. image:: images/people-n-permissions.png
-   :width: 900
-
 The Project Management Screen
 -----------------------------
 
-The screenshot shown above, `project management screen`_, is the main page
-where you'll spend most of you time - the project management screen - the page
-that let's you view everything relating to your project, everything is on a
-single page, at your finger tips, right where you need it. It's extremely
-useful for getting things done and quick. 
+.. figure:: images/dashboard.png
+
+The screenshot shown above is the main dashboard of the system. You can
+open a project and you will start working on it. You can see there are
+some side menus available on the left hand side of the screen.
+You can go to the *Task* menu and start creating tickets for the project.
 
 So at the very top we have the project title, next we have the following
 features:
@@ -124,87 +109,94 @@ features:
 * **Dashboard:** Where a list of of all projects are shown depending upon the
   permissions granted to that nereid user. For more information, see
   `dashboard`_.
-
-* **Projects Home:** This contains all the project details - project team
-  member it's assigned to, associated client, total time worked and tasks
-  related to projects.
   
 * **Tasks:** Every single project can have multiple tasks assigned to it.
-  participant of the project can create tasks depending on the requirements to
-  achieve the goal of the project as soon as possible. See `tasks`_.
+  Participant of the project can create tasks depending upon the requirements
+  to achieve the goal of the project as soon as possible. The tasks are
+  displayed according to the states. This view is called Kanban View.
+  See `tasks`_.
 
-* **Time Sheets:** The timesheet module allow to track the time spent by
+* **Time Sheets:** The timesheet module allows to track the time spent by
   employees on various tasks. This module also comes with several reports that
   show the time spent by employees. For more refer `timesheet`_.
 
-* **Planning:** This uses the feature of gantt charts and gantt Charts visually
-  get the big picture or where you are with regards to all of your ongoing
-  tasks. The Nereid Project has a wonderful interface that is completely
-  intuitive.Refer `planning`_.
+* **Planning:** This uses the feature of gantt charts and it allows all the
+  team members to check the planned task according to its estimated time. The
+  Nereid Project has a wonderful interface that is completely intuitive.
+  Refer `planning`_.
 
-* **Files:** Attach and display project related documents in Nereid Project. It
-  is possible to attach files to projects or tasks. Attach and share files in
-  the right context. One can attach many number of files to the task. Later
-  these files can be downloaded/browsed. See more in `files`_.
+* **Files:** Attaching a file is very easy in the Nereid Project. You can
+  attach as many as files you want. You can also see the preview of the
+  images on the task itself. Learn more about it in `files`_.
 
-* **People and Permissions:** The participants of the project, comes under
-  this, project admin can invite, remove participants from the project from
-  here. See `invitation`_.
+* **People and Permissions:** The project admin can invite and remove users
+  from here. See `invitation`_.
 
 .. _tag:
 
-* **Tags :** User can also apply tags to tasks within the project management
-  system. As with colors, the meaning of tags is up to user — user might use
-  them to indicate priority, features, category, or any other information to
-  keep them organized into groups or classes of work they find useful. Just
-  select the color, and add title or name along with it.
+* **Tags :** Creating a tag is only possible by admin. The admin can select a
+  colour for tags and create tags. User can add tags along with the task.
+  You can click the tags from the task view and see all the tasks tagged with
+  it. For example, tag several tasks as *Priority* now you can just click the
+  tag from the Kanban view and you can see all the task under that tag.
   
-* **Estimated Effort** : The estimated effort for a task. See
-  `estimated effort`_.
+* **Estimated Effort** : You can also estimate a task. You just need to
+  put the time needed to do one task. Learn more about it `estimated effort`_.
 
-..and much more.
+
+People and Permission
+----------------------
+
+Nereid project makes it very easy collaborate and work together on a
+project. You can invite as many as user you want to your project. Only the
+project admin can send the invitations. To invite a user just go to the
+people and permission tab on the project view and add the email address of
+the user you wanted to invite. That user can accept the invitation and
+start collaborating to the project. 
+
+This user can be a developer, designer, customer/client, vendor, etc.
+Everybody can work together, and create tickets and assign it to each other.
+The nereid project makes it very easy to get updated about the current
+project. Where people from different zone can collaborate together. 
+
+.. image:: images/people-n-permissions.png
+
 
 .. _tasks:
 
 Creating Task
 --------------
 
-The ability to define a task, assign it to someone, create a deadline, and know
-when it's complete — is generally the most desired and ubiquitous feature in
-project-management system.
+You can click the **New Task** button on the top right section and create a
+task. You can assign the task to another user of the same project, out the
+start date and end date of the task, put estimation on the task and save
+the task.
 
-Once a project is created, tasks are assigned to participants who are solely
-responsible for that task. Nereid Project streamlines the process of adding and
-assigning tasks.
+Once the task is created, it automatically goes to the backlog state. You can
+update the task and keep assigning it to other members. Task is having
+following features:
 
-While creating task, one can do following things:
-
-* Due dates on tasks
-
-* Start dates on tasks
-
-* Add estimated completion time to each task
-
-* Assign tasks to participants.
-
-* Attach files and comments to a task.
-
-* Notify people about a task.
-
-Though any participant can create tasks, in the figure shown below, the project
-admin is creating the task,  with the title and description related to that
-task, can assign it to any of the participants, team members of that project in
-seconds, can put estimated efforts, start and end date for the task. Project
-participant can also assign it to other participant of the project.
+* You can update the task and assign it to another project member.
+* You can also notify another member on the task by clicking the notify button
+  along with the comment box.
+* You can attach files on the task. Attaching files can be done by
+  clicking the attach button next to *Files*. You can also directly drag
+  and drop the file into the comment section.
+* You can put the time you are taking to work on the task.
+* You can change the state of the task from Backlog to, planning, in progress
+  and Done.
+* You can also watch someones task, by clicking the watch icon next to the
+  task heading.
+* All the members of the project will get email notification on their for
+  every activity happening on the tasks they are watching or participating.
 
 .. image:: images/create-task.png
-   :width: 700
-   :align: center
+
 
 .. note::
-   Any nereid user having access to project can create task, update the task by
-   putting comments, upload files into it, and assign it to other nereid user
-   of that project. See `update`_.
+   Any nereid user having access to the project can create task, update the
+   task, putt comments, upload files into it, and assign it to other
+   nereid user of that project. See `update`_.
 
 .. _reST primer:
 
@@ -218,7 +210,8 @@ refer `RST primer <http://sphinx-doc.org/rest.html>`_
 Lists
 `````
 Just place an asterisk at the start of a paragraph and indent properly. The
-same goes for numbered lists;they can also be autonumbered using a ``#`` sign::
+same goes for numbered lists; they can also be autonumbered using a ``#``
+sign::
   
   * This is a bulleted list.
   * It has two items, the second
@@ -276,8 +269,7 @@ employee on that task etc. While marking time user can also update the `state`_
 
 
 .. image:: images/task.png
-   :width: 800
-   :align: center
+
 
 .. _timesheet:
 
@@ -297,8 +289,6 @@ For marking time, see below:
    '.5' and so on.
 
 .. image:: images/time.png
-   :align: center
-   :width: 800
 
 View my-tasks
 -------------
@@ -313,28 +303,28 @@ and with `tag`_ (if associated to it)!
    one state to the necessary state. 
 
 .. image:: images/my-tasks.png
-  :width: 800
-  :align: center
+
 
 View all tasks
 ```````````````
+The participants can view all the tasks on a particular project. All the tasks
+is listed according to Kanban View. So it is easy to check all the tasks
+according to their states. Click Tasks from the side menu and see all the
+tasks according to their states. You can also search for a particular task.
 
-The employees who get access see all tasks gathered in this project as user
-might want to see all of the tasks quickly, find a task when don’t remember its
-name. It can be really helpful to get a comprehensive view of all the tasks.  
+Features:
 
-* Striped multi-colour tasks in NereidProject- tasks with different colors
+* Striped multi-colour tasks in Nereid Project - tasks with different colors
   signifies different `state`_
-* Make an instant search of a task
-* All tasks together, so user can go to one place for all the history of the
-  work.
+* You can instantly search for a task through task id or name.
+* The "All Tasks" tab shows all the open and closed tasks. So the history of
+  the project is also maintained.
 
 To see All Tasks, Open Tasks, Done Tasks just click on the ``Tasks``
 Button shown on the left, for reference see below:
 
 .. image:: images/tasks-list.png
-   :width: 900
-   :align: center
+
 
 .. _state:
 
@@ -347,25 +337,23 @@ State of Task
 .. image:: images/review.png
 .. image:: images/done.png
 
-Ideal way the project admin and participants are using to manage their tasks
-is to specify the state while updating or assigning along with it. This can be
-considered as the tasks progress. For greater transparency of task these
-following states are defined:
- 
-* **Backlog:** The task's backlog state is a state containing short
-  descriptions of all functionality desired in the task when assigned to
-  participant. The task backlog state can consists of features, bug fixes,
-  non-functional requirements, etc. - whatever needs to be done in order to
-  deliver it successfully. The default state of task is backlog after being
-  created.
-* **Planning:** The backlog state can then move into planning, this determines
-  how much of it the user can commit to complete the task.
-* **In Progress:** Development comes under this state to fulfil the
-  requirements that must end on time.
-* **Review:** After development state, user can now assign it back to the
-  :ref:`admin`, to review. If requirements are not completed, the state
-  then be back into ``In Progress`` or ``Planning`` or ``Backlog``.
-* **Done:** If requirements met, the task can then be marked as Done.
+
+Ideally all the user should keep the task updated to their respective states.
+It will increase the transparency amongst the team members and the customer
+involved in the project. All the states are explained below:
+
+* **Backlog:** When you create a new task, by default it goes to the backlog
+  state. You can either drag and drop the task to another state or update the
+  state through the task view.
+* **Planning:** If a task has been planned and the user know well, what needs
+  to be done on that task, then it is kept on the planning state.
+* **In Progress:** Once the user starts developing the task, he/she can
+  drag and drop the task to "In Progress" state.
+* **Review:** Now once the user is done with the task he/she can assign the 
+  task to the assignee for review. The review state can go through several
+  iteration before it get accepted by the assignee.
+* **Done:** If requirements meets the scope of the task, then the task can
+  be marked as Done.
 
 In their simplest, the tasks are categorized into the work stages:
 
@@ -377,41 +365,34 @@ In their simplest, the tasks are categorized into the work stages:
     
 * from Review/QA --> Done
 
-Remove participants from task notification
-```````````````````````````````````````````
+Notify another participant
+```````````````````````````
 
-While updating task user can add or remove people among participants to get
-notified or not, by clicking on ``Notify People`` button. This shows the list
-of participants of that project. Anytime a task is updated all participants of
-the project will get notified by e-mail about the progress of the task and a
-link back to the specific Project task. See below, from where to add-remove
-participants for the current task:
+The participants can notify each other on their respective tasks. While
+updating a task just click on ``Notify People`` button to add or remove
+participants from the task. Now whenever this task will be updated, all the
+participants will get notified through e-mail. See below, from where to
+add-remove participants for the current task:
 
 .. image:: images/notify.png
-   :width: 800
-   :align: center
+
 
 E-mail Notification
 -------------------
 
-An integral part to the Nereid Project is email notification. Each project
-participant as well as the project admin receives an automated email
-notification whenever there is a change is made to the task. The participants
-receives notification about new tasks. Project admin receive notification of
-task completion as well as other task progress state.
+An integral feature of the Nereid Project is email notification. All the
+project participant receives an automated email notification from system.
 
 .. estimated effort::
 
 Estimated Effort
 `````````````````
 
-Estimated Effort is a dimension of every task. This allows for time-based
-completion calculations on every task. As there would be time consumption on
-each task action. This creates a more routine environment for team members
+This feature allow a user to estimate the efforts that is going to be
+used for a particular task. As there would be time consumption on
+each task. This creates a more routine environment for the team members
 allowing them to spend time on a planned way. So that every task has
 achievable schedule objectives.
-The estimated effort required to complete the task could also be filled in when
-creating the task.
  
 .. tip::
    To enter the estimated time afterwards creating the task. Click the
@@ -419,27 +400,21 @@ creating the task.
    window will slide into view, where you can enter the time.
 
 .. image:: images/estimated-time.png
-   :align: center
-   :width: 700
+
 
 .. _files:
    
-Dropbox
---------
+Attachment
+----------
 
-User can attach files directly to tasks, to help keep everything organized and
-in one place. Once a file is attached, all participants can access it quickly.
-The attachment section allows you to upload files to the project or task.
+The user can attach files directly to tasks. There are two ways for attaching
+file:
 
-There are two ways for attaching files to Project Management System:
-
-* Link(From Internet): Provide the URL from internet source, it stores the link
-
-* Local(From your Computer): Choose a local file from your system to upload
+ * Drag and drop the file into the comment section,
+ * Upload the file from your local machine or from dropbox.
 
 .. image:: images/file-upload.png
-   :align: center
-   :width: 800
+
 
 To upload attachments to Nereid Project, follow these steps:
 
@@ -452,8 +427,6 @@ To upload attachments to Nereid Project, follow these steps:
   as shown in figure below.
 
 .. image:: images/upload-file.png
-   :align: center
-   :width: 800
 
 The Files button shows all files that have been attached through individual
 posted to the task. Files attached to the system are collected and displayed
@@ -462,8 +435,6 @@ a link to the area where that file is being attached.The original file is
 included along with a link to download the file.
 
 .. image:: images/files-button.png
-   :width: 800
-   :align: center
 
 .. _dashboard:
 
@@ -479,8 +450,6 @@ projects, for tracking team progress toward completing an iteration.
    project admin.
 
 .. image:: images/dashboard.png
-   :align: center
-   :width: 800
    
 Global Timesheet
 -----------------
@@ -490,13 +459,12 @@ picture' of project productivity and progress. Team members do not have access
 to a global timesheet calendar which details every step within the project
 timeline. It helps to delegate and track project tasks and manage the projects
 effectively.
+
 This timesheet and online project management application helps to track, or
 monitor every hour that is spent on a project, by whom and how they did with
 regards to staying within your expected target durations. 
 
 .. image:: images/global-timesheet.png
-   :align: center
-   :width: 900
 
 .. tip::
    Project admin can filter the performance by employees also. See top-left
@@ -508,8 +476,6 @@ regards to staying within your expected target durations.
    progress.
 
 .. image:: images/timesheet-lines.png
-   :align: center
-   :width: 800
 
 The timesheet line express the fact that one employee spend a part of his/her
 time on a specific work at a given date. The list of timesheet lines of
@@ -521,21 +487,19 @@ Weekly Analysis
 
 To gather data weekly on the actual time spent by employee. For time tracking
 to monitor employees performance. The :ref:`admin` can analyse the progress of
-the team of the project. Can filter it by employee's name also. Refer image:
+the team of the project. You can filter it by employee's name also. 
+Refer image:
 
 .. image:: images/weekly-analysis.png
-   :align: center
-   :width: 800
 
 Task by employees
 ``````````````````
 
-A powerful filter for :ref:`admin` to see tasks holders of the projects.
-Shows list of tasks assigned to particular employee.
+It show the task assigned to all your employees throughout the project
+management system in Kanban view. It is also visible to the project admin.
+:ref:`admin`
 
 .. image:: images/tasks-employee.png
-   :align: center
-   :width: 800
 
 .. _planning:
 
@@ -553,9 +517,8 @@ track your progress on the graphical Gantt charts for their most highly valued
 projects.
 
 .. image:: images/calender.png
-   :width: 900
-   :align: center
- 
+
+
 Here the logged in user can view the timesheet of his current project, and also
 his performance for that project.
 
@@ -586,4 +549,3 @@ start and end time of task or just the duration.
 
 
 .. image:: images/planning.png
-   :width: 1000
