@@ -4,8 +4,8 @@ Getting Started
 ===============
 
 Eager to get started? This page gives a good introduction to Nereid Project.
-It assumes you already have Nereid and Nereid Project installed. If you do not, 
-head over to then :ref:`installation` section.
+It assumes that you already have Nereid and Nereid Project installed. If you
+do not, head over to then :ref:`installation` section.
 
 A minimal application
 ---------------------
@@ -17,8 +17,8 @@ installed head over to `creating website`_.
 Setting up a database
 `````````````````````
 
-To create a new Tryton database, you will need to fill out the information as on 
-the screenshot:
+To create a new Tryton database, you will need to fill out the information
+as on the screenshot:
 
 * Server connection     :  localhost:8000
 * Tryton Server Password:  admin
@@ -74,7 +74,6 @@ user you choose has the sufficient permissions (through groups) to access and
 update tryton models related to project management.
 
 .. image:: images/tryton-web-site.png
-   :width: 700
 
 When the web site is created. It is recommended to create a new Nereid User. 
 Here in above screenshot a new nereid user as a guest is created. But for
@@ -90,7 +89,6 @@ After creating website as mentioned in `creating website`_, create a new
 admin user as shown below:
 
 .. image:: images/nereid-admin-user.png
-   :width: 700
    
 Now we need to set up the created nereid user as project admin, because only 
 project admins are able to create, maintain, the project. And there should
@@ -99,7 +97,6 @@ admins does anybody wants for a project. For that goto company's module, and
 for that company add the nereid user in ``Project Admins`` tab.
  
 .. image:: images/add-admin.png
-   :width: 700
 
 Refer to the :py:class:`trytond_nereid.routing.WebSite` for details on what 
 each of the fields mean.
@@ -201,8 +198,6 @@ purposes which listens to the port 5000. Point your browser to
 `localhost:5000 <http://localhost:5000/>`_ 
 
 .. image:: images/login-page.png
-   :align: center
-   :width: 700
 
 Now the installation is successful. Refer :ref:`tutorial`. 
 
