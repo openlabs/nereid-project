@@ -33,6 +33,7 @@ See the screen-shot shown below:
 .. _project management screen:
 
 .. image:: images/project-page.png
+   :width: 900
 
 You can invite your team members to collaborate and work together on a
 project. The invites can be your team member and also your client for
@@ -64,6 +65,7 @@ go to Projects from the left panel and follow the steps below:
    next to New button.
 
 .. image:: images/create-project.png
+   :width: 900
 
 If the project admin adds the project, or performs any changes through Tryton
 client, it also gets updated to web-interface, and vice-versa.
@@ -81,6 +83,7 @@ assign the task to other participant of that project, mark their time, etc.
 This below figure shows how to add the project participants on Tryton client:
 
 .. image:: images/project-participant.png
+   :width: 900
 
 
 Changing State:
@@ -97,6 +100,7 @@ The Project Management Screen
 -----------------------------
 
 .. figure:: images/dashboard.png
+   :width: 900
 
 The screenshot shown above is the main dashboard of the system. You can
 open a project and you will start working on it. You can see there are
@@ -160,6 +164,7 @@ The nereid project makes it very easy to get updated about the current
 project. Where people from different zone can collaborate together. 
 
 .. image:: images/people-n-permissions.png
+   :width: 900
 
 
 .. _tasks:
@@ -191,6 +196,7 @@ following features:
   every activity happening on the tasks they are watching or participating.
 
 .. image:: images/create-task.png
+   :width: 900
 
 
 .. note::
@@ -269,6 +275,7 @@ employee on that task etc. While marking time user can also update the `state`_
 
 
 .. image:: images/task.png
+   :width: 900
 
 
 .. _timesheet:
@@ -289,6 +296,7 @@ For marking time, see below:
    '.5' and so on.
 
 .. image:: images/time.png
+   :width: 900
 
 View my-tasks
 -------------
@@ -303,6 +311,7 @@ and with `tag`_ (if associated to it)!
    one state to the necessary state. 
 
 .. image:: images/my-tasks.png
+   :width: 900
 
 
 View all tasks
@@ -324,6 +333,7 @@ To see All Tasks, Open Tasks, Done Tasks just click on the ``Tasks``
 Button shown on the left, for reference see below:
 
 .. image:: images/tasks-list.png
+   :width: 900
 
 
 .. _state:
@@ -375,6 +385,7 @@ participants will get notified through e-mail. See below, from where to
 add-remove participants for the current task:
 
 .. image:: images/notify.png
+   :width: 900
 
 
 E-mail Notification
@@ -400,6 +411,7 @@ achievable schedule objectives.
    window will slide into view, where you can enter the time.
 
 .. image:: images/estimated-time.png
+   :width: 900
 
 
 .. _files:
@@ -414,6 +426,7 @@ file:
  * Upload the file from your local machine or from dropbox.
 
 .. image:: images/file-upload.png
+   :width: 900
 
 
 To upload attachments to Nereid Project, follow these steps:
@@ -427,6 +440,7 @@ To upload attachments to Nereid Project, follow these steps:
   as shown in figure below.
 
 .. image:: images/upload-file.png
+   :width: 900
 
 The Files button shows all files that have been attached through individual
 posted to the task. Files attached to the system are collected and displayed
@@ -435,6 +449,7 @@ a link to the area where that file is being attached.The original file is
 included along with a link to download the file.
 
 .. image:: images/files-button.png
+   :width: 900
 
 .. _dashboard:
 
@@ -450,6 +465,7 @@ projects, for tracking team progress toward completing an iteration.
    project admin.
 
 .. image:: images/dashboard.png
+   :width: 900
    
 Global Timesheet
 -----------------
@@ -465,6 +481,7 @@ monitor every hour that is spent on a project, by whom and how they did with
 regards to staying within your expected target durations. 
 
 .. image:: images/global-timesheet.png
+   :width: 900
 
 .. tip::
    Project admin can filter the performance by employees also. See top-left
@@ -476,6 +493,7 @@ regards to staying within your expected target durations.
    progress.
 
 .. image:: images/timesheet-lines.png
+   :width: 900
 
 The timesheet line express the fact that one employee spend a part of his/her
 time on a specific work at a given date. The list of timesheet lines of
@@ -491,6 +509,7 @@ the team of the project. You can filter it by employee's name also.
 Refer image:
 
 .. image:: images/weekly-analysis.png
+   :width: 900
 
 Task by employees
 ``````````````````
@@ -500,6 +519,7 @@ management system in Kanban view. It is also visible to the project admin.
 :ref:`admin`
 
 .. image:: images/tasks-employee.png
+   :width: 900
 
 .. _planning:
 
@@ -517,6 +537,7 @@ track your progress on the graphical Gantt charts for their most highly valued
 projects.
 
 .. image:: images/calender.png
+   :width: 900
 
 
 Here the logged in user can view the timesheet of his current project, and also
@@ -549,3 +570,4 @@ start and end time of task or just the duration.
 
 
 .. image:: images/planning.png
+   :width: 900
