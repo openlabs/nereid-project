@@ -219,7 +219,7 @@
     <i class="icon-time"></i>
   </a>
   {% endif %}
-{% if task.timesheet_lines %}
+{% if task.work.timesheet_lines %}
   <br/><small> by employee</small>
 </h4>
 <ul class="nav nav-tabs nav-stacked">
@@ -853,7 +853,7 @@
   });
 </script>
 
-{% if task.timesheet_lines %}
+{% if task.work.timesheet_lines %}
 <script>
   $(document).ready(function(){
 
