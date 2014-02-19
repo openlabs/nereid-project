@@ -7,6 +7,7 @@
     :copyright: (c) 2012-2013 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
+import os
 import uuid
 import re
 import tempfile
@@ -22,12 +23,13 @@ from mimetypes import guess_type
 from email.utils import parseaddr
 
 import simplejson as json
-from babel.dates import parse_date
+from babel.dates import parse_date, format_date
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
-    flash, jsonify, render_email, permissions_required
+    flash, jsonify, render_email, permissions_required, current_app
 )
 from flask import send_file
+from flask.helpers import send_from_directory
 from nereid.ctx import has_request_context
 from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
@@ -37,7 +39,7 @@ from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
 from trytond.tools import get_smtp_server
-from trytond.backend import TableHandler
+from trytond import backend
 
 __all__ = [
     'WebSite', 'ProjectUsers', 'ProjectInvitation',
@@ -57,6 +59,14 @@ PROGRESS_STATES = [
     ('Review', 'Review/QA'),
     ('Done', 'Done'),
 ]
+
+#: Get the static folder. The static folder also
+#: goes into the site packages
+STATIC_FOLDER = os.path.join(
+    os.path.abspath(
+        os.path.dirname(__file__)
+    ), 'static'
+)
 
 
 def request_wants_json():
@@ -110,6 +120,7 @@ class ProjectUsers(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
+        TableHandler = backend.get('TableHandler')
         table = TableHandler(cursor, cls, module_name)
         super(ProjectUsers, cls).__register__(module_name)
         # Migration
@@ -361,13 +372,13 @@ class Project:
             # Display all projects to project admin
             projects = cls.search([
                 ('type', '=', 'project'),
-                ('parent', '=', False),
+                ('parent', '=', None),
             ])
         else:
             projects = cls.search([
                 ('participants', '=', request.nereid_user.id),
                 ('type', '=', 'project'),
-                ('parent', '=', False),
+                ('parent', '=', None),
             ])
         if request.is_xhr:
             return jsonify({
@@ -831,7 +842,7 @@ class Project:
 
         invitations = ProjectInvitation.search([
             ('project', '=', project.id),
-            ('nereid_user', '=', False)
+            ('nereid_user', '=', None)
         ])
         return render_template(
             'project/permissions.jinja', project=project,
@@ -1028,7 +1039,7 @@ class Project:
 
         tasks = Pagination(cls, filter_domain, page, 10)
         return render_template(
-            'project/project-task-list.jinja', project=project,
+            'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
             state_filter=state, tasks=tasks
         )
@@ -1211,10 +1222,10 @@ class Project:
                 domain, order=[('date', 'asc'), ('employee', 'asc')]
             )
             return jsonify(lines=[
-                render_template(
+                unicode(render_template(
                     'project/timesheet-line.jinja', line=line,
                     related_task=cls.get_task_from_work(line.work)
-                )
+                ))
                 for line in lines[::-1]
             ])
 
@@ -1272,7 +1283,7 @@ class Project:
             day_totals.append({
                 'id': '%s:%s:%s' % (date, employee.id, project_id),
                 'title': '%s (%dh %dm)' % (
-                    employee.name, hours, (hours * 60) % 60
+                    employee.rec_name, hours, (hours * 60) % 60
                 ),
                 'start': date.isoformat(),
                 'color': color_map.setdefault(employee, colors.next()),
@@ -1385,7 +1396,7 @@ class Project:
         for employee_id in employee_ids:
             employee = employees.get(employee_id)
             series.append({
-                'name': employee and employee.name or 'Ghost',
+                'name': employee and employee.rec_name or 'Ghost',
                 'type': 'column',
                 'data': map(
                     lambda d:
@@ -1458,7 +1469,7 @@ class Project:
         for employee_id, values in employee_wise_data.iteritems():
             employee = employees.get(employee_id)
             gantt_data_append({
-                'name': employee and employee.name or 'Ghost',
+                'name': employee and employee.rec_name or 'Ghost',
                 'desc': '',
                 'values': values,
             })
@@ -1720,7 +1731,7 @@ class Project:
                 'type': 'data'
             })
 
-        attachment = Attachment.create([data])
+        attachment, = Attachment.create([data])
 
         if request.is_xhr or request_wants_json():
             with Transaction().set_context(task=work.id):
@@ -1753,7 +1764,7 @@ class Project:
         }
 
         updatable_attrs = ['progress_state']
-        new_participant_ids = []
+        new_participant_ids = set()
         current_participant_ids = [p.id for p in task.participants]
         post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
         if any(post_attrs):
@@ -1782,7 +1793,7 @@ class Project:
                     task_changes['assigned_to'] = new_assignee_id
                     if new_assignee_id and new_assignee_id not in \
                             current_participant_ids:
-                        new_participant_ids.append(new_assignee_id)
+                        new_participant_ids.add(new_assignee_id)
             if task_changes:
                 # Only write change if anything has really changed
                 cls.write([task], task_changes)
@@ -1806,17 +1817,17 @@ class Project:
 
         if request.nereid_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
-            new_participant_ids.append(request.nereid_user.id)
+            new_participant_ids.add(request.nereid_user.id)
 
         for nereid_user in request.form.getlist('notify[]', int):
             # Notify more people if there are people
             # who havent been added as participants
             if nereid_user not in current_participant_ids:
-                new_participant_ids.append(nereid_user)
+                new_participant_ids.add(nereid_user)
 
         if new_participant_ids:
             cls.write(
-                [task], {'participants': [('add', new_participant_ids)]}
+                [task], {'participants': [('add', list(new_participant_ids))]}
             )
 
         hours = request.form.get('hours', None, type=float)
@@ -2117,6 +2128,76 @@ class Project:
             'items': items,
         })
 
+    @classmethod
+    @login_required
+    def stats(cls):
+        """
+        Return a JSOn of the performance of employees
+        """
+        Date = Pool().get('ir.date')
+
+        if not request.nereid_user.employee:
+            raise abort(403)
+
+        cursor = Transaction().cursor
+        query = """
+            SELECT
+                count(timesheet_line.id) AS c,
+                party.name AS name,
+                sum(hours) AS hours
+            FROM timesheet_line
+            JOIN company_employee ON company_employee.id=timesheet_line.employee
+            JOIN party_party AS party ON party.id=company_employee.party
+            WHERE timesheet_line.date >= %s AND timesheet_line.date <= %s
+            GROUP BY party.name ORDER BY sum(hours) DESC;
+        """
+        end_date = Date.today()
+        if request.args.get('end_date'):
+            end_date = parse_date(
+                request.args['end_date'],
+                locale='en_IN',
+            )
+        start_date = end_date - relativedelta(months=1)
+        if request.args.get('start_date'):
+            start_date = parse_date(
+                request.args['start_date'],
+                locale='en_IN',
+            )
+        cursor.execute(query, (start_date, end_date))
+        top_time_reporters = cursor.fetchall()
+
+        query = """
+            SELECT count(project_work_history.id) AS c, party.name AS name
+            FROM project_work_history
+            JOIN nereid_user ON nereid_user.id = project_work_history.updated_by
+            JOIN party_party AS party ON party.id = nereid_user.party
+            WHERE
+                project_work_history.create_date >= %s
+                AND project_work_history.create_date <= %s
+                AND nereid_user.employee IS NOT NULL
+            GROUP BY party.name ORDER BY count(project_work_history.id) DESC;
+        """
+        cursor.execute(query, (start_date, end_date))
+        top_commentors = cursor.fetchall()
+
+        return jsonify(
+            start_date=format_date(start_date, locale='en_IN'),
+            end_date=format_date(end_date, locale='en_IN'),
+            top_time_reporters=top_time_reporters,
+            top_commentors=top_commentors,
+        )
+
+    @classmethod
+    def send_static_file(self, filename):
+        """Function used internally to send static files from the static
+        folder to the browser.
+        """
+        cache_timeout = current_app.get_send_file_max_age(filename)
+        return send_from_directory(
+            STATIC_FOLDER, filename,
+            cache_timeout=cache_timeout
+        )
+
 
 class Tag(ModelSQL, ModelView):
     "Tags"
@@ -2243,6 +2324,7 @@ class TaskTags(ModelSQL):
         Register class and update table name to new.
         '''
         cursor = Transaction().cursor
+        TableHandler = backend.get('TableHandler')
         table = TableHandler(cursor, cls, module_name)
         super(TaskTags, cls).__register__(module_name)
 
@@ -2726,6 +2808,24 @@ class Attachment:
     Ir Attachment
     '''
     __name__ = "ir.attachment"
+
+    active = fields.Boolean("Active")
+    uploaded_by = fields.Many2One("nereid.user", "Uploaded By")
+
+    @staticmethod
+    def default_uploaded_by():
+        """
+        Sets current nereid user as default for uploaded_by
+        """
+        if has_request_context():
+            return request.nereid_user.id
+
+    @staticmethod
+    def default_active():
+        """
+        Sets default for active
+        """
+        return True
 
     def _json(self):
         rv = {

@@ -1,0 +1,81 @@
+{% extends 'profile.jinja' %}
+
+{% set active_type_name = 'address' %}
+
+{% from '_helpers.jinja' import render_address %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li><span class="divider">/</span><a href="{{ url_for('party.address.view_address') }}">Addresses</a></li>
+{% endblock %}
+
+{% block main %}
+<div class="page-header">
+  <h1>Addresses <small>of {{ request.nereid_user.display_name }}</small></h1><br>
+  <a class="btn" href="{{ url_for('party.address.edit_address') }}">
+    <i class="icon-plus"></i> Add another Address
+  </a>
+</div>
+<table class="table">
+  {% for address in request.nereid_user.addresses %}
+  <div class="row-fluid">
+  <tr>
+    <td span="3">
+      {{ render_address(address) }}
+      <a href="{{ url_for('party.address.edit_address', address=address.id) }}" class="btn"><i class="icon-edit"></i> Edit Address</a>
+    </td>
+    {% if loop.index==1 %}
+      <td rowspan="{{ request.nereid_user.addresses|count }}" class="span9">
+        <div id="map_canvas_{{ address.id }}" class="address" data-address-id="{{ address.id }}"
+          style="width:90%; height:{{ 160*request.nereid_user.addresses|count }}px" data-address="{{ address.street }},{{ address.streetbis }}, {{ address.city }}, {{ address.zip }}, {{ address.country and address.country.code or '' }}"></div>
+      </td>
+    {% else %}
+        <div id="map_canvas_{{ address.id }}" class="address" data-address-id="{{ address.id }}"
+          style="display:none;" data-address="{{ address.street }},{{ address.streetbis }}, {{ address.city }}, {{ address.zip }}, {{ address.country and address.country.code or '' }}"></div>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script type="text/javascript"
+    src="{{ url_for('project.work.send_static_file', filename='js/map.google.js') }}">
+  </script>
+  <script>
+    $(document).ready(function() {
+      var latlng = new google.maps.LatLng(-34.397, 150.644);
+      $("div.address").each(function(index){
+        var geocoder = new google.maps.Geocoder();
+        var mapOptions = {
+          zoom: 10,
+          center: latlng,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+        map = new google.maps.Map(
+          document.getElementById($(this).attr('id')), mapOptions
+        );
+        var address = $(this).attr('data-address');
+
+        geocoder.geocode({'address': address}, function(results, status) {
+          if (status == google.maps.GeocoderStatus.OK) {
+            map.setCenter(results[0].geometry.location);
+            var marker = new google.maps.Marker({
+                map: map,
+                position: results[0].geometry.location
+            });
+          } else {
+            $(this).hide();
+            var alert = '<div class="alert"><button type="button" class="close" data-dismiss="alert">×</button>';
+            alert += '<strong>Warning!</strong>' 
+            alert = alert + "Map could not be loaded for the address"
+            alert += '</div>';
+            $(this).html(alert);
+          }
+        });
+
+      });
+    });
+  </script>
+{% endblock %}

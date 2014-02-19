@@ -1,0 +1,60 @@
+{% extends 'project/home.jinja' %}
+
+{% from "_helpers.jinja" import status_label, render_pagination %}
+{% from "_helpers.jinja" import render_task with context %}
+
+{% block title %}Tasks by Employee{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li><a href="{{ url_for('project.work.render_tasks_by_employee') }}">Tasks by employee</a></li>
+{% endblock %}
+
+{% block left %}
+
+<ul class="nav nav-tabs nav-stacked">
+  <li>
+    <a href="{{ url_for('project.work.home') }}"><i class="icon-arrow-left"></i> Back to projects list</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block container %}
+
+<div class="row-fluid">
+  <div class="pagination">
+    <ul class="span1">
+      <li class="span12"><a class="span12">Employee</a></li>
+    </ul>
+    <ul class="span11">
+      {% for state, state_name in states if state %}
+      <li class="span3"><a class="span12">{{ state_name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {% for employee in employees %}
+  <div class="row-fluid">
+    <div class="span1">
+    <div class="span12" style="text-align:center">
+      <img class="img-circle" src="{{ employee.get_profile_picture(size="40") }}"/>
+      <b>{{ employee.party.name }}</b>
+    </div>
+    </div>
+
+    <div class="span11">
+    {% for state, state_name in states if state %}
+    <div class="span3">
+      {% for task in tasks_by_employee_by_state[employee][state] %}
+        {{ render_task(task, assigned_to_picture=False, show_project_tag=True) }}
+      {% endfor %}
+    </div>
+    {% endfor %}
+    </div>
+  </div>
+  <hr/>
+  {% endfor %}
+
+</div>
+{% endblock  %}

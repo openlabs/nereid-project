@@ -14,6 +14,12 @@ import os
 import ConfigParser
 
 
+def get_files(root):
+    for dirname, dirnames, filenames in os.walk(root):
+        for filename in filenames:
+            yield os.path.join(dirname, filename)
+
+
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
@@ -31,6 +37,7 @@ requires = [
     'raven',
     'blinker',
     'simplejson',
+    'trytond >= 3.0.3, < 3.1',
 ]
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):
@@ -58,7 +65,9 @@ setup(
     ],
     package_data={
         'trytond.modules.nereid_project': info.get('xml', [])
-        + info.get('translation', []) + ['tryton.cfg'],
+        + info.get('translation', []) + ['tryton.cfg']
+        + list(get_files("templates/"))
+        + list(get_files("static/")),
     },
     classifiers=[
         'Development Status :: 4 - Beta',

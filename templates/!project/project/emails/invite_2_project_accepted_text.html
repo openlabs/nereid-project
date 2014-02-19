@@ -1,0 +1,19 @@
+Hi,
+
+{{ invitation.nereid_user.display_name }} has accepted the invitation to join the project {{ invitation.project.rec_name }}.
+
+You can go to the {{ url_for('project.work.render_project', project_id=invitation.project.id, _external=True) }} to start collaborating with {{ invitation.nereid_user.display_name }}.
+
+Current {{ ngettext('participant', 'participants', invitation.project.all_participants|count) }} in the project:
+
+{%- for participant in invitation.project.participants -%}
+    {%- if not loop.first and not loop.last -%}
+,
+    {%- endif -%}
+    {%- if not loop.first and loop.last -%}
+ and
+    {%- endif -%}
+    {%- if participant.display_name -%}
+      {{ participant.display_name }}
+    {%- endif -%}
+{%- endfor -%}

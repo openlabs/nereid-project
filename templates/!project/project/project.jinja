@@ -1,0 +1,546 @@
+{% extends 'project/home.jinja' %}
+{% from '_helpers.jinja' import render_time_reported with context %}
+
+{% macro new_task_modal() %}
+<!-- Modal for new task -->
+<div class="modal fade" id="new-task" aria-hidden="true" style="display: none; ">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">×</button>
+    <h3>{{ _('Create a New Task') }}</h3>
+  </div>
+  <div class="modal-body">
+    <form class="form-vertical well" id="new-task-form" method="POST" 
+        action="{{ url_for('project.work.create_task', active_id=project.id) }}">
+      <label for="name">A task Title:</label>
+      <input class="span12" type="text" placeholder="Do Something"
+        name="name" required="required" id="name"/>
+      <textarea class="span12" id="description" name="description" 
+        placeholder="Description" rows="5"></textarea>
+      <select id="assign_to" name="assign_to" class="span12">
+        <option value=''>Unassigned</option>
+        {% for participant in project.all_participants %}
+          <option value="{{ participant.id }}">
+            <span><img class="img" src="{{ participant.get_profile_picture(size="20", https=True) }}"></span>
+            <span class="name">{{ participant.display_name }}</span>
+          </option>
+        {% endfor %}
+      </select>
+      <label for="estimated_hours">Estimated hours</label>
+      <input class="span12" type="text" placeholder="Estimated hours"
+        name="estimated_hours" id="estimated_hours"/>
+      <label for="constraint_start_time">Task should start and finish by <small>(Optional):</small></label>
+      <div class="input-append date datepicker span4">
+				<input class="datepicker span10" type="text" name="constraint_start_time" readonly="">
+				<span class="add-on" rel="tooltip" title="Select Start Date"><i class="icon-calendar"></i></span>
+			</div>
+      <div class="input-append date datepicker span4 offset1">
+				<input class="datepicker span10" type="text" name="constraint_finish_time" readonly="">
+				<span class="add-on" rel="tooltip" title="Select Finish Date"><i class="icon-calendar"></i></span>
+			</div>
+
+      <a class="btn clear-date offset1" rel="tooltip" title="Clear Dates"><i class="icon-remove-sign"></i></a>
+      <br/>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-info pull-right span6 offset3" 
+          id="create_new_project" data-loading-text="Creating New Project">
+          <i class="icon-plus icon-white"></i> {{ _('Save') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endmacro %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="divider">/</li>
+<li>
+  <a href="{{ url_for('project.work.render_project', project_id=project.id) }}">
+    {{ project.rec_name }}
+  </a>
+</li>
+<li class="pull-right">
+  <a class="btn btn-success btn-small" style="padding-top:0" data-toggle="modal" href="#new-task"><i class="icon-plus"></i> New Task</a>
+</li>
+
+{{ new_task_modal() }}
+
+{% endblock %}
+
+{% block title %}
+{{ _("Project: ") + project.work.name }}
+{% endblock %}
+
+{% block left %}
+
+{{ render_time_reported() }}
+
+<ul class="nav nav-tabs nav-stacked">
+  <li>
+    <a href="{{ url_for('project.work.home') }}"><i class="icon-arrow-left"></i> Back to projects list</a>
+  </li>
+</ul>
+
+<ul class="nav nav-tabs nav-stacked">
+  <li {% if active_type_name == 'recent' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_project', project_id=project.id) }}">
+      <i class="icon-eye-open"></i> {{ _('Recent Activity') }}
+    </a>
+  </li>
+  <li {% if active_type_name == 'render_task_list' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened') }}">
+      <i class="icon-tasks"></i> {{ _('Tasks') }}
+    </a>
+  </li>
+  <li {% if active_type_name == 'timesheet' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_timesheet', project_id=project.id) }}"><i class="icon-time"></i> {{ _('Time Sheets') }}
+    </a>
+  </li>
+  <li {% if active_type_name == 'plan' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_plan', project_id=project.id) }}"><i class="icon-calendar"></i> {{ _('Planning') }}</a>
+  </li>
+  <li  {% if active_type_name == 'files' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.render_files', project_id=project.id) }}"><i class="icon-folder-close"></i> {{ _('Files') }}</a>
+  </li>
+  {% if request.nereid_user.is_project_admin() %}
+  <li>
+    <a href="#"><i class="icon-wrench"></i> {{ _('Settings') }}</a>
+  </li>
+  <li {% if active_type_name == 'permissions' %}class="active"{% endif %}>
+    <a href="{{ url_for('project.work.permissions', project_id=project.id) }}"><i class="icon-user"></i> {{ _('People & Permissions') }}</a>
+  </li>
+  {% endif %}
+</ul>
+
+
+<ul class="nav nav-list">
+  <li>
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', user=request.nereid_user.id) }}">
+      <i class="icon-tasks"></i> {{ _("My Tasks in this project") }}
+    </a>
+  </li>
+  <li>
+    <a data-toggle="modal" href="#new-task">
+      <i class="icon-plus"></i> {{ _("New Task") }}
+    </a>
+  </li>
+  <hr>
+</ul>
+
+<div class="row-fluid">
+  {% if request.nereid_user.is_project_admin() %} 
+    <h4 class="pull-left span12"><small><i class="icon-tags"></i></small> {{ _('Tags') }} </h4>
+
+    {% if project.tags_for_projects %} 
+      {% for tag in project.tags_for_projects %}
+        <div class="btn-group span12" id="{{ tag.id }}">
+          <a class="btn btn-{{ tag.color }} btn-mini" 
+            title="View all tasks with {{ tag.name }} tag" rel="tooltip" 
+            href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id, state=request.args.get('state', 'opened'), q=request.args.get('q', None)) }}">
+            {{ tag.name }}
+          </a>
+          <a href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=tag.id, state=request.args.get('state', 'opened'), q=request.args.get('q', None)) }}">
+            <span class="label label-{{ tag.color if tag.color != 'danger' else 'important' }} pull-right">
+              {{ tag.project.get_tasks_by_tag(tag.id)|length }}
+            </span>
+          </a>
+          <a class="btn btn-{{ tag.color }} btn-mini btn-remove-tag"
+            title="Remove tag {{ tag.name }}" rel="tooltip" id="{{ tag.id }}"
+            data-url="{{ url_for('project.work.tag.delete_tag', active_id=tag.id) }}">
+            <i class="icon-remove icon-white"></i>
+          </a>
+        </div>
+      {% endfor %}
+      
+    {% endif %}
+
+    <form class="form-vertical" id="new-tag-form" method="POST"
+        action="{{ url_for('project.work.tag.create_tag', project_id=project.id) }}">
+      <input class="span12" type="text" placeholder="New tag name"
+          name="name" required="required" id="name"/>
+      <input type="hidden" name="color" id="color"/>
+      <div class="btn-toolbar">
+        <div class="btn-group" id="color_palette" data-toggle="buttons-radio">
+          <a class="btn btn-primary span2 color" color="primary">&nbsp;</a>
+          <a class="btn btn-info span2 color" color="info">&nbsp;</a>
+          <a class="btn btn-warning span2 color" color="warning">&nbsp;</a>
+          <a class="btn btn-success span2 color" color="success">&nbsp;</a>
+          <a class="btn btn-danger span2 color" color="danger">&nbsp;</a>
+          <a class="btn btn-inverse span2 color" color="inverse">&nbsp;</a>
+        </div>
+      </div>
+      <button type="submit" class="btn pull-right"
+        id="create_new_tag" data-loading-text="Creating new Tag">
+        <i class="icon-plus"></i> {{ _('Add a new tag') }}
+      </button>
+
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block main %}
+    {% if request.endpoint == 'project.work.render_project' %}
+      <div class="row-fluid" id="project_timeline">
+        <!-- Put stream here -->
+      </div>
+      <div class="row-fluid">
+        <div class="span5"></div>
+        <a class="btn btn-mini" id="more_project_timeline">{{ _('Show More') }}</a>
+      </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    function localDate(d) {
+      d = d.split('.', 1);
+      return new Date(d[0] + "+00:00");
+    }
+  </script>
+  <script id="created_project" type="text/template">
+    <i class="icon-folder-open">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> created new project <a href="<%= object.url %>"><%= object.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="created_tag" type="text/template">
+    <i class="icon-tag">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> created new tag <a href="<%= object.url %>"><%= object.displayName %></a> for <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="created_task" type="text/template">
+    <i class="icon-puzzle-piece">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> created new task <a href="<%= object.url %>"><%= object.displayName %></a> for <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="reported_time" type="text/template">
+    <i class="icon-time">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> worked for <b><%= object.displayName %></b> on <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="updated_task" type="text/template">
+    <i class="icon-paste">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> changed <%= string %> of <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="assigned_to" type="text/template">
+    <i class="icon-user">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> assigned <a href="<%= object.url %>"><%= object.displayName %></a> to <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="changed_date" type="text/template">
+    <i class="icon-time">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> changed dates of <a href="<%= object.url %>"><%= object.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="edited_task" type="text/template">
+    <i class="icon-paste">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> updated details of <a href="<%= object.url %>"><%= object.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="joined_project" type="text/template">
+    <i class="icon-user">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> joined <a href="<%= object.url %>"><%= object.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="removed_participant" type="text/template">
+    <i class="icon-user">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> removed from <a href="<%= object.url %>"><%= object.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="added_tag_to_task" type="text/template">
+    <i class="icon-tag">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> added tag <a href="<%= object.url %>"><%= object.displayName %></a> to <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="removed_tag_from_task" type="text/template">
+    <i class="icon-tag">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> removed tag <a href="<%= object.url %>"><%= object.displayName %></a> from <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="changed_state" type="text/template">
+    <i class="icon-tag">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> changed state of <a href="<%= target.url %>"><%= target.displayName %></a> to <b><%= object.new_state ? object.new_state : object.new_progress_state %></b>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr>
+    <hr/>
+  </script>
+  <script id="commented_changed_assignee" type="text/template">
+    <i class="icon-tag">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> commented at <a href="<%= target.url %>"><%= target.displayName %></a> and assigned to <a href="<%= object.new_assignee.url %>"><%= object.new_assignee.displayName %></a>
+      <% if (object.new_progress_state || object.new_state){ %>
+          in <b><%= (object.new_state ? object.new_state : object.new_progress_state) %></b>
+      <% } %>
+      </b>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr><br>
+    <span class="offset1 small"><i class="icon-paste">&nbsp;&nbsp;&nbsp;</i> <%= (object.comment).substr(0,100) %></span>
+    <hr/>
+  </script>
+  <script id="commented_task" type="text/template">
+    <i class="icon-paste">&nbsp;&nbsp;&nbsp;</i> <img src="<%= actor.image.url %>" class="img-circle" /> <a href="<%= actor.url %>"><%= actor.displayName %></a> commented on <a href="<%= target.url %>"><%= target.displayName %></a>.
+    <abbr class="small muted" title="<%= published %>"><%= $.timeago(localDate(published)) %></abbr><br>
+    <span class="offset1 small"><i class="icon-paste">&nbsp;&nbsp;&nbsp;</i> <%= (object.comment).substr(0,100) %></span>
+    <hr/>
+  </script>
+  <script>
+    $(document).ready(function(){
+      var page = 0;
+
+      var created_project_template = _.template($("script#created_project").html());
+      var created_tag_template = _.template($("script#created_tag").html());
+      var created_task_template = _.template($("script#created_task").html());
+      var reported_time_template = _.template($("script#reported_time").html());
+      var updated_task_template = _.template($("script#updated_task").html());
+      var commented_task_template = _.template($("script#commented_task").html());
+      var assigned_to_template = _.template($("script#assigned_to").html());
+      var changed_date_template = _.template($("script#changed_date").html());
+      var edited_task_template = _.template($("script#edited_task").html());
+      var joined_project_template = _.template($("script#joined_project").html());
+      var removed_participant_template = _.template($("script#removed_participant").html());
+      var added_tag_template = _.template($("script#added_tag_to_task").html());
+      var removed_tag_template = _.template($("script#removed_tag_from_task").html());
+      var changed_state_template = _.template($("script#changed_state").html());
+      var commented_changed_assignee_template = _.template($("script#commented_changed_assignee").html());
+
+      // Remove a tag
+      $('.btn-remove-tag').click(function(){
+        tag_id = $(this).attr('id')
+        $.ajax({
+          url: $(this).attr('data-url'),
+          type: 'POST'
+        })
+        .done(function() {
+          $("div#" + tag_id).hide();
+        });
+      });
+
+      $("#more_project_timeline").click(function(e){
+        e.preventDefault();
+        $.getJSON("{{ url_for('project.work.stream', active_id=project.id) }}?page=" + ++page)
+          .done(function(response){
+            if (!response.items.length) {
+              $("#more_project_timeline").remove();
+              return;
+            }
+            _.each(response.items, function(item){
+                if (!item) {
+                  return;
+                }
+                switch(item.verb) {
+                  case "created_project":
+                    $("#project_timeline").append(created_project_template(item));
+                    break;
+                  case "created_tag":
+                    $("#project_timeline").append(created_tag_template(item));
+                    break;
+                  case "created_task":
+                    $("#project_timeline").append(created_task_template(item));
+                    break;
+                  case "reported_time":
+                    $("#project_timeline").append(reported_time_template(item));
+                    break;
+                  case "assigned_task_to":
+                    $("#project_timeline").append(assigned_to_template(item));
+                    break;
+                  case "changed_date":
+                    $("#project_timeline").append(changed_date_template(item));
+                    break;
+                  case "edited_task":
+                    $("#project_timeline").append(edited_task_template(item));
+                    break;
+                  case "joined_project":
+                    $("#project_timeline").append(joined_project_template(item));
+                    break;
+                  case "removed_participant":
+                    $("#project_timeline").append(removed_participant_template(item));
+                    break;
+                  case "added_tag_to_task":
+                    $("#project_timeline").append(added_tag_template(item));
+                    break;
+                  case "removed_tag_from_task":
+                    $("#project_timeline").append(removed_tag_template(item));
+                    break;
+                  case "updated_task":
+                    var msg = "";
+                    if(item.object.new_state || item.object.new_progress_state){
+                      msg = "state, ";
+                    }
+                    if(item.object.new_assignee){
+                      msg += "assignee, ";
+                    }
+                    if(msg){
+                      msg = msg.substr(0, msg.length-2);
+                    }
+                    console.log(msg + item.object.comment);
+                    if(!msg && item.object.comment){
+                      $("#project_timeline").append(commented_task_template(item));
+                      break;
+                    }
+                    if(msg == "state"){
+                      $("#project_timeline").append(changed_state_template(item));
+                      break;
+                    }
+                    $("#project_timeline").append(commented_changed_assignee_template(item));
+                    break;
+               }
+            });
+          });
+      }).click();
+    });
+  </script>
+  <script>
+    $(document).ready(function(){
+      $(".color").click(function(){
+        $(this).parent().children().removeClass('active');
+        $(this).addClass('active');
+
+        // This is UGLY. On post the value should be picked up from the 
+        // active button
+        $("input#color").attr('value', $(this).attr('color'));
+      });
+
+      // Make edit buttons visible on hovers
+      $(".btn-edit-tag-area").hover(
+        function(){$(this).find(".btn-edit-tag").show();},
+        function(){$(this).find(".btn-edit-tag").hide();}
+      );
+
+      // Display option to delete a tag on click of edit tag
+      $('.btn-edit-tag').click(function(){
+        $($(this).siblings('a.btn-done-edit-tag')).show();
+        $(this).hide();
+        $(this).removeClass('btn-edit-tag').addClass('btn-edit-tag-disabled');
+        $('.count-tag').hide();
+        $('.remove-tag').show();
+      });
+
+      // Go back to normal state if done button is clicked
+      $('.btn-done-edit-tag').click(function(){
+        $(this).hide();
+        $($(this).siblings('a.btn-edit-tag-disabled')).removeClass('btn-edit-tag-disabled').addClass('btn-edit-tag').show();
+        $('.count-tag').show();
+        $('.remove-tag').hide();
+      });
+    });
+  </script>
+
+  <script type="text/javascript" charset="utf-8">
+    $(document).ready(function(){
+
+      $('.clear-date').click(function() {
+        $(this).parent().find('input.datepicker').val('');
+      });
+
+      // Client side validation for the form
+      $("form#new-project-form").validate();
+
+      $("span[rel='tooltip']").tooltip();
+    });
+  </script>
+
+  {% if False and request.nereid_user.employee %}
+  <script>
+    $(document).ready(function () {
+	
+    var chart = new Highcharts.Chart({
+	    chart: {
+	        renderTo: 'time-today',
+	        type: 'gauge',
+	        plotBackgroundColor: null,
+	        plotBackgroundImage: null,
+	        plotBorderWidth: 0,
+	        plotShadow: false
+	    },
+	    
+	    title: {
+	        text: 'My performance today'
+	    },
+	    
+	    pane: {
+	        startAngle: -150,
+	        endAngle: 150,
+	        background: [{
+	            backgroundColor: {
+	                linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+	                stops: [
+	                    [0, '#FFF'],
+	                    [1, '#333']
+	                ]
+	            },
+	            borderWidth: 0,
+	            outerRadius: '109%'
+	        }, {
+	            backgroundColor: {
+	                linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+	                stops: [
+	                    [0, '#333'],
+	                    [1, '#FFF']
+	                ]
+	            },
+	            borderWidth: 1,
+	            outerRadius: '107%'
+	        }, {
+	            // default background
+	        }, {
+	            backgroundColor: '#DDD',
+	            borderWidth: 0,
+	            outerRadius: '105%',
+	            innerRadius: '103%'
+	        }]
+	    },
+	       
+	    // the value axis
+	    yAxis: {
+	        min: 0,
+	        max: 12,
+	        
+	        minorTickInterval: 'auto',
+	        minorTickWidth: 1,
+	        minorTickLength: 10,
+	        minorTickPosition: 'inside',
+	        minorTickColor: '#666',
+	
+	        tickPixelInterval: 30,
+	        tickWidth: 2,
+	        tickPosition: 'inside',
+	        tickLength: 10,
+	        tickColor: '#666',
+	        labels: {
+	            step: 2,
+	            rotation: 'auto'
+	        },
+	        title: {
+	            text: 'hours'
+	        },
+	        plotBands: [{
+	            from: 0,
+	            to: 4,
+	            color: '#DF5353' // red               
+	        }, {
+	            from: 4,
+	            to: 8,
+	            color: '#DDDF0D' // yellow
+	        }, {
+	            from: 8,
+	            to: 12,
+	            color: '#55BF3B' // green
+	        }]        
+	    },
+	
+	    series: [{
+	        name: 'Hours Reported',
+	        data: [{{ request.nereid_user.hours_reported_today(request.nereid_user) }}],
+	        tooltip: {
+	            valueSuffix: 'hours'
+	        }
+	    }]
+	
+	}, 
+	// Add some life
+	function (chart) {
+        
+        }
+      );
+    });
+  </script>
+  {% endif %}
+{% endblock %}

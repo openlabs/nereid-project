@@ -1,0 +1,279 @@
+{% macro render_field(field, class_="", show_label=True, input_prepend=None, input_prepend_text=None) %}
+<div class="control-group {% if field.errors %}error{% endif %}">
+  {% if show_label %}
+  <label class="control-label" for="{{ field.name }}">{{ field.label.text }}
+    {% if field.flags.required %}<span>*</span>{% endif %}:
+  </label>
+  {% endif %}
+  <div class="controls">
+    {% if input_prepend %}
+    <div class="input-prepend">
+    <span class="add-on"><i class="{{ input_prepend }}"></i></span>
+    {% endif %}
+
+    {% if input_prepend_text %}
+    <div class="input-prepend">
+      <span class="add-on">{{ input_prepend_text }}</span>
+    {% endif %}
+
+    {% if field.flags.required %}
+      {% set class_ = class_ + " required" %}
+    {% endif %}
+    {% if field.flags.email %}
+      {% set class_ = class_ + " email" %}
+    {% endif %}
+    {{ field(class_=class_, **kwargs) }}
+    {% if input_prepend or input_prepend_text %}
+    {# close the input-prepend div if one exists #}
+    </div>
+    {% endif %}
+    {% if field.description %}
+    <br/><span class="help-inline"><small>{{ field.description }}</small></span>
+    {% endif %}
+    {% for error in field.errors %}
+    <br/><span class="help-inline"><small>{{ error|string }}</small></span>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+
+{% macro  render_address(address) %}
+<address>
+  <strong>{{ address.name }}</strong><br>
+  {{ address.street }}<br>
+  {% if address.streetbis %}
+  {{ address.streetbis }}<br>
+  {% endif %}
+  {{ address.city }} {{ address.zip }}
+  {% if address.subdivision %}
+  {% endif %}
+  {% if address.country %}
+  <abbr title="{{ address.country.name }}">{{ address.country.code }}</abbr> 
+  {% endif %}
+</address> 
+{% endmacro %}
+
+{%- macro state_color_css(state, type='label') -%}
+{%- if type=='label' -%}
+  {%- if state == 'opened' -%}
+  success
+  {%- elif state == 'Done' -%}
+  important
+  {%- elif state == 'Backlog' -%}
+  inverse
+  {%- elif state == 'Planning' -%}
+  info
+  {%- elif state == 'In Progress' -%}
+  success
+  {%- endif -%}
+{%- else -%}
+  {%- if state == 'opened' -%}
+  success
+  {%- elif state == 'Done' -%}
+  danger
+  {%- elif state == 'Backlog' -%}
+  inverse
+  {%- elif state == 'Planning' -%}
+  info
+  {%- elif state == 'In Progress' -%}
+  success
+  {%- endif -%}
+{%- endif -%}
+{%- endmacro -%}
+
+{% macro render_task(task, assigned_to_picture=True, show_project_tag=False) %}
+  <div class="task-item {% if task.state == 'done' %}done{% endif %}" update-url="{{ url_for("project.work.update_task", task_id=task.id) }}" state="{{ task.state }}" task_id="{{ task.id }}">
+    <div class='task-details {% if task.constraint_finish_time and task.constraint_finish_time < datetime.datetime.utcnow() %}delay{% endif %}'>
+      <table cellSpacing="0" width="100%">
+        <tr>
+          <td>
+            <a class="task-name" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" rel="tooltip" title="created by {{ task.created_by.display_name }}">
+              <span class="muted">#{{ task.id }}</span> {{ task.work.name|truncate(50) }}
+            </a>
+            <a class="icon-tag add-tags" title="Add Tag" rel="popover" data-placement="bottom" data-html="true" data-animation="true" data-content='
+            {% for new_tag in task.parent.tags_for_projects %}
+              {% if new_tag not in task.tags %}
+              <div>
+                <a class="action-tag-btn icon-plus-sign" id="{{ new_tag.id }}"
+                  data-url="{{ url_for('project.work.add_tag', task_id=task.id, tag_id=new_tag.id) }}"></a>
+                <span class="label label-{{ new_tag.color if new_tag.color != 'danger' else 'important' }}">
+                   {{ new_tag.name }}
+                </span>
+              </div>
+              {% else %}
+              <div>
+                <a class="action-tag-btn icon-remove-sign" id="{{ new_tag.id }}"
+                  data-url="{{ url_for('project.work.remove_tag', task_id=task.id, tag_id=new_tag.id) }}"></a>
+                <span class="label label-{{ new_tag.color if new_tag.color != 'danger' else 'important' }}">
+                   {{ new_tag.name }}
+                </span>
+              </div>
+              {% endif %}
+            {% else %}
+              <div>No Tag to add</div>
+            {% endfor %}'></a>
+            {% for tag in task.tags %}
+              <a class="" href="{{ url_for('project.work.render_task_list', project_id=task.parent.id, tag=tag.id) }}">{{ tag.name }}</a>
+            {% endfor %}
+          </td>
+          <td valign="top" width="20">
+            <a class="icon-edit icon-hide" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" title="Edit"></a>
+          </td>
+        </tr>
+        <tr>
+          <td class="task-footer" colspan="2">
+            {% if assigned_to_picture and task.assigned_to %}
+              <img title="{{ task.assigned_to.name }}" src="{{ task.assigned_to.get_profile_picture(size="20", https=True) }}" class="img-circle">
+            {% endif %}
+            {% if show_project_tag %}
+              <span class="label">{{ task.parent and task.parent.rec_name or '' }}</span>
+            {% endif %}
+            {% if task.point_estimation %}
+              <span class="size icon pull-right" title="Size">{{ task.point_estimation }}</span>
+            {% endif %}
+            <a href="#" class="icon icon-group pull-right" rel="popover2" data-placement="top" data-html="true" data-trigger="hover" data-animation="true" data-content="
+            {% for participant in task.all_participants %}
+              <div><img src='{{ participant.get_profile_picture(size="20", https=True) }}'> {% if participant.id == task.assigned_to.id %}*{% endif %} {{ participant.display_name }}</div>
+            {% endfor %}"></a>
+            <a href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" class="icon icon-comments-alt pull-right">{{ task.history|length }}</a>
+            {% if task.iteration %}
+              <a href="{{ task.iteration.url }}" class="icon icon-retweet pull-right {% if task.iteration.end_date < datetime.datetime.utcnow().date() %}old-iteration{% endif %} {% if task.iteration.start_date <= datetime.datetime.utcnow().date() and task.iteration.end_date >= datetime.datetime.utcnow().date() %}current-iteration{% endif %} "></a>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro render_task_tree(task, assigned_to_picture=True, show_project_tag=False) %}
+  {% if task.type == "task" %}
+    <div class="task-item task-tree-item {% if task.state == 'done' %}done{% endif %}" update-url="{{ url_for("project.work.update_task", task_id=task.id) }}" state="{{ task.state }}" task_id="{{ task.id }}">
+      <div class='task-details state-{{ task.progress_state|replace(' ', '_') }} {% if task.constraint_finish_time and task.constraint_finish_time < datetime.datetime.utcnow() %}delay{% endif %}'>
+        <table cellSpacing="0" width="100%">
+          <tr>
+            <td>
+              {% if assigned_to_picture and task.assigned_to %}
+                <img title="{{ task.assigned_to.name }}" src="{{ task.assigned_to.get_profile_picture(size="25", https=True) }}" class="img-circle">
+              {% endif %}
+              {% if show_project_tag %}
+                <span class="label">{{ task.parent and task.parent.name or '' }}</span>
+              {% endif %}
+              {% if task.point_estimation %}
+                <span class="size icon pull-right" title="Size">{{ task.point_estimation }}</span>
+              {% endif %}
+              <a href="#" class="icon icon-group pull-right" rel="popover2" data-placement="top" data-html="true" data-trigger="hover" data-animation="true" data-content="
+              {% for participant in task.all_participants %}
+                <div><img src='{{ participant.get_profile_picture(size="20", https=True) }}'> {% if participant.id == task.assigned_to.id %}*{% endif %} {{ participant.display_name }}</div>
+              {% endfor %}"></a>
+              <a href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" class="icon icon-comments-alt pull-right">{{ task.history|length }}</a>
+              {% if task.iteration %}
+                <a href="{{ task.iteration.url }}" class="icon icon-retweet pull-right {% if task.iteration.end_date < datetime.datetime.utcnow().date() %}old-iteration{% endif %} {% if task.iteration.start_date <= datetime.datetime.utcnow().date() and task.iteration.end_date >= datetime.datetime.utcnow().date() %}current-iteration{% endif %} "></a>
+              {% endif %}
+              <a class="task-name" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" rel="tooltip" title="created by {{ task.created_by.display_name }}">
+                <span class="muted">#{{ task.id }}</span> {{ task.work.name|truncate(70) }}
+              </a>
+              <a class="icon-tag add-tags" title="Add Tag" rel="popover" data-placement="bottom" data-html="true" data-animation="true" data-content='
+              {% for new_tag in task.parent.tags_for_projects %}
+                {% if new_tag not in task.tags %}
+                <div>
+                  <a class="action-tag-btn icon-plus-sign" id="{{ new_tag.id }}"
+                    data-url="{{ url_for('project.work.add_tag', task_id=task.id, tag_id=new_tag.id) }}"></a>
+                  <span class="label label-{{ new_tag.color if new_tag.color != 'danger' else 'important' }}">
+                     {{ new_tag.name }}
+                  </span>
+                </div>
+                {% else %}
+                <div>
+                  <a class="action-tag-btn icon-remove-sign" id="{{ new_tag.id }}"
+                    data-url="{{ url_for('project.work.remove_tag', task_id=task.id, tag_id=new_tag.id) }}"></a>
+                  <span class="label label-{{ new_tag.color if new_tag.color != 'danger' else 'important' }}">
+                     {{ new_tag.name }}
+                  </span>
+                </div>
+                {% endif %}
+              {% else %}
+                <div>No Tag to add</div>
+              {% endfor %}'></a>
+              {% for tag in task.tags %}
+                <a class="" href="{{ url_for('project.work.render_task_list', project_id=task.parent.id, tag=tag.id) }}">{{ tag.name }}</a>
+              {% endfor %}
+            </td>
+            <td valign="top" width="20">
+              <a class="icon-edit icon-hide" href="{{ url_for('project.work.render_task', project_id=task.parent.id, task_id=task.id) }}" title="Edit"></a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{%- macro status_label(task, class_="") -%}
+{% set states={'opened': _('Open'), 'done': _('Done')} %}
+<span class="label {% if task.state == 'opened' %}label-info{% else %}label-success{% endif %} {{ class_ }}">{{ states[task.state] }}</span>
+{%- endmacro -%}
+
+
+{% macro render_pagination(pagination, uri, endpoint) %}
+<div class="pagination pagination-right">
+  <ul>
+    {% if pagination.has_prev -%}
+    <li>
+      <a href="{{ url_for(endpoint, uri=uri, page=pagination.prev_num, **kwargs) }}">
+        &laquo; {% trans %}Previous{% endtrans %}
+      </a>
+    </li>
+    {% else %}
+    <li class="disabled">
+      <a>
+      &laquo; {% trans %}Previous{% endtrans %}
+      </a>
+    </li>
+    {% endif %}
+
+    {%- for page in pagination.iter_pages(left_edge=0, left_current=5, right_current=5, right_edge=0) %}
+      {% if loop.first and page !=1 %}
+      <li class="disabled">...</li>
+      {% endif %}
+
+      {% if page %}
+      <li {% if page == pagination.page %}class="active"{% endif %}>
+        <a href="{{ url_for(endpoint, uri=uri, page=page, **kwargs) }}">{{ page }}</a>
+      </li>
+      {% endif %}
+
+      {% if loop.last and page != pagination.pages %}
+      <li class="disabled">...</li>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.has_next -%}
+    <li>
+      <a class="" href="{{ url_for(endpoint, uri=uri, page=pagination.next_num, **kwargs) }}">
+        {% trans %}Next{% endtrans %} &raquo;
+      </a>
+    </li>
+    {% else %}
+    <li class="disabled">
+      <a>{% trans %}Next{% endtrans %} &raquo;</a>
+    </li>
+    {% endif %}
+
+  </ul>
+</div>
+{% endmacro %}
+
+
+{% macro render_time_reported() %}
+{% if request.nereid_user.employee %}
+  <div id="time-today">
+    {% set hours= request.nereid_user.hours_reported_today() %}
+    <h3>Time today: {{ hours|float_to_time }}</h3>
+  <div class="progress progress-{% if hours < 4 %}danger{% elif hours < 6 %}warning{% else %}success{% endif %}">
+    <div class="bar" style="width: {{ request.nereid_user.hours_reported_today() * 100 /12 }}%;"></div>
+  </div>
+  </div>
+{% endif %}
+{% endmacro %}

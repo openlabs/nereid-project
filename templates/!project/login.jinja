@@ -1,0 +1,62 @@
+{% extends 'base.jinja' %}
+
+{% from '_helpers.jinja' import render_field %}
+
+{% block scripts %}
+<script type="text/javascript" charset="utf-8">
+  $(document).ready(function(){
+
+
+  // Use client side validation on the form
+  $("form#login-form").validate({
+    errorElement: "span",
+    wrapper: "li",
+    errorPlacement: function(error, element) {
+      error.insertAfter(element);
+      console.log(error);
+      console.log(element);
+      element.parents("div.clearfix").addClass("error");
+    },
+    submitHandler: function(form) {
+      $("form#login-form button.cont").button('loading');
+      form.submit();
+    }
+  });
+});
+</script>
+{% endblock %}
+
+{% block container %}
+<div class="row-fluid clearfix">
+  <div class="span12">
+    <div id="login" class="center" style="text-align:center">
+      <img src="http://placehold.it/140x140" class="img-polaroid">
+      <br/>
+      <br/>
+      <form action=""
+          method="POST" class="clearfix" id="login-form">
+        <fieldset>
+
+          {{ render_field(login_form.email, placeholder=_("your email"), input_prepend='icon-envelope', show_label=False, type="Email") }}
+          {{ render_field(login_form.password, placeholder="password", input_prepend='icon-key', show_label=False) }}
+
+          <button class="btn btn-info " value="" type="submit">
+            <i class="icon-signin icon-white"></i>
+            {% trans %}Log In{% endtrans %}
+          </button>
+      <!-- For social logins install nereid-auth-facebook and nereid-gituhb-facebook -->
+      <a class="btn" href="#"><i class="icon-facebook"></i> facebook</a>
+      <a class="btn" href="#"><i class="icon-linkedin"></i>  LinkedIn</a> 
+          <br/></br/>
+          <i>{% trans %}Forgot your password ? {% endtrans %}<a href="{{ url_for('nereid.user.reset_account', next=request.args.get('next', url_for('nereid.website.home'))) }}">Click here</a> to reset it yourself</i>
+          <h5>{% trans %}Don't have an account ? {% endtrans %}<a href="{{ url_for('nereid.user.registration', next=request.args.get('next', url_for('nereid.website.home'))) }}">Sign up now</a>!</h5>
+        </fieldset>
+      </form>
+    </div>
+  </div>
+</div>
+<div>
+
+</div>
+
+{% endblock %}
