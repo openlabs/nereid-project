@@ -2581,7 +2581,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     ])
                     if commit_hook:
                         continue
-                    commit, = cls.create([{
+                    work_commit, = cls.create([{
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2593,7 +2593,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     }])
                     Activity.create([{
                         'actor': nereid_users[0].id,
-                        'object_': 'project.work.commit, %d' % commit.id,
+                        'object_': 'project.work.commit, %d' % work_commit.id,
                         'verb': 'made_commit',
                         'target': 'project.work, %d' % project.id,
                         'project': project.parent.id,
