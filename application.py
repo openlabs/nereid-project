@@ -30,8 +30,7 @@ CONFIG = dict(
     # The location where the translations of this template are stored
     TRANSLATIONS_PATH='i18n',
 
-    SECRET_KEY=
-        'secretkeygoeshere',
+    SECRET_KEY='secretkeygoeshere',
 
 )
 # Create a new application

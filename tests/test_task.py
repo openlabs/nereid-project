@@ -4,7 +4,7 @@
 
     TestTask
 
-    :copyright: (c) 2013 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 import unittest
@@ -21,7 +21,7 @@ from datetime import datetime
 import trytond.tests.test_tryton
 from trytond.tests.test_tryton import POOL, DB_NAME, USER, CONTEXT
 from trytond.transaction import Transaction
-#from trytond.error import UserError
+# from trytond.error import UserError
 from nereid.testing import NereidTestCase
 
 smtplib.SMTP = Mock('smtplib.SMTP')
