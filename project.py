@@ -1037,7 +1037,19 @@ class Project:
                 'domain': filter_domain,
             })
 
-        tasks = Pagination(cls, filter_domain, page, 10)
+        if state and state == 'opened':
+            # Group and return tasks for regular web viewing
+            tasks_by_state = defaultdict(list)
+            for task in cls.search(filter_domain):
+                tasks_by_state[task.progress_state].append(task)
+            return render_template(
+                'project/task-list-kanban.jinja',
+                active_type_name='render_task_list', counts=counts,
+                state_filter=state, tasks_by_state=tasks_by_state,
+                states=PROGRESS_STATES[:-1], project=project
+            )
+
+        tasks = Pagination(cls, filter_domain, page, 20)
         return render_template(
             'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
