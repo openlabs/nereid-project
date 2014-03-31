@@ -4,7 +4,7 @@
 
     Extend the project to allow users
 
-    :copyright: (c) 2012-2013 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2012-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 import os
@@ -515,7 +515,7 @@ class Project:
         """
         if user.is_project_admin():
             return True
-        if not user in self.participants:
+        if user not in self.participants:
             raise abort(404)
         return True
 
@@ -527,7 +527,7 @@ class Project:
         """
         if user.is_project_admin():
             return True
-        if not user in self.participants:
+        if user not in self.participants:
             raise abort(404)
         return True
 
@@ -783,7 +783,7 @@ class Project:
             updated_by=request.nereid_user.display_name
         )
 
-        #Send mail.
+        # Send mail.
         server = get_smtp_server()
         server.sendmail(CONFIG['smtp_from'], receivers, message.as_string())
         server.quit()
@@ -968,7 +968,7 @@ class Project:
             self.write(
                 map(
                     lambda rec_id: self.__class__(rec_id),
-                        records_to_update_ids
+                    records_to_update_ids
                 ), {'participants': [('unlink', [participant_id])]}
             )
             Activity.create([{
@@ -1037,7 +1037,19 @@ class Project:
                 'domain': filter_domain,
             })
 
-        tasks = Pagination(cls, filter_domain, page, 10)
+        if state and state == 'opened':
+            # Group and return tasks for regular web viewing
+            tasks_by_state = defaultdict(list)
+            for task in cls.search(filter_domain):
+                tasks_by_state[task.progress_state].append(task)
+            return render_template(
+                'project/task-list-kanban.jinja',
+                active_type_name='render_task_list', counts=counts,
+                state_filter=state, tasks_by_state=tasks_by_state,
+                states=PROGRESS_STATES[:-1], project=project
+            )
+
+        tasks = Pagination(cls, filter_domain, page, 20)
         return render_template(
             'project/task-list.jinja', project=project,
             active_type_name='render_task_list', counts=counts,
@@ -1361,14 +1373,14 @@ class Project:
             end_date = parse_date(
                 request.args['end_date'],
                 locale='en_IN',
-                #locale=Transaction().context.get('language')
+                # locale=Transaction().context.get('language')
             )
         start_date = end_date - relativedelta(months=1)
         if request.args.get('start_date'):
             start_date = parse_date(
                 request.args['start_date'],
                 locale='en_IN',
-                #locale=Transaction().context.get('language')
+                # locale=Transaction().context.get('language')
             )
 
         if start_date > end_date:
@@ -1781,7 +1793,7 @@ class Project:
                 task_changes['state'] = 'opened'
 
             new_assignee_id = request.form.get('assigned_to', None, int)
-            if not new_assignee_id is None:
+            if new_assignee_id is not None:
                 if (new_assignee_id and
                         (not task.assigned_to or
                             new_assignee_id != task.assigned_to.id)) \
@@ -2511,7 +2523,7 @@ class ProjectHistory(ModelSQL, ModelView):
             last_history=last_history
         )
 
-        #message.add_header('reply-to', request.nereid_user.email)
+        # message.add_header('reply-to', request.nereid_user.email)
 
         # Send mail.
         server = get_smtp_server()
@@ -2581,7 +2593,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     ])
                     if commit_hook:
                         continue
-                    commit, = cls.create([{
+                    work_commit, = cls.create([{
                         'commit_timestamp': commit_timestamp,
                         'project': project,
                         'nereid_user': nereid_users[0].id,
@@ -2593,7 +2605,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     }])
                     Activity.create([{
                         'actor': nereid_users[0].id,
-                        'object_': 'project.work.commit, %d' % commit.id,
+                        'object_': 'project.work.commit, %d' % work_commit.id,
                         'verb': 'made_commit',
                         'target': 'project.work, %d' % project.id,
                         'project': project.parent.id,
