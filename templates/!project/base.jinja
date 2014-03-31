@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="">
     <meta name="author" content="Openlabs Technologies and Consulting (P) Limited">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Le styles -->
     <link href="{{ url_for('project.work.send_static_file', filename='css/bootstrap.css') }}" rel="stylesheet">
@@ -226,7 +227,22 @@ textarea {
     ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
   })();
+</script>
 
+<script type="text/javascript">
+  var csrftoken = $('meta[name=csrf-token]').attr('content');
+
+  $.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+      }
+  });
+
+  $(function(){
+    $('form').append('<input id="csrf_token" name="csrf_token" type="hidden" value="' + csrftoken + '">');
+  });
 </script>
   </body>
 </html>
