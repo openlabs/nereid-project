@@ -387,14 +387,14 @@ class Project:
             })
         return render_template('project/home.jinja', projects=projects)
 
-    def serialize(self):
+    def serialize(self, purpose=None):
         """
         Serialize a record, which could be a task or project
 
         """
         assigned_to = None
         if self.assigned_to:
-            assigned_to = self.assigned_to._json()
+            assigned_to = self.assigned_to.serialize('listing')
 
         value = {
             'id': self.id,
@@ -413,42 +413,36 @@ class Project:
                 self.constraint_finish_time.isoformat() or None
             )
         }
+
         if self.type == 'task':
             # Computing the effort for project is expensive
             value['hours'] = self.hours
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
             value['project'] = self and self.id
-            value['created_by'] = self.created_by and self.created_by._json()
-        else:
-            value['all_participants'] = [
-                participant._json() for participant in self.all_participants
-            ]
-        return value
-
-    def _json(self):
-        '''
-        Serialize the work and returns a dictionary
-        '''
-        rv = {
-            'create_date': self.create_date.isoformat(),
-            'id': self.id,
-            'displayName': self.rec_name,
-            'type': self.type,
-            'objectType': self.__name__,
-        }
-        rv.update(self.serialize())
-        if self.type == 'project':
-            rv['url'] = url_for(
+            value['created_by'] = self.created_by and \
+                self.created_by.serialize('listing')
+        elif purpose == 'activity_stream':
+            value['create_date'] = self.create_date.isoformat()
+            value['id'] = self.id
+            value['displayName'] = self.rec_name
+            value['type'] = self.type
+            value['objectType'] = self.__name__
+        elif self.type == 'project':
+            value['url'] = url_for(
                 'project.work.render_project', project_id=self.id
             )
         else:
+            value['all_participants'] = [
+                participant.serialize('listing') for participant in
+                self.all_participants
+            ]
             # TODO: Convert self.parent to self.project
-            rv['url'] = url_for(
+            value['url'] = url_for(
                 'project.work.render_task', project_id=self.parent.id,
                 task_id=self.id,
             )
-        return rv
+        return value
 
     @classmethod
     def rst_to_html(cls):
@@ -603,7 +597,7 @@ class Project:
         if request.is_xhr:
             rv = project.serialize()
             rv['participants'] = [
-                p._json() for p in project.participants
+                p.serialize('listing') for p in project.participants
             ]
             return jsonify(rv)
         return render_template(
@@ -1033,7 +1027,7 @@ class Project:
         if request.is_xhr:
             tasks = cls.search(filter_domain)
             return jsonify({
-                'items': map(lambda task: task.serialize(), tasks),
+                'items': map(lambda task: task.serialize('listing'), tasks),
                 'domain': filter_domain,
             })
 
@@ -1095,7 +1089,7 @@ class Project:
 
         if request.is_xhr:
             return jsonify({
-                'items': map(lambda task: task.serialize(), tasks),
+                'items': map(lambda task: task.serialize('listing'), tasks),
                 'domain': filter_domain,
             })
 
@@ -1132,7 +1126,7 @@ class Project:
             response = cls.serialize(task)
             with Transaction().set_context(task=task_id):
                 response['comments'] = [
-                    comment._json() for comment in comments
+                    comment.serialize('listing') for comment in comments
                 ]
             return jsonify(response)
 
@@ -1749,7 +1743,7 @@ class Project:
             with Transaction().set_context(task=work.id):
                 return jsonify({
                     'success': True,
-                    'data': attachment._json(),
+                    'data': attachment.serialize('listing'),
                 })
 
         flash("Attachment added to %s" % work.rec_name)
@@ -1868,7 +1862,7 @@ class Project:
                 'html': unicode(html),
                 'state': task.state,
                 'progress_state': task.progress_state,
-                'comment': comment._json(),
+                'comment': comment.serialize(),
             })
         return redirect(request.referrer)
 
@@ -2236,7 +2230,7 @@ class Tag(ModelSQL, ModelView):
         '''
         return "#999"
 
-    def _json(self):
+    def serialize(self, purpose=None):
         '''
         Serialize the tag and returns a dictionary.
         '''
@@ -2404,7 +2398,7 @@ class ProjectHistory(ModelSQL, ModelView):
         '''
         return datetime.utcnow()
 
-    def _json(self):
+    def serialize(self, purpose=None):
         '''
         Serialize the history and returns a dictionary.
         '''
@@ -2414,7 +2408,7 @@ class ProjectHistory(ModelSQL, ModelView):
                 'project.work.render_task', project_id=self.project.parent.id,
                 task_id=self.project.id,
             ),
-            'updatedBy': self.updated_by._json(),
+            'updatedBy': self.updated_by.serialize('listing'),
             "objectType": self.__name__,
             "id": self.id,
             "displayName": self.rec_name,
@@ -2423,7 +2417,8 @@ class ProjectHistory(ModelSQL, ModelView):
             "new_progress_state": self.new_progress_state,
             "previous_progress_state": self.previous_progress_state,
             "new_assignee": (
-                self.new_assigned_to._json() if self.new_assigned_to
+                self.new_assigned_to.serialize('listing')
+                if self.new_assigned_to
                     else None
             )
         }
@@ -2612,12 +2607,12 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                     }])
         return 'OK'
 
-    def _json(self):
+    def serialize(self, purpose=None):
         return {
             'create_date': self.create_date.isoformat(),
             "objectType": self.__name__,
             "id": self.id,
-            "updatedBy": self.nereid_user._json(),
+            "updatedBy": self.nereid_user.serialize('listing'),
             "url": self.commit_url,
             "displayName": self.commit_message,
             "repository": self.repository,
@@ -2761,7 +2756,7 @@ class TimesheetLine:
     '''
     __name__ = 'timesheet.line'
 
-    def _json(self):
+    def serialize(self, purpose=None):
         '''
         Serialize timesheet line and returns a dictionary.
         '''
@@ -2774,7 +2769,7 @@ class TimesheetLine:
         except ValueError:
             nereid_user = {}
         else:
-            nereid_user = nereid_user._json()
+            nereid_user = nereid_user.serialize('listing')
 
         # Render url for timesheet line is task on which this time is marked
         return {
@@ -2839,12 +2834,12 @@ class Attachment:
         """
         return True
 
-    def _json(self):
+    def serialize(self, purpose=None):
         rv = {
             'create_date': self.create_date.isoformat(),
             "objectType": self.__name__,
             "id": self.id,
-            "updatedBy": self.uploaded_by._json(),
+            "updatedBy": self.uploaded_by.serialize('listing'),
             "displayName": self.name,
             "description": self.description,
         }

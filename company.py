@@ -55,11 +55,11 @@ class NereidUser:
     #: indicates that the user is an employee and not a regular participant
     employee = fields.Many2One('company.employee', 'Employee', select=True)
 
-    def _json(self):
+    def serialize(self, purpose=None):
         '''
         Serialize NereidUser and return a dictonary.
         '''
-        result = super(NereidUser, self)._json()
+        result = super(NereidUser, self).serialize(purpose)
         result['image'] = {
             'url': self.get_profile_picture(size=20),
         }
@@ -76,7 +76,7 @@ class NereidUser:
         """
         if request.method == "GET" and request.is_xhr:
             user, = cls.browse([request.nereid_user.id])
-            return jsonify(user._json())
+            return jsonify(user.serialize())
         return super(NereidUser, cls).profile()
 
     def is_project_admin(self):
