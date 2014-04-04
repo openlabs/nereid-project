@@ -71,7 +71,9 @@ textarea {
             <span class="icon-bar"></span>
           </a>
           <a class="brand" href="{{ url_for('nereid.website.home') }}" style="padding: 5px 20px 0 0 ">
+            {% block brand_logo %}
             <img src="" alt="Nereid Project"/>
+            {% endblock brand_logo %}
           </a>
           <div class="nav-collapse collapse">
             <ul class="nav">
