@@ -886,8 +886,8 @@ class Project:
                 return redirect(request.referrer)
 
             email_message = render_email(
-                text_template=
-                'project/emails/inform_addition_2_project_text.html',
+                text_template="project/emails/"
+                "inform_addition_2_project_text.html",
                 subject=subject, to=email, from_email=CONFIG['smtp_from'],
                 project=project, user=existing_user[0]
             )
@@ -936,6 +936,7 @@ class Project:
         """Remove the participant form project
         """
         Activity = Pool().get('nereid.activity')
+        Participant = Pool().get('project.work-nereid.user')
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
             flash(
@@ -965,9 +966,14 @@ class Project:
                     records_to_update_ids
                 ), {'participants': [('unlink', [participant_id])]}
             )
+
+            # FIXME: I think object_ in activity should be
+            # project.work-nereid.user models record.
+            object_ = 'nereid.user, %d' % Participant(participant_id).user.id
+
             Activity.create([{
                 'actor': request.nereid_user.id,
-                'object_': 'nereid.user, %d' % participant_id,
+                'object_': object_,
                 'target': 'project.work, %d' % self.id,
                 'verb': 'removed_participant',
                 'project': self.id,
