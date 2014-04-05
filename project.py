@@ -957,7 +957,7 @@ class Project:
                 ('assigned_to', '=', participant_id)
             ])
             self.write(assigned_to_participant, {
-                'assigned_to': False,
+                'assigned_to': None,
             })
             self.write(
                 map(
