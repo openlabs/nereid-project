@@ -6,7 +6,10 @@ install:
   - python setup.py install
   - pip install psycopg2
   - pip install flake8
+  - pip install coveralls
 script:
-  - python setup.py test
+  - coverage run setup.py test
   - python setup.py test_on_postgres
   - flake8 .
+after_success:
+  coveralls

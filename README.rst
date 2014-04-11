@@ -40,15 +40,8 @@ To install from source
     $ python setup.py install
 
 
-Build Status (Master)
----------------------
-
-.. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=master
-.. _Master: https://travis-ci.org/openlabs/nereid-project
-
-
-Build Status (Develop)
----------------------
-
 .. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=develop
-.. _Develop: https://travis-ci.org/openlabs/nereid-project
+    :target: https://travis-ci.org/openlabs/nereid-project
+
+.. image:: https://coveralls.io/repos/openlabs/nereid-project/badge.png
+    :target: https://coveralls.io/r/openlabs/nereid-project
