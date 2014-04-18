@@ -10,8 +10,8 @@ from trytond.pool import Pool
 
 from website import WebSite
 from project import (
-    ProjectUsers, ProjectInvitation, ProjectWorkInvitation, Project,
-    ProjectHistory, ProjectWorkCommit
+    ProjectUsers, ProjectWorkMember, ProjectInvitation, ProjectWorkInvitation,
+    Project, ProjectHistory, ProjectWorkCommit
 )
 from activity import Activity
 from attachment import Attachment
@@ -26,7 +26,10 @@ def register():
     """
     Pool.register(
         WebSite,
+        Company,
+        CompanyProjectAdmins,
         ProjectUsers,
+        ProjectWorkMember,
         ProjectInvitation,
         TimesheetEmployeeDay,
         ProjectWorkInvitation,
@@ -37,8 +40,6 @@ def register():
         ProjectWorkCommit,
         TimesheetLine,
         Activity,
-        Company,
-        CompanyProjectAdmins,
         NereidUser,
         Attachment,
         module='nereid_project', type_='model',

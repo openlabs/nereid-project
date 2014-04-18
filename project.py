@@ -42,8 +42,8 @@ from trytond import backend
 from utils import request_wants_json
 
 __all__ = [
-    'ProjectUsers', 'ProjectInvitation', 'ProjectWorkInvitation', 'Project',
-    'ProjectHistory', 'ProjectWorkCommit',
+    'ProjectUsers', 'ProjectWorkMember', 'ProjectInvitation',
+    'ProjectWorkInvitation', 'Project', 'ProjectHistory', 'ProjectWorkCommit',
 ]
 __metaclass__ = PoolMeta
 
@@ -103,6 +103,93 @@ class ProjectUsers(ModelSQL):
             table.table_rename(
                 cursor, 'project_work_nereid_user_rel',
                 'project_work-nereid_user'
+            )
+
+
+class ProjectWorkMember(ModelSQL, ModelView):
+    "Project Work Member"
+    __name__ = 'project.work.member'
+
+    user = fields.Many2One(
+        "nereid.user", "Nereid User", required=True, select=True
+    )
+    role = fields.Selection([
+        ('admin', 'Admin'),
+        ('member', 'Member'),
+    ], "Role", required=True)
+    project = fields.Many2One(
+        "project.work", "Project", required=True, select=True
+    )
+
+    @classmethod
+    def __setup__(cls):
+        super(ProjectWorkMember, cls).__setup__()
+        cls._sql_constraints += [(
+            'check_user',
+            'UNIQUE(project, "user")',
+            'Users must be unique per project'
+        )]
+
+    @staticmethod
+    def default_role():
+        """
+        Sets default role
+        """
+        return 'member'
+
+    @classmethod
+    def __register__(cls, module_name):
+        '''
+        Register class and migrate data from old table(project_work-nereid_user)
+        to new table (project_work_user) only for porject participants
+        '''
+        cursor = Transaction().cursor
+        TableHandler = backend.get('TableHandler')
+
+        table_exist = TableHandler.table_exist(cursor, 'project_work_member')
+
+        super(ProjectWorkMember, cls).__register__(module_name)
+
+        if not table_exist:
+            ProjectUsers = Pool().get('project.work-nereid.user')
+            ProjectWork = Pool().get('project.work')
+            company_user = Pool().get('company.company-nereid.user')
+
+            # Migrate project participants from old user table to new member
+            # table
+            cursor.execute(
+                "INSERT INTO %s (project, \"user\", role) "
+                "SELECT old.project, old.user, 'member' from \"%s\" old "
+                "JOIN %s as p on old.project=p.id where p.type='project'"
+                % (
+                    cls._table, ProjectUsers._table, ProjectWork._table
+                )
+            )
+
+            cursor.execute("SELECT id from project_work where type='project'")
+            for project in cursor.fetchall():
+
+                # Add project admins as admin member of all projects
+                cursor.execute(
+                    "INSERT INTO %s (project, \"user\", role) "
+                    "SELECT %d, a.user, 'admin' from \"%s\" a "
+                    "WHERE NOT EXISTS "
+                    "(select * from %s b where b.user=a.user and b.project=%d)"
+                    % (
+                        cls._table, project[0], company_user._table, cls._table,
+                        project[0]
+                    )
+                )
+
+            # If project admin is already member of project update the role as
+            # admin
+            cursor.execute(
+                "UPDATE \"%s\""
+                "SET role='admin' "
+                "WHERE \"user\" IN (select b.user from %s b) "
+                % (
+                    cls._table, company_user._table
+                )
             )
 
 
@@ -241,9 +328,15 @@ class Project:
         'project.work.history', 'project',
         'History', readonly=True
     )
+    members = fields.One2Many(
+        'project.work.member', 'project', 'Members',
+        states={'invisible': Eval('type') != 'project'},
+        depends=['type']
+    )
     participants = fields.Many2Many(
         'project.work-nereid.user', 'project', 'user',
-        'Participants'
+        'Participants', states={'invisible': Eval('type') != 'task'},
+        depends=['type']
     )
 
     tags_for_projects = fields.One2Many(
@@ -267,8 +360,8 @@ class Project:
     created_by = fields.Many2One('nereid.user', 'Created by')
 
     all_participants = fields.Function(
-        fields.Many2Many(
-            'project.work-nereid.user', 'project', 'user',
+        fields.One2Many(
+            'nereid.user', None,
             'All Participants', depends=['company']
         ), 'get_all_participants'
     )
@@ -324,7 +417,7 @@ class Project:
             ])
         else:
             projects = cls.search([
-                ('participants', '=', request.nereid_user.id),
+                ('members.user', '=', request.nereid_user.id),
                 ('type', '=', 'project'),
                 ('parent', '=', None),
             ])
@@ -413,23 +506,21 @@ class Project:
             ])
         )
 
-    @classmethod
-    def get_all_participants(cls, works, name):
+    def get_all_participants(self, name):
         """
         All participants includes the participants in the project and also
         the admins
+
         """
-        vals = {}
-        for work in works:
-            vals[work.id] = []
-            vals[work.id].extend([p.id for p in work.participants])
-            vals[work.id].extend([p.id for p in work.company.project_admins])
-            if work.parent:
-                vals[work.id].extend(
-                    [p.id for p in work.parent.all_participants]
-                )
-            vals[work.id] = list(set(vals[work.id]))
-        return vals
+        if self.parent:
+            users = [
+                p.id for p in self.participants + self.parent.all_participants
+            ]
+        else:
+            users = [member.user.id for member in self.members]
+        users.extend([p.id for p in self.company.project_admins])
+
+        return list(set(users))
 
     @classmethod
     def create(cls, vlist):
@@ -458,7 +549,7 @@ class Project:
         """
         if user.is_project_admin():
             return True
-        if user not in self.participants:
+        if user not in map(lambda member: member.user, self.members):
             raise abort(404)
         return True
 
@@ -470,7 +561,7 @@ class Project:
         """
         if user.is_project_admin():
             return True
-        if user not in self.participants:
+        if user not in map(lambda member: member.user, self.members):
             raise abort(404)
         return True
 
@@ -547,7 +638,7 @@ class Project:
         if request.is_xhr:
             rv = project.serialize()
             rv['participants'] = [
-                p.serialize('listing') for p in project.participants
+                member.user.serialize('listing') for member in project.members
             ]
             return jsonify(rv)
         return render_template(
@@ -649,12 +740,16 @@ class Project:
             email_receivers = [p.email for p in self.all_participants]
             if request.form.get('assign_to', None):
                 assignee = NereidUser(request.form.get('assign_to', type=int))
-                self.write([task], {
-                    'assigned_to': assignee.id,
-                    'participants': [
-                        ('add', [assignee.id])
-                    ]
-                })
+
+                # Check if assignee is among the participants, if not add
+                # it to the participants
+                if self.can_write(assignee):
+                    self.write([task], {
+                        'assigned_to': assignee.id,
+                        'participants': [
+                            ('add', [assignee.id])
+                        ]
+                    })
                 email_receivers = [assignee.email]
             task.send_mail(email_receivers)
             if request.is_xhr:
@@ -712,8 +807,9 @@ class Project:
         )
 
         if not receivers:
-            receivers = [s.email for s in self.participants
-                         if s.email]
+            receivers = [
+                s.user.email for s in self.participants if s.user.email
+            ]
         if self.created_by.email in receivers:
             receivers.remove(self.created_by.email)
 
@@ -837,7 +933,7 @@ class Project:
             % project.rec_name
         if existing_user:
             # If participant already existed
-            if existing_user[0] in project.participants:
+            if existing_user[0] in [m.user for m in project.members]:
                 flash("%s has been already added as a participant \
                     for the project" % existing_user[0].display_name)
                 return redirect(request.referrer)
@@ -850,7 +946,9 @@ class Project:
             )
             cls.write(
                 [project], {
-                    'participants': [('add', [existing_user[0].id])]
+                    'members': [
+                        ('create', [{'user': existing_user[0].id}])
+                    ]
                 }
             )
             Activity.create([{
@@ -897,7 +995,8 @@ class Project:
         """Remove the participant form project
         """
         Activity = Pool().get('nereid.activity')
-        Participant = Pool().get('project.work-nereid.user')
+        ProjectMember = Pool().get('project.work.member')
+
         # Check if user is among the project admins
         if not request.nereid_user.is_project_admin():
             flash(
@@ -906,16 +1005,17 @@ class Project:
             )
             return redirect(request.referrer)
 
+        task_ids_to_update = []
+
         if request.method == 'POST' and request.is_xhr:
-            records_to_update_ids = [self.id]
-            records_to_update_ids.extend([child.id for child in self.children])
+            task_ids_to_update.extend([child.id for child in self.children])
             # If this participant is assigned to any task in this project,
             # that user cannot be removed as tryton's domain does not permit
             # this.
             # So removing assigned user from those tasks as well.
             # TODO: Find a better way to do it, this is memory intensive
             assigned_to_participant = self.search([
-                ('id', 'in', records_to_update_ids),
+                ('id', 'in', task_ids_to_update),
                 ('assigned_to', '=', participant_id)
             ])
             self.write(assigned_to_participant, {
@@ -924,13 +1024,21 @@ class Project:
             self.write(
                 map(
                     lambda rec_id: self.__class__(rec_id),
-                    records_to_update_ids
+                    task_ids_to_update
                 ), {'participants': [('unlink', [participant_id])]}
             )
 
+            project_member, = ProjectMember.search([
+                ('project', '=', self.id),
+                ('user', '=', participant_id),
+            ])
+            self.write([self], {
+                'members': [('delete', [project_member.id])]
+            })
+
             # FIXME: I think object_ in activity should be
             # project.work-nereid.user models record.
-            object_ = 'nereid.user, %d' % Participant(participant_id).user.id
+            object_ = 'nereid.user, %d' % participant_id
 
             Activity.create([{
                 'actor': request.nereid_user.id,
@@ -1813,9 +1921,9 @@ class Project:
                 new_participant_ids.add(nereid_user)
 
         if new_participant_ids:
-            cls.write(
-                [task], {'participants': [('add', list(new_participant_ids))]}
-            )
+            cls.write([task], {
+                'participants': [('add', list(new_participant_ids))]
+            })
 
         hours = request.form.get('hours', None, type=float)
         if hours and request.nereid_user.employee:
@@ -2062,15 +2170,27 @@ class Project:
     @route('/task-<int:task_id>/-delete', methods=['POST'])
     @login_required
     def delete_task(cls, task_id):
-        """Delete the task from project
         """
-        # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
-            flash("Sorry! You are not allowed to delete tags. \
-                Contact your project admin for the same.")
-            return redirect(request.referrer)
+        Delete the task from project
 
+        Tasks can be deleted only if
+            1. The user is project admin
+            2. The user is an admin member in the project
+
+        :param task_id: Id of the task to be deleted
+        """
         task = cls.get_task(task_id)
+
+        # Check if user is among the project admins
+        if not (
+            request.nereid_user.is_project_admin() or
+            request.nereid_user.is_admin_of_project(task)
+        ):
+            flash(
+                "Sorry! You are not allowed to delete tasks. \
+                Contact your project admin for the same."
+            )
+            return redirect(request.referrer)
 
         cls.write([task], {'active': False})
 
@@ -2363,9 +2483,10 @@ class ProjectHistory(ModelSQL, ModelView):
         )
 
         receivers = map(
-            lambda user: user.email,
-            filter(lambda s: s.email, self.project.participants)
+            lambda member: member.user.email,
+            filter(lambda member: member.user.email, self.project.members)
         )
+
         if self.updated_by.email in receivers:
             receivers.remove(self.updated_by.email)
 

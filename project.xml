@@ -50,6 +50,18 @@ of this repository contains the full copyright notices and license terms. -->
           <field name="value">project.manager</field>
         </record>
 
+        <record model="ir.ui.view" id="project_work_member_form">
+            <field name="model">project.work.member</field>
+            <field name="type">form</field>
+           <field name="name">project_member_form</field>
+        </record>
+
+        <record model="ir.ui.view" id="project_work_member_tree">
+            <field name="model">project.work.member</field>
+            <field name="type">tree</field>
+            <field name="name">project_member_tree</field>
+        </record>
+
     </data>
 </tryton>
 
