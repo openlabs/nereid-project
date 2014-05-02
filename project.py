@@ -26,7 +26,7 @@ import simplejson as json
 from babel.dates import parse_date, format_date
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
-    flash, jsonify, render_email, permissions_required, current_app
+    flash, jsonify, render_email, permissions_required, current_app, route
 )
 from flask import send_file
 from flask.helpers import send_from_directory
@@ -84,6 +84,7 @@ class WebSite:
     __name__ = "nereid.website"
 
     @classmethod
+    @route('/')
     @login_required
     def home(cls):
         """
@@ -173,6 +174,7 @@ class ProjectInvitation(ModelSQL, ModelView):
             return self.nereid_user.create_date
 
     @login_required
+    @route('/invitation-<int:active_id>/-remove', methods=['GET', 'POST'])
     def remove_invite(self):
         """
         Remove the invite to a participant from project
@@ -200,6 +202,7 @@ class ProjectInvitation(ModelSQL, ModelView):
         return redirect(request.referrer)
 
     @login_required
+    @route('/invitation-<int:active_id>/-resend', methods=['GET', 'POST'])
     def resend_invite(self):
         """Resend the invite to a participant
         """
@@ -363,6 +366,7 @@ class Project:
         return 'Backlog'
 
     @classmethod
+    @route('/projects')
     @login_required
     def home(cls):
         """
@@ -445,6 +449,7 @@ class Project:
         return value
 
     @classmethod
+    @route('/rst-to-html', methods=['GET', 'POST'])
     def rst_to_html(cls):
         """
         Return the response as rst converted to html
@@ -585,6 +590,7 @@ class Project:
         return tasks
 
     @classmethod
+    @route('/project-<int:project_id>')
     @login_required
     def render_project(cls, project_id):
         """
@@ -605,6 +611,7 @@ class Project:
         )
 
     @classmethod
+    @route('/project/-new', methods=['GET', 'POST'])
     @login_required
     def create_project(cls):
         """Create a new project
@@ -644,6 +651,7 @@ class Project:
         return redirect(request.referrer)
 
     @login_required
+    @route('/project-<int:active_id>/task/-new', methods=['GET', 'POST'])
     def create_task(self):
         """Create a new task for the specified project
 
@@ -719,6 +727,7 @@ class Project:
         return redirect(request.referrer)
 
     @login_required
+    @route('/task-<int:active_id>/-edit', methods=['POST'])
     def edit_task(self):
         """
         Edit the task
@@ -783,6 +792,7 @@ class Project:
         server.quit()
 
     @classmethod
+    @route('/task-<int:task_id>/-unwatch', methods=['GET', 'POST'])
     @login_required
     def unwatch(cls, task_id):
         """
@@ -803,6 +813,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/-watch', methods=['GET', 'POST'])
     @login_required
     def watch(cls, task_id):
         """
@@ -823,6 +834,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/project-<int:project_id>/-permissions')
     @login_required
     def permissions(cls, project_id):
         """
@@ -855,6 +867,7 @@ class Project:
         return render_template('project/projects.jinja', projects=projects)
 
     @classmethod
+    @route('/project-<int:project_id>/-invite', methods=['POST'])
     @login_required
     def invite(cls, project_id):
         """Invite a user via email to the project
@@ -932,6 +945,10 @@ class Project:
         return redirect(request.referrer)
 
     @login_required
+    @route(
+        '/project-<int:active_id>/participant-<int:participant_id>/-remove',
+        methods=['GET', 'POST']
+    )
     def remove_participant(self, participant_id):
         """Remove the participant form project
         """
@@ -987,6 +1004,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/project-<int:project_id>/task-list')
     @login_required
     def render_task_list(cls, project_id):
         """
@@ -1057,6 +1075,7 @@ class Project:
         )
 
     @classmethod
+    @route('/my-tasks')
     @login_required
     def my_tasks(cls):
         """
@@ -1111,6 +1130,7 @@ class Project:
         )
 
     @classmethod
+    @route('/project-<int:project_id>/task-<int:task_id>')
     @login_required
     def render_task(cls, task_id, project_id):
         """
@@ -1143,6 +1163,7 @@ class Project:
         )
 
     @classmethod
+    @route('/project-<int:project_id>/-files', methods=['GET', 'POST'])
     @login_required
     def render_files(cls, project_id):
         project = cls.get_project(project_id)
@@ -1317,6 +1338,7 @@ class Project:
         )
 
     @classmethod
+    @route('/-project/-my-last-7-days')
     @login_required
     def get_7_day_performance(cls):
         """
@@ -1492,6 +1514,7 @@ class Project:
         return json.dumps(gantt_data, default=date_handler)
 
     @classmethod
+    @route('/projects/-compare-performance')
     @login_required
     @permissions_required(['project.admin'])
     def compare_performance(cls):
@@ -1512,6 +1535,7 @@ class Project:
         )
 
     @classmethod
+    @route('/projects/-gantt')
     @login_required
     @permissions_required(['project.admin'])
     def render_global_gantt(cls):
@@ -1528,6 +1552,7 @@ class Project:
         )
 
     @classmethod
+    @route('/projects/timesheet')
     @login_required
     @permissions_required(['project.admin'])
     def render_global_timesheet(cls):
@@ -1544,6 +1569,7 @@ class Project:
         )
 
     @classmethod
+    @route('/tasks-by-employee')
     @login_required
     @permissions_required(['project.admin'])
     def render_tasks_by_employee(cls):
@@ -1569,6 +1595,7 @@ class Project:
         )
 
     @classmethod
+    @route('/project-<int:project_id>/-timesheet')
     @login_required
     def render_timesheet(cls, project_id):
         '''
@@ -1586,6 +1613,7 @@ class Project:
         )
 
     @classmethod
+    @route('/project-<int:project_id>/-plan')
     @login_required
     def render_plan(cls, project_id):
         """
@@ -1655,6 +1683,7 @@ class Project:
         )
 
     @classmethod
+    @route('/attachment-<int:attachment_id>/-download')
     @login_required
     def download_file(cls, attachment_id):
         """
@@ -1692,6 +1721,7 @@ class Project:
         )
 
     @classmethod
+    @route('/attachment/-upload', methods=['GET', 'POST'])
     @login_required
     def upload_file(cls):
         """
@@ -1756,6 +1786,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/-update', methods=['GET', 'POST'])
     @login_required
     def update_task(cls, task_id):
         """
@@ -1873,6 +1904,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/tag-<int:tag_id>/-add', methods=['GET', 'post'])
     @login_required
     def add_tag(cls, task_id, tag_id):
         """
@@ -1903,6 +1935,9 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route(
+        '/task-<int:task_id>/tag-<int:tag_id>/-remove', methods=['GET', 'POST']
+    )
     @login_required
     def remove_tag(cls, task_id, tag_id):
         """
@@ -1948,6 +1983,7 @@ class Project:
         return super(Project, cls).write(projects, values)
 
     @classmethod
+    @route('/task-<int:task_id>/-mark-time', methods=['GET', 'POST'])
     @login_required
     def mark_time(cls, task_id):
         """
@@ -1974,6 +2010,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/-assign', methods=['GET', 'POST'])
     @login_required
     def assign_task(cls, task_id):
         """
@@ -2014,6 +2051,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/-remove-assign', methods=['POST'])
     @login_required
     def clear_assigned_user(cls, task_id):
         """Clear the assigned user from the task
@@ -2035,6 +2073,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/change_constraint_dates', methods=['POST'])
     @login_required
     def change_constraint_dates(cls, task_id):
         """
@@ -2076,6 +2115,7 @@ class Project:
         return redirect(request.referrer)
 
     @classmethod
+    @route('/task-<int:task_id>/-delete', methods=['POST'])
     @login_required
     def delete_task(cls, task_id):
         """Delete the task from project
@@ -2101,6 +2141,9 @@ class Project:
         )
 
     @login_required
+    @route(
+        '/task-<int:active_id>/change-estimated-hours', methods=['GET', 'POST']
+    )
     def change_estimated_hours(self):
         """Change estimated hours.
 
@@ -2119,6 +2162,7 @@ class Project:
         return redirect(request.referrer)
 
     @login_required
+    @route('/project-<int:active_id>/stream')
     def stream(self):
         '''
         Return stream for a project.
@@ -2141,6 +2185,7 @@ class Project:
         })
 
     @classmethod
+    @route('/project/stats')
     @login_required
     def stats(cls):
         """
@@ -2200,6 +2245,7 @@ class Project:
         )
 
     @classmethod
+    @route('/static-project/<path:filename>')
     def send_static_file(self, filename):
         """Function used internally to send static files from the static
         folder to the browser.
@@ -2252,6 +2298,7 @@ class Tag(ModelSQL, ModelView):
         }
 
     @classmethod
+    @route('/project-<int:project_id>/tag/-new', methods=['GET', 'POST'])
     @login_required
     def create_tag(cls, project_id):
         """
@@ -2293,6 +2340,7 @@ class Tag(ModelSQL, ModelView):
         return redirect(request.referrer)
 
     @login_required
+    @route('/tag-<int:active_id>/-delete', methods=['GET', 'POST'])
     def delete_tag(self):
         """
         Delete the tag from project
@@ -2458,6 +2506,10 @@ class ProjectHistory(ModelSQL, ModelView):
                 return cls.create([data])
 
     @login_required
+    @route(
+        '/task-<int:task_id>/comment-<int:active_id>/-update',
+        methods=['GET', 'POST']
+    )
     def update_comment(self, task_id):
         """
         Update a specific comment.
@@ -2553,6 +2605,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     commit_id = fields.Char('Commit Id', required=True)
 
     @classmethod
+    @route('/-project/-github-hook', methods=['GET', 'POST'])
     def commit_github_hook_handler(cls):
         """
         Handle post commit posts from GitHub
@@ -2628,6 +2681,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         }
 
     @classmethod
+    @route('/-project/-bitbucket-hook', methods=['GET', 'POST'])
     def commit_bitbucket_hook_handler(cls):
         """
         Handle post commit posts from bitbucket
