@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<data>
+    <xpath expr="/form/notebook" position="inside">
+        <page string="Project Admins" id="project_admins">
+            <field name="project_admins" colspan="4"/>
+        </page>
+    </xpath>
+</data>

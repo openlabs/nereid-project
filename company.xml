@@ -7,17 +7,7 @@ of this repository contains the full copyright notices and license terms. -->
             <field name="model">company.company</field>
             <field name="type">form</field>
             <field name="inherit" ref="company.company_view_form"/>
-            <field name="arch" type="xml">
-                <![CDATA[
-                <data>
-                    <xpath expr="/form/notebook" position="inside">
-                        <page string="Project Admins" id="project_admins">
-                            <field name="project_admins" colspan="4"/>
-                        </page>
-                    </xpath>
-                </data>
-                ]]>
-            </field>
+            <field name="name">company_form</field>
         </record>
     </data>
 </tryton>

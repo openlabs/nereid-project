@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<form string="Update Gantt Chart">
+    <label name="employee"/>
+    <field name="employee"/>
+    <label name="date"/>
+    <field name="date"/>
+    <label name="hours"/>
+    <field name="hours"/>
+</form>
