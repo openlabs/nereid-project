@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<tryton>
+    <data>
+        <record model="ir.ui.view" id="nereid_user_form">
+            <field name="model">nereid.user</field>
+            <field name="inherit" ref="nereid.nereid_user_form2"/>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <data>
+                    <xpath expr="/form/field[@name='password']" position="after">
+                        <newline/>
+                        <label name="employee"/>
+                        <field name="employee"/>
+                        <newline/>
+                    </xpath>
+                </data>
+                ]]>
+            </field>
+        </record>
+    </data>
+</tryton>

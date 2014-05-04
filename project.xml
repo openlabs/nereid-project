@@ -37,23 +37,6 @@ of this repository contains the full copyright notices and license terms. -->
             </field>
         </record>
 
-        <record model="ir.ui.view" id="timesheet_by_employee_by_day_form">
-            <field name="model">timesheet_by_employee_by_day</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <![CDATA[
-                <form string="Update Gantt Chart">
-                    <label name="employee"/>
-                    <field name="employee"/>
-                    <label name="date"/>
-                    <field name="date"/>
-                    <label name="hours"/>
-                    <field name="hours"/>
-                </form>
-                ]]>
-            </field>
-        </record>
-
         <record model="nereid.activity.allowed_model"
                 id="activity_allowed_model_work">
           <field name="name">ProjectWork</field>
