@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<tryton>
+    <data>
+        <record model="ir.ui.view" id="timesheet_by_employee_by_day_form">
+            <field name="model">timesheet_by_employee_by_day</field>
+            <field name="type">form</field>
+            <field name="name">timesheet_by_employee_by_day_form</field>
+        </record>
+    </data>
+</tryton>

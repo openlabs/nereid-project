@@ -11,7 +11,6 @@ import os
 import uuid
 import re
 import tempfile
-import warnings
 import time
 import dateutil.parser
 import calendar
@@ -31,7 +30,6 @@ from nereid import (
 from flask import send_file
 from flask.helpers import send_from_directory
 from nereid.ctx import has_request_context
-from nereid.signals import registration
 from nereid.contrib.pagination import Pagination
 from trytond.model import ModelView, ModelSQL, fields
 from trytond.pool import Pool, PoolMeta
@@ -41,11 +39,11 @@ from trytond.config import CONFIG
 from trytond.tools import get_smtp_server
 from trytond import backend
 
+from utils import request_wants_json
+
 __all__ = [
-    'WebSite', 'ProjectUsers', 'ProjectInvitation',
-    'TimesheetEmployeeDay', 'ProjectWorkInvitation', 'Project', 'Tag',
-    'TaskTags', 'ProjectHistory', 'ProjectWorkCommit', 'TimesheetLine',
-    'Activity', 'Attachment',
+    'ProjectUsers', 'ProjectInvitation', 'ProjectWorkInvitation', 'Project',
+    'ProjectHistory', 'ProjectWorkCommit',
 ]
 __metaclass__ = PoolMeta
 
@@ -67,30 +65,6 @@ STATIC_FOLDER = os.path.join(
         os.path.dirname(__file__)
     ), 'static'
 )
-
-
-def request_wants_json():
-    best = request.accept_mimetypes \
-        .best_match(['application/json', 'text/html'])
-    return best == 'application/json' and \
-        request.accept_mimetypes[best] > \
-        request.accept_mimetypes['text/html']
-
-
-class WebSite:
-    """
-    Website
-    """
-    __name__ = "nereid.website"
-
-    @classmethod
-    @route('/')
-    @login_required
-    def home(cls):
-        """
-        Put recent projects into the home
-        """
-        return redirect(url_for('project.work.home'))
 
 
 class ProjectUsers(ModelSQL):
@@ -249,36 +223,6 @@ class ProjectWorkInvitation(ModelSQL):
         'project.work.invitation', 'Project',
         ondelete='CASCADE', select=1, required=True
     )
-
-
-class TimesheetEmployeeDay(ModelView):
-    'Gantt dat view generator'
-    __name__ = 'timesheet_by_employee_by_day'
-
-    employee = fields.Many2One('company.employee', 'Employee')
-    date = fields.Date('Date')
-    hours = fields.Float('Hours', digits=(16, 2))
-
-    @classmethod
-    def __register__(cls, module_name):
-        """
-        Init Method
-
-        :param module_name: Name of the module
-        """
-        super(TimesheetEmployeeDay, cls).__register__(module_name)
-
-        query = '"timesheet_by_employee_by_day" AS ' \
-                'SELECT timesheet_line.employee, timesheet_line.date, ' \
-                'SUM(timesheet_line.hours) AS sum ' \
-                'FROM "timesheet_line" ' \
-                'GROUP BY timesheet_line.date, timesheet_line.employee;'
-
-        if CONFIG['db_type'] == 'postgres':
-            Transaction().cursor.execute('CREATE OR REPLACE VIEW ' + query)
-
-        elif CONFIG['db_type'] == 'sqlite':
-            Transaction().cursor.execute('CREATE VIEW IF NOT EXISTS ' + query)
 
 
 class Project:
@@ -2257,144 +2201,6 @@ class Project:
         )
 
 
-class Tag(ModelSQL, ModelView):
-    "Tags"
-    __name__ = "project.work.tag"
-
-    name = fields.Char('Name', required=True)
-    color = fields.Char('Color Code', required=True)
-    project = fields.Many2One(
-        'project.work', 'Project', required=True,
-        domain=[('type', '=', 'project')], ondelete='CASCADE',
-    )
-
-    @classmethod
-    def __setup__(cls):
-        super(Tag, cls).__setup__()
-        cls._sql_constraints += [
-            ('unique_name_project', 'UNIQUE(name, project)', 'Duplicate Tag')
-        ]
-
-    @staticmethod
-    def default_color():
-        '''
-        Default for color
-        '''
-        return "#999"
-
-    def serialize(self, purpose=None):
-        '''
-        Serialize the tag and returns a dictionary.
-        '''
-        return {
-            'create_date': self.create_date.isoformat(),
-            "url": url_for(
-                'project.work.render_task_list', project_id=self.project.id,
-                state="opened", tag=self.id
-            ),
-            "objectType": self.__name__,
-            "id": self.id,
-            "displayName": self.name,
-        }
-
-    @classmethod
-    @route('/project-<int:project_id>/tag/-new', methods=['GET', 'POST'])
-    @login_required
-    def create_tag(cls, project_id):
-        """
-        Create a new tag for the specific project
-
-        :params project_id: Project id for which need to be created
-        """
-        Project = Pool().get('project.work')
-        Activity = Pool().get('nereid.activity')
-
-        project = Project.get_project(project_id)
-
-        # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
-            flash(
-                "Sorry! You are not allowed to create new tags." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
-
-        if request.method == 'POST':
-            tag, = cls.create([{
-                'name': request.form['name'],
-                'color': request.form['color'],
-                'project': project.id
-            }])
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': 'project.work.tag, %d' % tag.id,
-                'verb': 'created_tag',
-                'target': 'project.work, %d' % project.id,
-                'project': project.id,
-            }])
-
-            flash("Successfully created tag")
-            return redirect(request.referrer)
-
-        flash("Could not create tag. Try Again")
-        return redirect(request.referrer)
-
-    @login_required
-    @route('/tag-<int:active_id>/-delete', methods=['GET', 'POST'])
-    def delete_tag(self):
-        """
-        Delete the tag from project
-        """
-        # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
-            flash(
-                "Sorry! You are not allowed to delete tags." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
-
-        if request.method == 'POST' and request.is_xhr:
-            self.delete([self])
-
-            return jsonify({
-                'success': True,
-            })
-
-        flash("Could not delete tag! Try again.")
-        return redirect(request.referrer)
-
-
-class TaskTags(ModelSQL):
-    'Task Tags'
-    __name__ = 'project.work-project.work.tag'
-
-    task = fields.Many2One(
-        'project.work', 'Project',
-        ondelete='CASCADE', select=1, required=True,
-        domain=[('type', '=', 'task')]
-    )
-
-    tag = fields.Many2One(
-        'project.work.tag', 'Tag', select=1, required=True, ondelete='CASCADE',
-    )
-
-    @classmethod
-    def __register__(cls, module_name):
-        '''
-        Register class and update table name to new.
-        '''
-        cursor = Transaction().cursor
-        TableHandler = backend.get('TableHandler')
-        table = TableHandler(cursor, cls, module_name)
-        super(TaskTags, cls).__register__(module_name)
-
-        # Migration
-        if table.table_exist(cursor, 'project_work_tag_rel'):
-            table.table_rename(
-                cursor, 'project_work_tag_rel', 'project_work-project_work_tag'
-            )
-
-
 class ProjectHistory(ModelSQL, ModelView):
     'Project Work History'
     __name__ = 'project.work.history'
@@ -2736,177 +2542,3 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                         'commit_id': commit['raw_node']
                     }])
         return 'OK'
-
-
-@registration.connect
-def invitation_new_user_handler(nereid_user_id):
-    """When the invite is sent to a new user, he is sent an invitation key
-    with the url which guides the user to registration page
-
-        This method checks if the invitation key is present in the url
-        If yes, search for the invitation with this key, attache the user
-            to the invitation and project to the user
-        If not, perform normal operation
-    """
-    try:
-        Invitation = Pool().get('project.work.invitation')
-        Project = Pool().get('project.work')
-        NereidUser = Pool().get('nereid.user')
-        Activity = Pool().get('nereid.activity')
-
-    except KeyError:
-        # Just return silently. This KeyError is cause if the module is not
-        # installed for a specific database but exists in the python path
-        # and is loaded by the tryton module loader
-        warnings.warn(
-            "nereid-project module installed but not in database",
-            DeprecationWarning, stacklevel=2
-        )
-        return
-
-    invitation_code = request.args.get('invitation_code')
-    if not invitation_code:
-        return
-    invitation, = Invitation.search([
-        ('invitation_code', '=', invitation_code)
-    ], limit=1)
-
-    if not invitation:
-        return
-
-    Invitation.write([invitation], {
-        'nereid_user': nereid_user_id,
-        'invitation_code': None
-    })
-
-    nereid_user = NereidUser(nereid_user_id)
-
-    subject = '[%s] %s Accepted the invitation to join the project' \
-        % (invitation.project.rec_name, nereid_user.display_name)
-
-    receivers = [
-        p.email for p in invitation.project.company.project_admins if p.email
-    ]
-
-    email_message = render_email(
-        text_template='project/emails/invite_2_project_accepted_text.html',
-        subject=subject, to=', '.join(receivers),
-        from_email=CONFIG['smtp_from'], invitation=invitation
-    )
-    server = get_smtp_server()
-    server.sendmail(CONFIG['smtp_from'], receivers, email_message.as_string())
-    server.quit()
-
-    Project.write(
-        [invitation.project], {
-            'participants': [('add', [nereid_user_id])]
-        }
-    )
-    Activity.create([{
-        'actor': nereid_user_id,
-        'object_': 'project.work, %d' % invitation.project.id,
-        'verb': 'joined_project',
-        'project': invitation.project.id,
-    }])
-
-
-class TimesheetLine:
-    '''
-    Timesheet Lines
-    '''
-    __name__ = 'timesheet.line'
-
-    def serialize(self, purpose=None):
-        '''
-        Serialize timesheet line and returns a dictionary.
-        '''
-        nereid_user_obj = Pool().get('nereid.user')
-
-        try:
-            nereid_user, = nereid_user_obj.search([
-                ('employee', '=', self.employee.id)
-            ], limit=1)
-        except ValueError:
-            nereid_user = {}
-        else:
-            nereid_user = nereid_user.serialize('listing')
-
-        # Render url for timesheet line is task on which this time is marked
-        return {
-            'create_date': self.create_date.isoformat(),
-            "url": url_for(
-                'project.work.render_task', project_id=self.work.parent.id,
-                task_id=self.work.id,
-            ),
-            "objectType": self.__name__,
-            "id": self.id,
-            "displayName": "%dh %dm" % (self.hours, (self.hours * 60) % 60),
-            "updatedBy": nereid_user,
-        }
-
-
-class Activity:
-    '''
-    Nereid user activity
-    '''
-    __name__ = "nereid.activity"
-
-    project = fields.Many2One(
-        'project.work', 'Project', domain=[('type', '=', 'project')]
-    )
-
-    @classmethod
-    def get_activity_stream_domain(cls):
-        '''
-        Returns the domain to get activity stream of project where current user
-        is participant
-        '''
-        return [
-            'OR', [
-                ('project.participants', '=', request.nereid_user.id),
-            ], [
-                ('actor', '=', request.nereid_user.id)
-            ]
-        ]
-
-
-class Attachment:
-    '''
-    Ir Attachment
-    '''
-    __name__ = "ir.attachment"
-
-    active = fields.Boolean("Active")
-    uploaded_by = fields.Many2One("nereid.user", "Uploaded By")
-
-    @staticmethod
-    def default_uploaded_by():
-        """
-        Sets current nereid user as default for uploaded_by
-        """
-        if has_request_context():
-            return request.nereid_user.id
-
-    @staticmethod
-    def default_active():
-        """
-        Sets default for active
-        """
-        return True
-
-    def serialize(self, purpose=None):
-        rv = {
-            'create_date': self.create_date.isoformat(),
-            "objectType": self.__name__,
-            "id": self.id,
-            "updatedBy": self.uploaded_by.serialize('listing'),
-            "displayName": self.name,
-            "description": self.description,
-        }
-        if has_request_context():
-            rv['downloadUrl'] = url_for(
-                'project.work.download_file',
-                attachment_id=self.id,
-                task=Transaction().context.get('task'),
-            )
-        return rv

@@ -6,52 +6,7 @@ of this repository contains the full copyright notices and license terms. -->
         <record id="nereid_work_view_form" model="ir.ui.view">
             <field name="model">project.work</field>
             <field name="inherit" ref="project.work_view_form"/>
-            <field name="arch" type="xml">
-                <![CDATA[
-                <data>
-                    <xpath expr="/form/notebook/page[@id=&quot;general&quot;]/separator[@name=&quot;comment&quot;]"
-                        position="before">
-                      <label name="assigned_to"/>
-                      <field name="assigned_to"/>
-                      <label name="progress_state"/>
-                      <field name="progress_state"/>
-                    </xpath>
-                    <xpath expr="/form/notebook" position="inside">
-                        <page string="Participants" id="project_participants">
-                            <separator name="participants" colspan="4"/>
-                            <field name="participants" colspan="4"/>
-                            <separator name="all_participants" colspan="4"/>
-                            <field name="all_participants" colspan="4"/>
-                        </page>
-                        <page string="Tags" id="project_tags">
-                            <separator name="tags" colspan="4"/>
-                            <field name="tags_for_projects" colspan="4"/>
-                            <field name="tags" colspan="4"/>
-                        </page>
-                        <page string="Commits" id="project_repo_commits">
-                            <field name="repo_commits" colspan="4"/>
-                        </page>
-                    </xpath>
-                </data>
-                ]]>
-            </field>
-        </record>
-
-        <record model="ir.ui.view" id="timesheet_by_employee_by_day_form">
-            <field name="model">timesheet_by_employee_by_day</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <![CDATA[
-                <form string="Update Gantt Chart">
-                    <label name="employee"/>
-                    <field name="employee"/>
-                    <label name="date"/>
-                    <field name="date"/>
-                    <label name="hours"/>
-                    <field name="hours"/>
-                </form>
-                ]]>
-            </field>
+            <field name="name">project_form</field>
         </record>
 
         <record model="nereid.activity.allowed_model"
