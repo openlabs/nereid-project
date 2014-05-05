@@ -4,7 +4,7 @@ Nereid Project
 .. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=develop
     :target: https://travis-ci.org/openlabs/nereid-project
 
-.. image:: https://coveralls.io/repos/openlabs/nereid-project/badge.png
+.. image:: https://coveralls.io/repos/openlabs/nereid-project/badge.png?branch=develop
     :target: https://coveralls.io/r/openlabs/nereid-project
 
 A web based project management system built on the Tryton framework and
