@@ -9,7 +9,7 @@
 """
 from datetime import datetime
 
-from nereid import request, jsonify, login_required
+from nereid import request, jsonify, login_required, route
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelSQL, fields
 
@@ -69,6 +69,7 @@ class NereidUser:
         return result
 
     @classmethod
+    @route("/me", methods=["GET", "POST"])
     @login_required
     def profile(cls):
         """
