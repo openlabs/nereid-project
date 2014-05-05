@@ -2,4 +2,4 @@
 source = trytond.modules.nereid_project
 
 [report]
-omit = */tests/*
+omit = */tests/*, */fabfile.py, */application.py
