@@ -80,12 +80,14 @@ class TestTask(NereidTestCase):
             'party': company_party.id,
             'currency': currency.id,
         }])
-        party0, party1, party2, = self.Party.create([{
+        party0, party1, party2, party3 = self.Party.create([{
             'name': 'Non registered user',
         }, {
             'name': 'Registered User1',
         }, {
             'name': 'Registered User2',
+        }, {
+            'name': 'Registered User3',
         }])
 
         # Create guest user
@@ -113,6 +115,13 @@ class TestTask(NereidTestCase):
             'party': party2.id,
             'display_name': 'Registered User',
             'email': 'example@example.com',
+            'password': 'password',
+            'company': company.id,
+        }])
+        registered_user3, = self.NereidUser.create([{
+            'party': party3.id,
+            'display_name': 'Registered User 3',
+            'email': 'example@example3.com',
             'password': 'password',
             'company': company.id,
         }])
@@ -214,6 +223,7 @@ class TestTask(NereidTestCase):
             'nereid_project_website': nereid_project_website,
             'registered_user1': registered_user1,
             'registered_user2': registered_user2,
+            'registered_user3': registered_user3,
             'guest_user': guest_user,
             'user1': user1,
             'user2': user2,
@@ -260,11 +270,12 @@ class TestTask(NereidTestCase):
         self.Project.write(
             [data['task1'].parent],
             {
-                'participants': [
-                    ('add', [
-                        data['registered_user2'].id,
-                        data['registered_user1'].id
-                    ])
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user2'].id,
+                    }, {
+                        'user': data['registered_user1'].id
+                    }])
                 ]
             }
         )
@@ -1040,23 +1051,46 @@ class TestTask(NereidTestCase):
 
     def test_0190_delete_task(self):
         """
-        Delete a task.
+        Delete a task only if
+            1. The user is project admin
+            2. The user is an admin member in the project
         """
+        ProjectMember = POOL.get('project.work.member')
+
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_task_dafaults()
             app = self.get_app()
-            task = data['task1']
+            task1 = data['task1']
+            task2 = data['task2']
 
-            login_data = {
+            login_data1 = {
                 'email': 'email@example.com',
                 'password': 'password',
             }
+            login_data2 = {
+                'email': 'example@example.com',
+                'password': 'password',
+            }
+
+            user1, = self.NereidUser.search([
+                ('email', '=', 'email@example.com')
+            ])
+
+            user2, = self.NereidUser.search([
+                ('email', '=', 'example@example.com')
+            ])
+
+            # Case1: When user is neither project admin nor admin member in
+            # the project
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                response = c.post('/login', data=login_data2)
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.location, 'http://localhost/')
+
+                self.assertFalse(user2.is_project_admin())
+                self.assertFalse(user2.is_admin_of_project(task1))
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
@@ -1067,7 +1101,47 @@ class TestTask(NereidTestCase):
                     )
                     # Delete_task
                     response = c.post(
-                        '/task-%d/-delete' % task.id,
+                        '/task-%d/-delete' % task1.id,
+                        headers=self.xhr_header
+                    )
+                    self.assertEqual(response.status_code, 302)
+
+                    # Task is not deleted
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        3
+                    )
+
+            # Case2: When user is admin member in the project
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data2)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, 'http://localhost/')
+
+                self.assertFalse(user2.is_project_admin())
+                self.assertFalse(user2.is_admin_of_project(task1))
+
+                project_user, = ProjectMember.search([
+                    ('user', '=', user2.id),
+                    ('project', '=', task1.parent)
+                ])
+                project_user.role = 'admin'
+                project_user.save()
+
+                self.assertTrue(user2.is_admin_of_project(task1))
+
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        3
+                    )
+                    # Delete_task
+                    response = c.post(
+                        '/task-%d/-delete' % task1.id,
                         headers=self.xhr_header
                     )
                     self.assertEqual(response.status_code, 200)
@@ -1078,6 +1152,38 @@ class TestTask(NereidTestCase):
                     self.assertEqual(
                         len(self.Project.search([('type', '=', 'task')])),
                         2
+                    )
+
+            # Case3: When user is project admin
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data1)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, 'http://localhost/')
+
+                self.assertTrue(user1.is_project_admin())
+
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        2
+                    )
+                    # Delete_task
+                    response = c.post(
+                        '/task-%d/-delete' % task2.id,
+                        headers=self.xhr_header
+                    )
+                    self.assertEqual(response.status_code, 200)
+
+                    self.assertTrue(json.loads(response.data)['success'])
+
+                    # Total tasks before deletion are 2 after deletion 1
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        1
                     )
 
     def test_0200_create_task_with_multiple_tags(self):
@@ -1222,11 +1328,12 @@ class TestTask(NereidTestCase):
 
             # Add participants to project1
             self.Project.write([data['project1']], {
-                'participants': [
-                    ('add', [
-                        data['registered_user2'].id,
-                        data['registered_user1'].id
-                    ])
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user2'].id,
+                    }, {
+                        'user': data['registered_user1'].id
+                    }])
                 ]
             })
 
@@ -1247,7 +1354,7 @@ class TestTask(NereidTestCase):
                     response = c.post(
                         '/project-%d/task/-new' % data['project1'].id,
                         data={
-                            'name': 'ABC_task',
+                            'name': 'Test Task 1',
                             'description': 'task_desc',
                             'assign_to': data['registered_user1'].id,
                         }
@@ -1260,7 +1367,51 @@ class TestTask(NereidTestCase):
                         response.data
                     )
 
-            task, = self.Project.search([('type', '=', 'task')])
+            # Nereid User-1 creates a task and assign it to other
+            # participant of the project
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data_user1)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                with Transaction().set_context({'company': data['company'].id}):
+                    response = c.post(
+                        '/project-%d/task/-new' % data['project1'].id,
+                        data={
+                            'name': 'Test Task 2',
+                            'description': 'task_desc',
+                            'assign_to': data['registered_user2'].id,
+                        }
+                    )
+                    self.assertEqual(response.status_code, 302)
+
+                    response = c.get('/login')
+                    self.assertTrue(
+                        u'Task successfully added to project ABC' in
+                        response.data
+                    )
+
+            # Nereid User-1 creates a task and assign it to non
+            # participant user
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data_user1)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                with Transaction().set_context({'company': data['company'].id}):
+                    response = c.post(
+                        '/project-%d/task/-new' % data['project1'].id,
+                        data={
+                            'name': 'Test Task 3',
+                            'description': 'task_desc',
+                            'assign_to': data['registered_user3'].id,
+                        }
+                    )
+                    self.assertEqual(response.status_code, 404)
+
+            task, = self.Project.search([
+                ('type', '=', 'task'), ('work.name', '=', 'Test Task 1')
+            ])
 
             login_data_user2 = {
                 'email': 'example@example.com',
@@ -1281,6 +1432,26 @@ class TestTask(NereidTestCase):
                         data={
                             'comment': 'comment1',
                             'assigned_to': data['registered_user2'].id,
+                            'progress_state': 'In Progress',
+                        },
+                        headers=self.xhr_header,
+                    )
+                    self.assertEqual(response.status_code, 200)
+
+            # Nereid User-2 updates the task and assigned to other
+            # participant of the project
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data_user2)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+
+                with Transaction().set_context({'company': data['company'].id}):
+                    response = c.post(
+                        '/task-%d/-update' % task.id,
+                        data={
+                            'comment': 'comment1',
+                            'assigned_to': data['registered_user1'].id,
                             'progress_state': 'In Progress',
                         },
                         headers=self.xhr_header,

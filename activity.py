@@ -31,7 +31,9 @@ class Activity:
         '''
         return [
             'OR', [
-                ('project.participants', '=', request.nereid_user.id),
+                ('project.members.user', '=', request.nereid_user.id),
+            ], [
+                ('project.participants', '=', request.nereid_user.id)
             ], [
                 ('actor', '=', request.nereid_user.id)
             ]

@@ -52,6 +52,20 @@ class NereidUser:
             return jsonify(user.serialize())
         return super(NereidUser, cls).profile()
 
+    def is_admin_of_project(self, project):
+        """
+        Check if user is admin member of the given project
+
+        :param project: Active record of project
+        """
+        if project.parent:
+            project = project.parent
+
+        for member in project.members:
+            if member.user == self and member.role == 'admin':
+                return True
+        return False
+
     def is_project_admin(self):
         """
         Returns True if the user is in the website admins list
