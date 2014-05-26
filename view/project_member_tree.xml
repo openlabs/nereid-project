@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+
+<tree string="Project Members">
+    <field name="user"/>
+    <field name="role"/>
+</tree>

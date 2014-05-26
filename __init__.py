@@ -2,19 +2,23 @@
 '''
     nereid_project
 
-    :copyright: (c) 2010-2013 by Openlabs Technologies & Consulting (P) Ltd.
+    :copyright: (c) 2010-2014 by Openlabs Technologies & Consulting (P) Ltd.
     :license: GPLv3, see LICENSE for more details
 
 '''
 from trytond.pool import Pool
 
+from website import WebSite
 from project import (
-    WebSite, ProjectUsers, ProjectInvitation,
-    TimesheetEmployeeDay, ProjectWorkInvitation, Project, Tag,
-    TaskTags, ProjectHistory, ProjectWorkCommit, TimesheetLine, Activity,
-    Attachment,
+    ProjectUsers, ProjectWorkMember, ProjectInvitation, ProjectWorkInvitation,
+    Project, ProjectHistory, ProjectWorkCommit
 )
-from company import Company, CompanyProjectAdmins, NereidUser
+from activity import Activity
+from attachment import Attachment
+from timesheet import TimesheetEmployeeDay, TimesheetLine
+from tag import Tag, TaskTags
+from company import Company, CompanyProjectAdmins
+from user import NereidUser
 
 
 def register():
@@ -22,7 +26,10 @@ def register():
     """
     Pool.register(
         WebSite,
+        Company,
+        CompanyProjectAdmins,
         ProjectUsers,
+        ProjectWorkMember,
         ProjectInvitation,
         TimesheetEmployeeDay,
         ProjectWorkInvitation,
@@ -33,8 +40,6 @@ def register():
         ProjectWorkCommit,
         TimesheetLine,
         Activity,
-        Company,
-        CompanyProjectAdmins,
         NereidUser,
         Attachment,
         module='nereid_project', type_='model',

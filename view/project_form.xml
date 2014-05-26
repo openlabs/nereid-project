@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<data>
+    <xpath expr="/form/notebook/page[@id=&quot;general&quot;]/separator[@name=&quot;comment&quot;]" position="before">
+        <label name="assigned_to"/>
+        <field name="assigned_to"/>
+        <label name="progress_state"/>
+        <field name="progress_state"/>
+    </xpath>
+    <xpath expr="/form/notebook" position="inside">
+        <page string="Participants" id="project_participants">
+            <separator name="participants" colspan="4"/>
+            <field name="participants" colspan="4"/>
+            <separator name="members" colspan="4"/>
+            <field name="members" colspan="4"/>
+            <separator name="all_participants" colspan="4"/>
+            <field name="all_participants" colspan="4"/>
+        </page>
+        <page string="Tags" id="project_tags">
+            <separator name="tags" colspan="4"/>
+            <field name="tags_for_projects" colspan="4"/>
+            <field name="tags" colspan="4"/>
+        </page>
+        <page string="Commits" id="project_repo_commits">
+            <field name="repo_commits" colspan="4"/>
+        </page>
+    </xpath>
+</data>

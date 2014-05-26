@@ -1,6 +1,12 @@
 Nereid Project
 ===============
 
+.. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=develop
+    :target: https://travis-ci.org/openlabs/nereid-project
+
+.. image:: https://coveralls.io/repos/openlabs/nereid-project/badge.png?branch=develop
+    :target: https://coveralls.io/r/openlabs/nereid-project
+
 A web based project management system built on the Tryton framework and
 nereid.
 
@@ -38,17 +44,3 @@ To install from source
     $ git clone git://github.com/openlabs/nereid-project.git
     $ cd nereid-project
     $ python setup.py install
-
-
-Build Status (Master)
----------------------
-
-.. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=master
-.. _Master: https://travis-ci.org/openlabs/nereid-project
-
-
-Build Status (Develop)
----------------------
-
-.. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=develop
-.. _Develop: https://travis-ci.org/openlabs/nereid-project

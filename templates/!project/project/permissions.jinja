@@ -75,10 +75,10 @@
 <div class="page-header">
   <h4>Participants</h4>
 </div>
-{% for batch in project.participants|batch(3) %}
+{% for batch in project.members|batch(3) %}
 <div class="row-fluid">
   {% for user in batch %}
-    {{ render_participant(user) }}
+    {{ render_participant(user.user) }}
   {% endfor %}
 </div>
 {% endfor %}

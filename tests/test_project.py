@@ -502,10 +502,11 @@ class TestNereidProject(NereidTestCase):
             self.assertEqual(len(self.Project.search([])), 2)
 
             self.Project.write(
-                [project1],
-                {
-                    'participants': [
-                        ('add', [data['registered_user3'].id])
+                [project1], {
+                    'members': [
+                        ('create', [{
+                            'user': data['registered_user3'].id
+                        }])
                     ]
                 }
             )
@@ -614,9 +615,12 @@ class TestNereidProject(NereidTestCase):
 
             # For project nereid user should be participant of that project
             self.Project.write(
-                [project],
-                {
-                    'participants': [('add', [data['registered_user2'].id])]
+                [project], {
+                    'members': [
+                        ('create', [{
+                            'user': data['registered_user2'].id
+                        }])
+                    ]
                 }
             )
 
@@ -670,9 +674,12 @@ class TestNereidProject(NereidTestCase):
 
             # For project nereid user should be participant of that project
             self.Project.write(
-                [project],
-                {
-                    'participants': [('add', [data['registered_user2'].id])]
+                [project], {
+                    'members': [
+                        ('create', [{
+                            'user': data['registered_user2'].id
+                        }])
+                    ]
                 }
             )
 
@@ -1088,13 +1095,13 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user2'].id
+                    }])
+                ]
             }])
 
-            # Add participant to project
-            participant, = self.ProjectUsers.create([{
-                'project': project.id,
-                'user': data['registered_user2'].id,
-            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1102,19 +1109,31 @@ class TestNereidProject(NereidTestCase):
                     'email': 'res_user@example.com',
                     'password': 'password',
                 })
+
+                self.assertTrue(
+                    data['registered_user2'] in [
+                        m.user for m in project.members
+                    ]
+                )
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
                     response = c.post(
                         '/project-%d/participant-%d/-remove' %
-                        (project.id, participant.id)
+                        (project.id, data['registered_user2'].id)
                     )
+
                     self.assertEqual(response.status_code, 302)
                     response = c.get('/login')
                     self.assertTrue(
                         'Sorry! You are not allowed to remove participants.' +
                         ' Contact your project admin for the same.' in
                         response.data
+                    )
+                    self.assertTrue(
+                        data['registered_user2'] in [
+                            m.user for m in project.members
+                        ]
                     )
 
     def test_0170_remove_paricipant_admin(self):
@@ -1134,13 +1153,14 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user2'].id
+                    }])
+                ]
+
             }])
 
-            # Add participant to project
-            participant, = self.ProjectUsers.create([{
-                'project': project.id,
-                'user': data['registered_user2'].id,
-            }])
             with app.test_client() as c:
 
                 # User Login
@@ -1148,23 +1168,34 @@ class TestNereidProject(NereidTestCase):
                     'email': 'email@example.com',
                     'password': 'password',
                 })
+
+                self.assertTrue(
+                    data['registered_user2'] in [
+                        m.user for m in project.members
+                    ]
+                )
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
                     response = c.post(
                         '/project-%d/participant-%d/-remove' %
-                        (project.id, participant.id),
+                        (project.id, data['registered_user2'].id),
                         headers=self.xhr_header,
                     )
 
                     # Checking json {"success": true}
                     self.assertTrue(json.loads(response.data)['success'])
                     self.assertEqual(response.status_code, 200)
+                    self.assertFalse(
+                        data['registered_user2'] in [
+                            m.user for m in project.members
+                        ]
+                    )
 
                     # Checks if remove participant by get request
                     response = c.get(
                         '/project-%d/participant-%d/-remove' %
-                        (project.id, participant.id)
+                        (project.id, data['registered_user2'].id)
                     )
 
                     self.assertEqual(response.status_code, 302)
@@ -1329,14 +1360,22 @@ class TestNereidProject(NereidTestCase):
                 'type': 'project',
                 'parent': False,
                 'state': 'opened',
-                'participants': [('set', [data['registered_user1'].id])]
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id
+                    }])
+                ]
             }])
             project2, = self.Project.create([{
                 'work': work2.id,
                 'type': 'project',
                 'parent': False,
                 'state': 'opened',
-                'participants': [('set', [data['registered_user2'].id])]
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user2'].id
+                    }])
+                ]
             }])
             project_model, = self.Model.search([
                 ('model', '=', 'project.work')
@@ -1433,7 +1472,11 @@ class TestNereidProject(NereidTestCase):
                 'type': 'project',
                 'parent': False,
                 'state': 'opened',
-                'participants': [('set', [data['registered_user1'].id])]
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id
+                    }])
+                ]
             }])
             project_model, = self.Model.search([
                 ('model', '=', 'project.work')

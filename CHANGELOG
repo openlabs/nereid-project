@@ -1,0 +1,6 @@
+3.0.3.0
+=======
+
+* Migration from global project admin to project wise membership.
+* The migration should create regular users as members and all
+  project admins as admins in every project.

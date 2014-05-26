@@ -6,14 +6,14 @@ You can go to the {{ url_for('project.work.render_project', project_id=invitatio
 
 Current {{ ngettext('participant', 'participants', invitation.project.all_participants|count) }} in the project:
 
-{%- for participant in invitation.project.participants -%}
+{%- for participant in invitation.project.members -%}
     {%- if not loop.first and not loop.last -%}
 ,
     {%- endif -%}
     {%- if not loop.first and loop.last -%}
  and
     {%- endif -%}
-    {%- if participant.display_name -%}
-      {{ participant.display_name }}
+    {%- if participant.user.display_name -%}
+      {{ participant.user.display_name }}
     {%- endif -%}
 {%- endfor -%}

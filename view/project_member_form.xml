@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+
+<form string="Project Member">
+    <label name="user"/>
+    <field name="user"/>
+    <label name="role"/>
+    <field name="role"/>
+    <label name="project"/>
+    <field name="project"/>
+</form>
