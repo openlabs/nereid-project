@@ -119,7 +119,7 @@ setup(
     ],
     package_data={
         'trytond.modules.nereid_project': info.get('xml', [])
-        + info.get('translation', []) + ['tryton.cfg']
+        + info.get('translation', []) + ['tryton.cfg', 'view/*.xml']
         + list(get_files("templates/"))
         + list(get_files("static/")),
     },
