@@ -7,7 +7,7 @@
     :copyright: (c) 2013 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
-
+from tests.test_views_depends import TestViewsDepends
 from tests.test_company import TestCompany
 from tests.test_project import TestNereidProject
 from tests.test_task import TestTask
@@ -36,6 +36,7 @@ def suite():
     """
     test_suite = trytond.tests.test_tryton.suite()
     test_suite.addTests([
+        unittest.TestLoader().loadTestsFromTestCase(TestViewsDepends),
         unittest.TestLoader().loadTestsFromTestCase(TestCompany),
         unittest.TestLoader().loadTestsFromTestCase(TestNereidProject),
         unittest.TestLoader().loadTestsFromTestCase(TestTask),
