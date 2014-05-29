@@ -72,8 +72,8 @@ class Tag(ModelSQL, ModelView):
 
         project = Project.get_project(project_id)
 
-        # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
+        # Check if user is among the project admin members
+        if not request.nereid_user.is_admin_of_project(project):
             flash(
                 "Sorry! You are not allowed to create new tags." +
                 " Contact your project admin for the same."
@@ -107,7 +107,8 @@ class Tag(ModelSQL, ModelView):
         Delete the tag from project
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
+        if request.method == 'POST' and not \
+                request.nereid_user.is_admin_of_project(self.project):
             flash(
                 "Sorry! You are not allowed to delete tags." +
                 " Contact your project admin for the same."

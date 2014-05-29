@@ -98,7 +98,7 @@ class TestNereidProject(NereidTestCase):
             'currency': currency.id,
         }])
 
-        party1, party2, party3, party4 = self.Party.create([{
+        party1, party2, party3, party4, party5 = self.Party.create([{
             'name': 'Non registered user',
         }, {
             'name': 'Registered User',
@@ -106,6 +106,8 @@ class TestNereidProject(NereidTestCase):
             'name': 'Registered User2',
         }, {
             'name': 'Registered User3',
+        }, {
+            'name': 'Project Admin User',
         }])
 
         # Create Employee
@@ -128,27 +130,26 @@ class TestNereidProject(NereidTestCase):
             }, {
                 'party': party2.id,
                 'display_name': 'Registered User1',
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
                 'company': company.id,
                 'employee': employee1.id,
             }, {
                 'party': party3.id,
                 'display_name': 'Registered User2',
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'password': 'password',
                 'company': company.id,
                 'employee': employee2.id,
             }, {
                 'party': party4.id,
                 'display_name': 'Registered User3',
-                'email': 'res_user@example.com',
+                'email': 'email@reg_user3.com',
                 'password': 'password',
                 'company': company.id,
             }])
 
         self.Company.write([company], {
-            'project_admins': [('add', [registered_user1.id])],
             'employees': [('add', [employee1.id])],
         })
         menu_list = self.Action.search([('usage', '=', 'menu')])
@@ -200,12 +201,17 @@ class TestNereidProject(NereidTestCase):
         permission = self.Permission.search([
             ('value', '=', 'project.admin')
         ])
+
+        project_admin_user, = self.NereidUser.create([{
+            'party': party5.id,
+            'display_name': 'Project Admin User',
+            'email': 'admin@project.com',
+            'password': 'password',
+            'company': company.id,
+        }])
         self.Permission.write(
-            permission,
-            {
-                'nereid_users': [
-                    ('add', [registered_user1.id, registered_user2.id])
-                ]
+            permission, {
+                'nereid_users': [('add', [project_admin_user.id])]
             }
         )
 
@@ -224,10 +230,10 @@ class TestNereidProject(NereidTestCase):
             'user2': user2,
         }
 
-    def test_0010_create_project_when_user_is_not_admin(self):
+    def test_0010_create_project_when_user_is_not_project_admin(self):
         """
-        Tests for the creation of project when nereid user is not admin, this
-        shows a flash message and would not create project
+        Tests for the creation of project when nereid user is not project admin,
+        this shows a flash message and would not create project
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -236,9 +242,13 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 login_data = {
-                    'email': 'example@example.com',
+                    'email': 'email@reg_user3.com',
                     'password': 'password',
                 }
+
+                user, = self.NereidUser.search([
+                    ('email', '=', 'email@reg_user3.com')
+                ])
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
@@ -252,7 +262,7 @@ class TestNereidProject(NereidTestCase):
                     # Get flash message for logged in user
                     response = c.get('/login')
                     self.assertTrue(
-                        u'You are now logged in. Welcome Registered User2' in
+                        u'You are now logged in. Welcome Registered User3' in
                             response.data
                     )
 
@@ -264,15 +274,9 @@ class TestNereidProject(NereidTestCase):
                         'parent': False,
                         'state': 'opened',
                     })
-                    self.assertEqual(response.status_code, 302)
 
-                    # Check Flash Message
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Sorry! You are not allowed to create new projects.' +
-                        ' Contact your project admin for the same.' in
-                        response.data
-                    )
+                    # Permission Denied
+                    self.assertEqual(response.status_code, 403)
 
     def test_0020_check_logout(self):
         """
@@ -285,7 +289,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 login_data = {
-                    'email': 'example@example.com',
+                    'email': 'email@reg_user2.com',
                     'password': 'password',
                 }
 
@@ -311,9 +315,9 @@ class TestNereidProject(NereidTestCase):
                     )
                     self.assertEqual(response.status_code, 200)
 
-    def test_0030_create_project_when_user_is_admin(self):
+    def test_0030_create_project_when_user_is_project_admin(self):
         """
-        Create project when nereid user is admin
+        Create project when nereid user has project admin permission
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -327,12 +331,12 @@ class TestNereidProject(NereidTestCase):
                         {'company': data['company'].id}):
                     # User Login
                     response = c.post('/login', data={
-                        'email': 'email@example.com',
+                        'email': 'admin@project.com',
                         'password': 'password',
                     })
                     response = c.get('/login')
                     self.assertTrue(
-                        u'You are now logged in. Welcome Registered User1' in
+                        u'You are now logged in. Welcome Project Admin User' in
                         response.data
                     )
 
@@ -352,6 +356,8 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(
                         response.location, 'http://localhost/project-1'
                     )
+                    response = c.get('http://localhost/project-1')
+                    self.assertEqual(response.status_code, 200)
 
                     # Check Flash message
                     response = c.get('/login')
@@ -395,12 +401,18 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id,
+                        'role': 'admin'
+                    }])
+                ]
             }])
 
             with app.test_client() as c:
 
                 login_data = {
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 }
 
@@ -450,7 +462,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
 
                 login_data = {
-                    'email': 'email@example.com',
+                    'email': 'admin@project.com',
                     'password': 'password',
                 }
 
@@ -515,7 +527,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'res_user@example.com',
+                    'email': 'email@reg_user3.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -527,9 +539,10 @@ class TestNereidProject(NereidTestCase):
                     # for that project only
                     self.assertEqual(response.data, '1')
 
-    def test_0070_create_tag_nereid_user_is_admin(self):
+    def test_0070_create_tag_nereid_user_is_admin_member(self):
         """
         Tests for creating tag for specific project when nereid user is admin
+        member of the project
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -546,13 +559,30 @@ class TestNereidProject(NereidTestCase):
                 'state': 'opened',
             }])
 
+            user, = self.NereidUser.search([
+                ('email', '=', 'email@reg_user1.com')
+            ])
+
+            # Add user as admin member of project
+            self.Project.write(
+                [project], {
+                    'members': [
+                        ('create', [{
+                            'user': user.id,
+                            'role': 'admin'
+                        }])
+                    ]
+                }
+            )
+
             with app.test_client() as c:
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
+                self.assertTrue(user.is_admin_of_project(project))
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
@@ -628,9 +658,13 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'example@example.com',
+                    'email': 'email@reg_user2.com',
                     'password': 'password',
                 })
+
+                self.assertFalse(
+                    data['registered_user2'].is_admin_of_project(project)
+                )
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
@@ -655,7 +689,7 @@ class TestNereidProject(NereidTestCase):
 
     def test_0090_delete_tag_when_nereid_user_is_not_admin(self):
         """
-        Tests for deleting tag for project when nereid user is not admin
+        Tests deletion of tags by non admin member
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -684,12 +718,15 @@ class TestNereidProject(NereidTestCase):
             )
 
             with app.test_client() as c:
-
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'example@example.com',
+                    'email': 'email@reg_user2.com',
                     'password': 'password',
                 })
+
+                self.assertFalse(
+                    data['registered_user2'].is_admin_of_project(project)
+                )
                 with Transaction().set_context({
                     'company': data['company'].id
                 }):
@@ -713,7 +750,7 @@ class TestNereidProject(NereidTestCase):
 
     def test_0100_delete_tag_when_nereid_user_is_admin(self):
         """
-        Tests for deleting tag for project when nereid user is admin
+        Tests that only project admin member can delete tags
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -730,16 +767,32 @@ class TestNereidProject(NereidTestCase):
                 'state': 'opened',
             }])
 
+            user, = self.NereidUser.search([
+                ('email', '=', 'email@reg_user1.com')
+            ])
+
+            # Add user as admin member of project
+            self.Project.write(
+                [project], {
+                    'members': [
+                        ('create', [{
+                            'user': user.id,
+                            'role': 'admin'
+                        }])
+                    ]
+                }
+            )
+
             with app.test_client() as c:
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
-                with Transaction().set_context({
-                    'company': data['company'].id
-                }):
+
+                self.assertTrue(user.is_admin_of_project(project))
+                with Transaction().set_context({'company': data['company'].id}):
                     # Create Tags
                     tag, = self.Tag.create([{
                         'name': 'tag',
@@ -748,8 +801,7 @@ class TestNereidProject(NereidTestCase):
                     }])
 
                     response = c.post(
-                        '/tag-%d/-delete' % tag.id,
-                        headers=self.xhr_header,
+                        '/tag-%d/-delete' % tag.id, headers=self.xhr_header,
                     )
 
                     # Checking json {"success": true}
@@ -782,7 +834,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'admin@project.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -812,6 +864,11 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id,
+                    }])
+                ]
             }])
             work1, work2 = self.Work.create([{
                 'name': 'ABC_task',
@@ -833,7 +890,7 @@ class TestNereidProject(NereidTestCase):
             }])
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -934,6 +991,11 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id,
+                    }])
+                ]
             }])
             # Add tasks to project
             work1, = self.Work.create([{
@@ -961,7 +1023,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -988,6 +1050,11 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id,
+                    }])
+                ]
             }])
             work1, = self.Work.create([{
                 'name': 'ABC_task',
@@ -1002,7 +1069,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -1053,9 +1120,15 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id,
+                        'role': 'admin',
+                    }])
+                ]
             }])
             invitation, = self.ProjectInvitation.create([{
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'invitation_code': '123',
                 'nereid_user': data['registered_user3'].id,
                 'project': project.id,
@@ -1064,7 +1137,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -1077,10 +1150,10 @@ class TestNereidProject(NereidTestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.data, '0')
 
-    def test_0160_remove_participants_by_nereid_user(self):
+    def test_0160_remove_participants_non_admin_member(self):
         """
-        Checks if removes participant by user who is not admin, it won't
-        remove
+        Checks that participants cannot be removed by non admin member of the
+        project
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -1098,6 +1171,8 @@ class TestNereidProject(NereidTestCase):
                 'members': [
                     ('create', [{
                         'user': data['registered_user2'].id
+                    }, {
+                        'user': data['registered_user3'].id,
                     }])
                 ]
             }])
@@ -1106,14 +1181,12 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'res_user@example.com',
+                    'email': 'email@reg_user3.com',
                     'password': 'password',
                 })
 
-                self.assertTrue(
-                    data['registered_user2'] in [
-                        m.user for m in project.members
-                    ]
+                self.assertFalse(
+                    data['registered_user3'].is_admin_of_project(project)
                 )
                 with Transaction().set_context({
                     'company': data['company'].id
@@ -1136,9 +1209,9 @@ class TestNereidProject(NereidTestCase):
                         ]
                     )
 
-    def test_0170_remove_paricipant_admin(self):
+    def test_0170_remove_paricipant_admin_member(self):
         """
-        Checks remove participant by admin
+        Checks that only admin member can remove participants
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -1155,7 +1228,10 @@ class TestNereidProject(NereidTestCase):
                 'state': 'opened',
                 'members': [
                     ('create', [{
-                        'user': data['registered_user2'].id
+                        'user': data['registered_user2'].id,
+                    }, {
+                        'user': data['registered_user1'].id,
+                        'role': 'admin'
                     }])
                 ]
 
@@ -1165,9 +1241,13 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
+
+                self.assertTrue(
+                    data['registered_user1'].is_admin_of_project(project)
+                )
 
                 self.assertTrue(
                     data['registered_user2'] in [
@@ -1209,7 +1289,7 @@ class TestNereidProject(NereidTestCase):
 
     def test_0180_remove_invite(self):
         """
-        Checks removing inviation by non admin user
+        Checks removing inviation by non admin member
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
@@ -1224,10 +1304,15 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user2'].id,
+                    }])
+                ]
             }])
 
             invitation, = self.ProjectInvitation.create([{
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'invitation_code': '123',
                 'nereid_user': data['registered_user3'].id,
                 'project': project.id,
@@ -1236,7 +1321,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'example@example.com',
+                    'email': 'email@reg_user2.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -1276,10 +1361,16 @@ class TestNereidProject(NereidTestCase):
                 'work': work.id,
                 'type': 'project',
                 'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': data['registered_user1'].id,
+                        'role': 'admin',
+                    }])
+                ]
             }])
 
             invitation, = self.ProjectInvitation.create([{
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'invitation_code': '123',
                 'nereid_user': data['registered_user3'].id,
                 'project': project.id,
@@ -1288,7 +1379,7 @@ class TestNereidProject(NereidTestCase):
 
                 # User Login
                 response = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
                 with Transaction().set_context({
@@ -1407,7 +1498,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
                 # Login Success
                 rv = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
                 self.assertEqual(rv.status_code, 302)
@@ -1506,7 +1597,7 @@ class TestNereidProject(NereidTestCase):
             with app.test_client() as c:
                 # Login Success
                 rv = c.post('/login', data={
-                    'email': 'email@example.com',
+                    'email': 'email@reg_user1.com',
                     'password': 'password',
                 })
                 self.assertEqual(rv.status_code, 302)

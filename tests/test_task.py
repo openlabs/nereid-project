@@ -80,7 +80,7 @@ class TestTask(NereidTestCase):
             'party': company_party.id,
             'currency': currency.id,
         }])
-        party0, party1, party2, party3 = self.Party.create([{
+        party0, party1, party2, party3, party4 = self.Party.create([{
             'name': 'Non registered user',
         }, {
             'name': 'Registered User1',
@@ -88,6 +88,8 @@ class TestTask(NereidTestCase):
             'name': 'Registered User2',
         }, {
             'name': 'Registered User3',
+        }, {
+            'name': 'Project Admin',
         }])
 
         # Create guest user
@@ -106,7 +108,7 @@ class TestTask(NereidTestCase):
         registered_user1, = self.NereidUser.create([{
             'party': party1.id,
             'display_name': 'Registered User',
-            'email': 'email@example.com',
+            'email': 'email@reg_user1.com',
             'password': 'password',
             'company': company.id,
             'employee': employee1.id,
@@ -114,19 +116,18 @@ class TestTask(NereidTestCase):
         registered_user2, = self.NereidUser.create([{
             'party': party2.id,
             'display_name': 'Registered User',
-            'email': 'example@example.com',
+            'email': 'email@reg_user2.com',
             'password': 'password',
             'company': company.id,
         }])
         registered_user3, = self.NereidUser.create([{
             'party': party3.id,
             'display_name': 'Registered User 3',
-            'email': 'example@example3.com',
+            'email': 'email@reg_user3.com',
             'password': 'password',
             'company': company.id,
         }])
         self.Company.write([company], {
-            'project_admins': [('add', [registered_user1.id])],
             'employees': [('add', [employee1.id])],
         })
         menu_list = self.Action.search([('usage', '=', 'menu')])
@@ -195,12 +196,16 @@ class TestTask(NereidTestCase):
         permission = self.Permission.search([
             ('value', '=', 'project.admin')
         ])
+        project_admin_user, = self.NereidUser.create([{
+            'party': party4.id,
+            'display_name': 'Project Admin User',
+            'email': 'admin@project.com',
+            'password': 'password',
+            'company': company.id,
+        }])
         self.Permission.write(
-            permission,
-            {
-                'nereid_users': [
-                    ('add', [registered_user1.id, registered_user2.id])
-                ]
+            permission, {
+                'nereid_users': [('add', [project_admin_user.id])]
             }
         )
 
@@ -299,11 +304,11 @@ class TestTask(NereidTestCase):
         Test create task by logged in user
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_defaults()
+            data = self.create_task_dafaults()
             app = self.get_app()
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
 
@@ -343,7 +348,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -380,7 +385,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -429,7 +434,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -473,7 +478,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -506,7 +511,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -550,7 +555,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -581,7 +586,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -644,7 +649,7 @@ class TestTask(NereidTestCase):
             app = self.get_app()
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -677,7 +682,7 @@ class TestTask(NereidTestCase):
             app = self.get_app()
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -721,7 +726,7 @@ class TestTask(NereidTestCase):
             app = self.get_app()
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -768,11 +773,11 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             login_data2 = {
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -841,7 +846,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -878,7 +883,7 @@ class TestTask(NereidTestCase):
             })
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -926,7 +931,7 @@ class TestTask(NereidTestCase):
             app = self.get_app()
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'admin@project.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -953,7 +958,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -988,7 +993,7 @@ class TestTask(NereidTestCase):
                 'comment': 'comment1',
             }])
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -1022,7 +1027,7 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -1051,9 +1056,7 @@ class TestTask(NereidTestCase):
 
     def test_0190_delete_task(self):
         """
-        Delete a task only if
-            1. The user is project admin
-            2. The user is an admin member in the project
+        Delete a task only if user is an admin member in the project
         """
         ProjectMember = POOL.get('project.work.member')
 
@@ -1061,27 +1064,20 @@ class TestTask(NereidTestCase):
             data = self.create_task_dafaults()
             app = self.get_app()
             task1 = data['task1']
-            task2 = data['task2']
-
-            login_data1 = {
-                'email': 'email@example.com',
-                'password': 'password',
-            }
             login_data2 = {
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'password': 'password',
             }
 
             user1, = self.NereidUser.search([
-                ('email', '=', 'email@example.com')
+                ('email', '=', 'email@reg_user1.com')
             ])
 
             user2, = self.NereidUser.search([
-                ('email', '=', 'example@example.com')
+                ('email', '=', 'email@reg_user2.com')
             ])
 
-            # Case1: When user is neither project admin nor admin member in
-            # the project
+            # Case1: When user is not admin member in the project
             with app.test_client() as c:
                 response = c.post('/login', data=login_data2)
 
@@ -1089,8 +1085,7 @@ class TestTask(NereidTestCase):
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.location, 'http://localhost/')
 
-                self.assertFalse(user2.is_project_admin())
-                self.assertFalse(user2.is_admin_of_project(task1))
+                self.assertFalse(user2.is_admin_of_project(task1.parent))
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
@@ -1120,8 +1115,7 @@ class TestTask(NereidTestCase):
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.location, 'http://localhost/')
 
-                self.assertFalse(user2.is_project_admin())
-                self.assertFalse(user2.is_admin_of_project(task1))
+                self.assertFalse(user2.is_admin_of_project(task1.parent))
 
                 project_user, = ProjectMember.search([
                     ('user', '=', user2.id),
@@ -1130,7 +1124,7 @@ class TestTask(NereidTestCase):
                 project_user.role = 'admin'
                 project_user.save()
 
-                self.assertTrue(user2.is_admin_of_project(task1))
+                self.assertTrue(user2.is_admin_of_project(task1.parent))
 
                 with Transaction().set_context(
                     {'company': data['company'].id}
@@ -1154,48 +1148,16 @@ class TestTask(NereidTestCase):
                         2
                     )
 
-            # Case3: When user is project admin
-            with app.test_client() as c:
-                response = c.post('/login', data=login_data1)
-
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                self.assertTrue(user1.is_project_admin())
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        2
-                    )
-                    # Delete_task
-                    response = c.post(
-                        '/task-%d/-delete' % task2.id,
-                        headers=self.xhr_header
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
-
-                    # Total tasks before deletion are 2 after deletion 1
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        1
-                    )
-
-    def test_0200_create_task_with_multiple_tags(self):
+    def test_0200_create_task_with_multiple_tags_non_admin_member(self):
         """
-        Adding more than one tag to task which already exist in a project
+        Create task with multiple tags as non admin member
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_defaults()
+            data = self.create_task_dafaults()
             app = self.get_app(DEBUG=True)
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             with app.test_client() as c:
@@ -1205,10 +1167,9 @@ class TestTask(NereidTestCase):
                 with Transaction().set_context(
                     {'company': data['company'].id}
                 ):
-                    # No task created
                     self.assertEqual(
                         len(self.Project.search([('type', '=', 'task')])),
-                        0
+                        3
                     )
 
                     # Create Task
@@ -1228,7 +1189,7 @@ class TestTask(NereidTestCase):
                     # One task created
                     self.assertEqual(
                         len(self.Project.search([('type', '=', 'task')])),
-                        1
+                        4
                     )
                     self.assertTrue(
                         self.Project.search([
@@ -1240,7 +1201,79 @@ class TestTask(NereidTestCase):
                         ('rec_name', '=', 'Task with multiple tags'),
                     ])
 
-                    # Tags added in above created task
+                    # Tags are not added in above created task since user
+                    # is not admin member
+                    self.assertEqual(len(task.tags), 0)
+
+                    response = c.get('/login')
+                    self.assertTrue(
+                        u'Task successfully added to project ABC' in
+                        response.data
+                    )
+
+    def test_0200_create_task_with_multiple_tags_admin_member(self):
+        """
+        Create task with multiple tags as admin member
+        """
+        ProjectMember = POOL.get('project.work.member')
+
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_task_dafaults()
+            app = self.get_app(DEBUG=True)
+
+            login_data = {
+                'email': 'email@reg_user1.com',
+                'password': 'password',
+            }
+
+            member, = ProjectMember.search([
+                ('user.email', '=', 'email@reg_user1.com'),
+                ('project', '=', data['project1'].id),
+            ])
+            member.role = 'admin'
+            member.save()
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data)
+                self.assertEqual(response.status_code, 302)
+
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        3
+                    )
+
+                    # Create Task
+                    response = c.post(
+                        '/project-%d/task/-new' % data['project1'].id,
+                        data={
+                            'name': 'Task with multiple tags',
+                            'description': 'Multi selection tags field',
+                            'tags': [
+                                data['tag1'].id,
+                                data['tag2'].id,
+                                data['tag3'].id,
+                            ],
+                        }
+                    )
+                    self.assertEqual(response.status_code, 302)
+                    # One task created
+                    self.assertEqual(
+                        len(self.Project.search([('type', '=', 'task')])),
+                        4
+                    )
+                    self.assertTrue(
+                        self.Project.search([
+                            ('rec_name', '=', 'Task with multiple tags')
+                        ])
+                    )
+
+                    task, = self.Project.search([
+                        ('rec_name', '=', 'Task with multiple tags'),
+                    ])
+
+                    # Tags are addedd successfully
                     self.assertEqual(len(task.tags), 3)
 
                     response = c.get('/login')
@@ -1260,14 +1293,14 @@ class TestTask(NereidTestCase):
             task = data['task1']
 
             login_data = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
             utc = pytz.UTC
 
             payload = {
                 'commits': [{
-                    'author': {'email': 'email@example.com'},
+                    'author': {'email': 'email@reg_user1.com'},
                     'message': 'Add commit #%d' % task.id,
                     'timestamp': str(utc.localize(datetime.utcnow())),
                     'url': 'repo/url/1',
@@ -1338,7 +1371,7 @@ class TestTask(NereidTestCase):
             })
 
             login_data_user1 = {
-                'email': 'email@example.com',
+                'email': 'email@reg_user1.com',
                 'password': 'password',
             }
 
@@ -1414,7 +1447,7 @@ class TestTask(NereidTestCase):
             ])
 
             login_data_user2 = {
-                'email': 'example@example.com',
+                'email': 'email@reg_user2.com',
                 'password': 'password',
             }
 

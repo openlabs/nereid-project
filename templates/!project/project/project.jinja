@@ -103,7 +103,7 @@
   <li  {% if active_type_name == 'files' %}class="active"{% endif %}>
     <a href="{{ url_for('project.work.render_files', project_id=project.id) }}"><i class="icon-folder-close"></i> {{ _('Files') }}</a>
   </li>
-  {% if request.nereid_user.is_project_admin() %}
+  {% if request.nereid_user.is_admin_of_project(project) %}
   <li>
     <a href="#"><i class="icon-wrench"></i> {{ _('Settings') }}</a>
   </li>
@@ -129,7 +129,7 @@
 </ul>
 
 <div class="row-fluid">
-  {% if request.nereid_user.is_project_admin() %} 
+  {% if request.nereid_user.is_admin_of_project(project) %} 
     <h4 class="pull-left span12"><small><i class="icon-tags"></i></small> {{ _('Tags') }} </h4>
 
     {% if project.tags_for_projects %} 
