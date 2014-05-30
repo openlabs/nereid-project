@@ -58,22 +58,14 @@ class NereidUser:
 
         :param project: Active record of project
         """
-        if project.parent:
-            project = project.parent
+        if request.nereid_user.has_permissions(['project.admin']):
+            return True
+
+        assert project.type == 'project'
 
         for member in project.members:
             if member.user == self and member.role == 'admin':
                 return True
-        return False
-
-    def is_project_admin(self):
-        """
-        Returns True if the user is in the website admins list
-
-        :return: True or False
-        """
-        if self in request.nereid_website.company.project_admins:
-            return True
         return False
 
     def hours_reported_today(self):

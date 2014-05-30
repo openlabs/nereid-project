@@ -241,7 +241,7 @@ class ProjectInvitation(ModelSQL, ModelView):
         Remove the invite to a participant from project
         """
         # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
+        if not request.nereid_user.is_admin_of_project(self.project):
             flash(
                 "Sorry! You are not allowed to remove invited users." +
                 " Contact your project admin for the same."
@@ -267,8 +267,8 @@ class ProjectInvitation(ModelSQL, ModelView):
     def resend_invite(self):
         """Resend the invite to a participant
         """
-        # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
+        # Check if user is among the project admin members
+        if not request.nereid_user.is_admin_of_project(self.project):
             flash("Sorry! You are not allowed to resend invites. \
                 Contact your project admin for the same.")
             return redirect(request.referrer)
@@ -337,6 +337,10 @@ class Project:
         'project.work-nereid.user', 'project', 'user',
         'Participants', states={'invisible': Eval('type') != 'task'},
         depends=['type']
+    )
+
+    admins = fields.Function(
+        fields.One2Many('nereid.user', None, "Admins"), 'get_admins'
     )
 
     tags_for_projects = fields.One2Many(
@@ -409,8 +413,7 @@ class Project:
         """
         Put recent projects into the home
         """
-        if request.nereid_user.is_project_admin():
-            # Display all projects to project admin
+        if request.nereid_user.has_permissions(['project.admin']):
             projects = cls.search([
                 ('type', '=', 'project'),
                 ('parent', '=', None),
@@ -518,9 +521,20 @@ class Project:
             ]
         else:
             users = [member.user.id for member in self.members]
-        users.extend([p.id for p in self.company.project_admins])
 
         return list(set(users))
+
+    def get_admins(self, name):
+        """
+        Return all admin users of the project
+        """
+
+        assert self.type == 'project'
+
+        return [
+            member.user.id for member in self.members
+            if member.role == 'admin'
+        ]
 
     @classmethod
     def create(cls, vlist):
@@ -547,7 +561,7 @@ class Project:
 
         :param user: The browse record of the current nereid user
         """
-        if user.is_project_admin():
+        if request.nereid_user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
             raise abort(404)
@@ -559,7 +573,10 @@ class Project:
 
         :param user: The browse record of the current nereid user
         """
-        if user.is_project_admin():
+        # XXX: this method and the method above check exactly same thing
+        # either of it can be removed and method can be renamed as
+        # can_read_write()
+        if request.nereid_user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
             raise abort(404)
@@ -648,6 +665,7 @@ class Project:
     @classmethod
     @route('/project/-new', methods=['GET', 'POST'])
     @login_required
+    @permissions_required(['project.admin'])
     def create_project(cls):
         """Create a new project
 
@@ -656,13 +674,6 @@ class Project:
         Activity = Pool().get('nereid.activity')
         Work = Pool().get('timesheet.work')
 
-        if not request.nereid_user.is_project_admin():
-            flash(
-                "Sorry! You are not allowed to create new projects." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
-
         if request.method == 'POST':
             project, = cls.create([{
                 'work': Work.create([{
@@ -670,6 +681,12 @@ class Project:
                     'company': request.nereid_website.company.id,
                 }])[0].id,
                 'type': 'project',
+                'members': [
+                    ('create', [{
+                        'user': request.nereid_user.id,
+                        'role': 'admin',
+                    }])
+                ]
             }])
             Activity.create([{
                 'actor': request.nereid_user.id,
@@ -714,8 +731,11 @@ class Project:
                 }])[0].id,
                 'type': 'task',
                 'comment': request.form.get('description', None),
-                'tags': [('set', request.form.getlist('tags', int))]
             }
+
+            if request.form.getlist('tags', int) and \
+                    request.nereid_user.is_admin_of_project(self):
+                data['tags'] = [('set', request.form.getlist('tags', int))]
 
             constraint_start_time = request.form.get(
                 'constraint_start_time', None)
@@ -808,7 +828,7 @@ class Project:
 
         if not receivers:
             receivers = [
-                s.user.email for s in self.participants if s.user.email
+                p.email for p in self.participants if p.email
             ]
         if self.created_by.email in receivers:
             receivers.remove(self.created_by.email)
@@ -886,6 +906,9 @@ class Project:
 
         project = cls.get_project(project_id)
 
+        if not request.nereid_user.is_admin_of_project(project):
+            abort(404)
+
         invitations = ProjectInvitation.search([
             ('project', '=', project.id),
             ('nereid_user', '=', None)
@@ -918,10 +941,17 @@ class Project:
         ProjectInvitation = Pool().get('project.work.invitation')
         Activity = Pool().get('nereid.activity')
 
+        project = cls.get_project(project_id)
+
+        if not request.nereid_user.is_admin_of_project(project):
+            flash(
+                "You are not allowed to invite users for this project"
+            )
+            return redirect(request.referrer)
+
         if not request.method == 'POST':
             return abort(404)
 
-        project = cls.get_project(project_id)
         email = request.form['email']
 
         existing_user = NereidUser.search([
@@ -992,13 +1022,14 @@ class Project:
         methods=['GET', 'POST']
     )
     def remove_participant(self, participant_id):
-        """Remove the participant form project
+        """
+        Remove the participant from the project
         """
         Activity = Pool().get('nereid.activity')
         ProjectMember = Pool().get('project.work.member')
 
-        # Check if user is among the project admins
-        if not request.nereid_user.is_project_admin():
+        # Check if user is admin member of the project
+        if not request.nereid_user.is_admin_of_project(self):
             flash(
                 "Sorry! You are not allowed to remove participants." +
                 " Contact your project admin for the same."
@@ -2182,10 +2213,7 @@ class Project:
         task = cls.get_task(task_id)
 
         # Check if user is among the project admins
-        if not (
-            request.nereid_user.is_project_admin() or
-            request.nereid_user.is_admin_of_project(task)
-        ):
+        if not request.nereid_user.is_admin_of_project(task.parent):
             flash(
                 "Sorry! You are not allowed to delete tasks. \
                 Contact your project admin for the same."
@@ -2449,7 +2477,7 @@ class ProjectHistory(ModelSQL, ModelView):
         assert self.project.id == task.id
 
         # Allow only admins and author of this comment to edit it
-        if request.nereid_user.is_project_admin() or \
+        if request.nereid_user.is_admin_of_project(task.parent) or \
                 self.updated_by == request.nereid_user:
             self.write([self], {'comment': request.form['comment']})
         else:

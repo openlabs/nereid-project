@@ -29,7 +29,7 @@
     </li>
     {% endfor %}
 
-    {% if request.nereid_user.is_project_admin() %}
+    {% if request.nereid_user.has_permissions(['project.admin']) %}
     {# admin only area #}
     <hr/>
     <li class="nav-header">
