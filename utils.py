@@ -69,7 +69,8 @@ def invitation_new_user_handler(nereid_user_id):
         % (invitation.project.rec_name, nereid_user.display_name)
 
     receivers = [
-        p.email for p in invitation.project.company.project_admins if p.email
+        m.email for m in invitation.project.members
+        if m.user.email and m.role == 'admin'
     ]
 
     email_message = render_email(
@@ -83,7 +84,11 @@ def invitation_new_user_handler(nereid_user_id):
 
     Project.write(
         [invitation.project], {
-            'participants': [('add', [nereid_user_id])]
+            'members': [
+                ('create', [{
+                    'user': [nereid_user_id]
+                }])
+            ]
         }
     )
     Activity.create([{

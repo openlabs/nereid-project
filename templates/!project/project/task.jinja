@@ -249,7 +249,7 @@
   <a href="" rel="tooltip" title="{{ participant.display_name }}"><img src="{{ participant.get_profile_picture(size="30") }}" alt="{{ participant.display_name }}" class="img-rounded"/></a>
   {% endfor %}
 
-{% if request.nereid_user.is_project_admin() %}
+{% if request.nereid_user.is_admin_of_project(task) %}
 <hr>
 <h4>Delete task
 
