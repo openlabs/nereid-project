@@ -413,17 +413,18 @@ class Project:
         """
         Put recent projects into the home
         """
-        if request.nereid_user.has_permissions(['project.admin']):
-            projects = cls.search([
-                ('type', '=', 'project'),
-                ('parent', '=', None),
-            ])
-        else:
-            projects = cls.search([
-                ('members.user', '=', request.nereid_user.id),
-                ('type', '=', 'project'),
-                ('parent', '=', None),
-            ])
+        domain = [
+            ('type', '=', 'project'),
+            ('parent', '=', None),
+        ]
+
+        if not request.nereid_user.has_permissions(['project.admin']):
+            # If not project admin, then the project only where user has
+            # a membership is shown
+            domain.append(('members.user', '=', request.nereid_user.id))
+
+        projects = sorted(cls.search(domain), key=lambda p: p.rec_name)
+
         if request.is_xhr:
             return jsonify({
                 'itemCount': len(projects),
