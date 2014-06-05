@@ -29,7 +29,7 @@
     </li>
     {% endfor %}
 
-    {% if request.nereid_user.has_permissions(['project.admin']) %}
+    {% if request.nereid_user.has_permissions(perm_any=['project.admin', 'project.manager']) %}
     {# admin only area #}
     <hr/>
     <li class="nav-header">
@@ -77,7 +77,7 @@
     <li>
       <a href="{{ url_for('project.work.my_tasks', state="opened") }}"><i class="icon-list"></i> {{ _('My tasks') }}</a>
     </li>
-    {% if request.nereid_user.has_permissions(['project.manager'])  or request.nereid_user.has_permissions(['project.admin'])%}
+    {% if request.nereid_user.has_permissions(perm_any=['project.admin', 'project.manager']) %}
     <li>
       <a href="{{ url_for('project.work.render_tasks_by_employee') }}"><i class="icon-list"></i> {{ _('Tasks by employee') }}</a>
     </li>

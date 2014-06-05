@@ -70,6 +70,8 @@ class TestNereidProject(NereidTestCase):
             'project/project.jinja': '{{ project.rec_name }}',
             'project/home.jinja': '{{ projects|length }}',
             'project/timesheet.jinja': '{{ employees|length }}',
+            'project/global-timesheet.jinja': '{{ employees|length }}',
+            'project/global-gantt.jinja': '{{ employees|length }}',
             'project/files.jinja':
                 '{{ project.children[0].attachments|length }}',
             'project/permissions.jinja': '{{ invitations|length }}',
@@ -98,7 +100,7 @@ class TestNereidProject(NereidTestCase):
             'currency': currency.id,
         }])
 
-        party1, party2, party3, party4, party5 = self.Party.create([{
+        party1, party2, party3, party4, party5, party6 = self.Party.create([{
             'name': 'Non registered user',
         }, {
             'name': 'Registered User',
@@ -108,6 +110,8 @@ class TestNereidProject(NereidTestCase):
             'name': 'Registered User3',
         }, {
             'name': 'Project Admin User',
+        }, {
+            'name': 'Project Manager',
         }])
 
         # Create Employee
@@ -198,10 +202,13 @@ class TestNereidProject(NereidTestCase):
         }])
 
         # Nereid Permission
-        permission = self.Permission.search([
+        admin_permission = self.Permission.search([
             ('value', '=', 'project.admin')
         ])
 
+        manager_permission = self.Permission.search([
+            ('value', '=', 'project.manager')
+        ])
         project_admin_user, = self.NereidUser.create([{
             'party': party5.id,
             'display_name': 'Project Admin User',
@@ -209,9 +216,23 @@ class TestNereidProject(NereidTestCase):
             'password': 'password',
             'company': company.id,
         }])
+
+        project_manager_user, = self.NereidUser.create([{
+            'party': party6.id,
+            'display_name': 'Project Manager User',
+            'email': 'manager@project.com',
+            'password': 'password',
+            'company': company.id,
+        }])
         self.Permission.write(
-            permission, {
+            admin_permission, {
                 'nereid_users': [('add', [project_admin_user.id])]
+            }
+        )
+
+        self.Permission.write(
+            manager_permission, {
+                'nereid_users': [('add', [project_manager_user.id])]
             }
         )
 
@@ -825,7 +846,11 @@ class TestNereidProject(NereidTestCase):
     def test_0110_compare_performance(self):
         """
         Tests number of employees
+
+        Only project admin or project manager are allowed to compare performance
+        of employees
         """
+        # Check with project admin user
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_defaults()
             app = self.get_app(DEBUG=True)
@@ -846,6 +871,183 @@ class TestNereidProject(NereidTestCase):
 
                     # Checks number of employees renders
                     self.assertEqual(response.data, '2')
+
+        # Check with project manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'manager@project.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/-compare-performance')
+                    self.assertTrue(response.status_code, 200)
+
+                    # Checks number of employees renders
+                    self.assertEqual(response.data, '2')
+
+        # Check with non admin and non manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'email@reg_user1.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/-compare-performance')
+                    self.assertTrue(response.status_code, 403)
+
+    def test_0115_global_timesheet_performance(self):
+        """
+        Tests that only project admin or project manager are allowed to
+        check global timesheet of employees
+        """
+        # Check with project admin user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'admin@project.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/timesheet')
+                    self.assertTrue(response.status_code, 200)
+
+                    # Checks number of employees renders
+                    self.assertEqual(response.data, '2')
+
+        # Check with project manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'manager@project.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/timesheet')
+                    self.assertTrue(response.status_code, 200)
+
+                    # Checks number of employees renders
+                    self.assertEqual(response.data, '2')
+
+        # Check with non admin and non manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'email@reg_user1.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/timsheet')
+                    self.assertTrue(response.status_code, 403)
+
+    def test_0116_gantt_data(self):
+        """
+        Tests that only project admin or project manager are allowed to
+        check global gantt data of employees
+        """
+        # Check with project admin user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'admin@project.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/-gantt')
+                    self.assertTrue(response.status_code, 200)
+
+                    # Checks number of employees renders
+                    self.assertEqual(response.data, '2')
+
+        # Check with project manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'manager@project.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/-gantt')
+                    self.assertTrue(response.status_code, 200)
+
+                    # Checks number of employees renders
+                    self.assertEqual(response.data, '2')
+
+        # Check with non admin and non manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            with app.test_client() as c:
+
+                # User Login
+                response = c.post('/login', data={
+                    'email': 'email@reg_user1.com',
+                    'password': 'password',
+                })
+                with Transaction().set_context({
+                    'company': data['company'].id
+                }):
+
+                    response = c.get('/projects/-gantt')
+                    self.assertTrue(response.status_code, 403)
 
     def test_0120_upload_files(self):
         """
