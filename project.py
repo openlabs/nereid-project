@@ -1600,7 +1600,7 @@ class Project:
     @classmethod
     @route('/projects/-compare-performance')
     @login_required
-    @permissions_required(['project.admin'])
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
     def compare_performance(cls):
         """
         Compare the performance of people
@@ -1621,7 +1621,7 @@ class Project:
     @classmethod
     @route('/projects/-gantt')
     @login_required
-    @permissions_required(['project.admin'])
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
     def render_global_gantt(cls):
         """
         Renders a global gantt
@@ -1638,7 +1638,7 @@ class Project:
     @classmethod
     @route('/projects/timesheet')
     @login_required
-    @permissions_required(['project.admin'])
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
     def render_global_timesheet(cls):
         '''
         Returns rendered timesheet template.
@@ -1655,7 +1655,7 @@ class Project:
     @classmethod
     @route('/tasks-by-employee')
     @login_required
-    @permissions_required(['project.admin'])
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
     def render_tasks_by_employee(cls):
         '''
         Returns rendered task, for employee.
