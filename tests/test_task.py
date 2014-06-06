@@ -80,7 +80,7 @@ class TestTask(NereidTestCase):
             'party': company_party.id,
             'currency': currency.id,
         }])
-        party0, party1, party2, party3, party4 = self.Party.create([{
+        party0, party1, party2, party3, party4, party5 = self.Party.create([{
             'name': 'Non registered user',
         }, {
             'name': 'Registered User1',
@@ -90,6 +90,8 @@ class TestTask(NereidTestCase):
             'name': 'Registered User3',
         }, {
             'name': 'Project Admin',
+        }, {
+            'name': 'Project Manager',
         }])
 
         # Create guest user
@@ -193,8 +195,12 @@ class TestTask(NereidTestCase):
         }])
 
         # Nereid Permission
-        permission = self.Permission.search([
+        admin_permission = self.Permission.search([
             ('value', '=', 'project.admin')
+        ])
+
+        manager_permission = self.Permission.search([
+            ('value', '=', 'project.manager')
         ])
         project_admin_user, = self.NereidUser.create([{
             'party': party4.id,
@@ -203,9 +209,23 @@ class TestTask(NereidTestCase):
             'password': 'password',
             'company': company.id,
         }])
+
+        project_manager_user, = self.NereidUser.create([{
+            'party': party5.id,
+            'display_name': 'Project Manager User',
+            'email': 'manager@project.com',
+            'password': 'password',
+            'company': company.id,
+        }])
         self.Permission.write(
-            permission, {
+            admin_permission, {
                 'nereid_users': [('add', [project_admin_user.id])]
+            }
+        )
+
+        self.Permission.write(
+            manager_permission, {
+                'nereid_users': [('add', [project_manager_user.id])]
             }
         )
 
@@ -926,6 +946,7 @@ class TestTask(NereidTestCase):
         """
         Render tasks by employee.
         """
+        # Project admin user
         with Transaction().start(DB_NAME, USER, CONTEXT):
             data = self.create_task_dafaults()
             app = self.get_app()
@@ -947,6 +968,52 @@ class TestTask(NereidTestCase):
                     # Render_tasks_by_employee
                     response = c.get('/tasks-by-employee')
                     self.assertEqual(response.status_code, 200)
+
+        # Project manager user
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_task_dafaults()
+            app = self.get_app()
+
+            login_data = {
+                'email': 'manager@project.com',
+                'password': 'password',
+            }
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, 'http://localhost/')
+
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    # Render_tasks_by_employee
+                    response = c.get('/tasks-by-employee')
+                    self.assertEqual(response.status_code, 200)
+
+        # Neither project admin nor manager
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            data = self.create_task_dafaults()
+            app = self.get_app()
+
+            login_data = {
+                'email': 'email@reg_user1.com',
+                'password': 'password',
+            }
+            with app.test_client() as c:
+                response = c.post('/login', data=login_data)
+
+                # Login Success
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.location, 'http://localhost/')
+
+                with Transaction().set_context(
+                    {'company': data['company'].id}
+                ):
+                    # Render_tasks_by_employee
+                    response = c.get('/tasks-by-employee')
+                    self.assertEqual(response.status_code, 403)
 
     def test_0160_render_task(self):
         """
