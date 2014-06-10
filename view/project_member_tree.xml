@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<tree string="Project Members">
+<tree string="Project Members" editable="top">
     <field name="user"/>
     <field name="role"/>
 </tree>
