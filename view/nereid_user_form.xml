@@ -6,4 +6,9 @@
         <field name="employee"/>
         <newline/>
     </xpath>
+    <xpath expr="//page[@string='Permissions']" position="after">
+        <page name="member_of_projects">
+            <field name="member_of_projects"/>
+        </page>
+    </xpath>
 </data>
