@@ -27,6 +27,10 @@ class NereidUser:
     #: indicates that the user is an employee and not a regular participant
     employee = fields.Many2One('company.employee', 'Employee', select=True)
 
+    member_of_projects = fields.One2Many(
+        "project.work.member", "user", "Member of Projects"
+    )
+
     def serialize(self, purpose=None):
         '''
         Serialize NereidUser and return a dictonary.
