@@ -19,6 +19,7 @@ from timesheet import TimesheetEmployeeDay, TimesheetLine
 from tag import Tag, TaskTags
 from company import Company, CompanyProjectAdmins
 from user import NereidUser
+from configuration import Configuration
 
 
 def register():
@@ -42,5 +43,6 @@ def register():
         Activity,
         NereidUser,
         Attachment,
+        Configuration,
         module='nereid_project', type_='model',
     )

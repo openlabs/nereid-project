@@ -40,6 +40,8 @@ from trytond.tools import get_smtp_server
 from trytond import backend
 
 from utils import request_wants_json
+import hashlib
+import hmac
 
 __all__ = [
     'ProjectUsers', 'ProjectWorkMember', 'ProjectInvitation',
@@ -2349,6 +2351,18 @@ class Project:
             cache_timeout=cache_timeout
         )
 
+    @classmethod
+    def verify_github_payload_sign(cls, payload, signature, secret):
+        """
+        Returns True if the webhook signature matches the
+        computed signature
+        """
+        computed_signature = "sha1=%s" % hmac.new(
+            str(secret), payload, hashlib.sha1
+        ).hexdigest()
+
+        return (computed_signature == signature)
+
 
 class ProjectHistory(ModelSQL, ModelView):
     'Project Work History'
@@ -2570,9 +2584,26 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         NereidUser = Pool().get('nereid.user')
         Activity = Pool().get('nereid.activity')
         Project = Pool().get('project.work')
+        Configuration = Pool().get('project.configuration')
 
         if request.method == "POST":
             payload = json.loads(request.form['payload'])
+
+            # Exit if Headers has no signature
+            if 'X-Hub-Signature' not in request.headers:
+                return
+
+            # Exit if signature does not begin with 'sha1='
+            if not request.headers['X-Hub-Signature'].startswith('sha1='):
+                return
+
+            if not Project.verify_github_payload_sign(
+                request.form['payload'],
+                request.headers['X-Hub-Signature'],
+                Configuration(1).git_webhook_secret
+            ):
+                return
+
             for commit in payload['commits']:
                 nereid_users = NereidUser.search([
                     ('email', '=', commit['author']['email'])
