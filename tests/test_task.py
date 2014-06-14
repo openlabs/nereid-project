@@ -11,6 +11,8 @@ import unittest
 import json
 import smtplib
 import pytz
+import hashlib
+import hmac
 
 from trytond.config import CONFIG
 CONFIG['smtp_from'] = 'test@openlabs.co.in'
@@ -63,6 +65,7 @@ class TestTask(NereidTestCase):
         self.xhr_header = [
             ('X-Requested-With', 'XMLHttpRequest'),
         ]
+        self.Configuration = POOL.get('project.configuration')
 
     def create_defaults(self):
         """
@@ -239,6 +242,10 @@ class TestTask(NereidTestCase):
             'project/tasks-by-employee.jinja': '',
             'project/project-task-list.jinja': '{{ tasks|length }}',
         }
+
+        config = self.Configuration()
+        config.git_webhook_secret = 'somesecret'
+        config.save()
 
         return {
             'company': company,
@@ -1365,7 +1372,7 @@ class TestTask(NereidTestCase):
             }
             utc = pytz.UTC
 
-            payload = {
+            payload = json.dumps({
                 'commits': [{
                     'author': {'email': 'email@reg_user1.com'},
                     'message': 'Add commit #%d' % task.id,
@@ -1377,7 +1384,16 @@ class TestTask(NereidTestCase):
                     'name': 'ABC Repository',
                     'url': 'repo/url',
                 }
-            }
+            })
+
+            # Generate signature for request header
+            signature = "sha1=%s" % hmac.new(
+                'somesecret', payload, hashlib.sha1
+            ).hexdigest()
+
+            headers = [
+                ('X-Hub-Signature', signature),
+            ]
 
             with app.test_client() as c:
                 response = c.post('/login', data=login_data)
@@ -1396,8 +1412,9 @@ class TestTask(NereidTestCase):
                     response = c.post(
                         '/-project/-github-hook',
                         data={
-                            'payload': json.dumps(payload)
-                        }
+                            'payload': payload
+                        },
+                        headers=headers
                     )
                     self.assertEqual(response.status_code, 200)
                     self.assertTrue(response.data, 'OK')

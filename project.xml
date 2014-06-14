@@ -61,7 +61,6 @@ of this repository contains the full copyright notices and license terms. -->
             <field name="type">tree</field>
             <field name="name">project_member_tree</field>
         </record>
-
     </data>
 </tryton>
 
