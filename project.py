@@ -1554,6 +1554,8 @@ class Project:
         )
 
     @classmethod
+    @login_required
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
     def get_gantt_data(cls):
         """
         Get gantt data for the last 1 month.
