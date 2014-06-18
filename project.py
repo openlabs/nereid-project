@@ -271,8 +271,10 @@ class ProjectInvitation(ModelSQL, ModelView):
         """
         # Check if user is among the project admin members
         if not request.nereid_user.is_admin_of_project(self.project):
-            flash("Sorry! You are not allowed to resend invites. \
-                Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to resend invites. "
+                "Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST':
