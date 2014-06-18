@@ -32,6 +32,131 @@ class TestProject(TestBase):
     Creates default values to be used by test cases
     '''
 
+    def test_0005_registration_using_invitation_code(self):
+        """
+        Check if user got registered and joined project when invitation
+        code is there
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.create_defaults()
+            app = self.get_app()
+
+            # Create Project
+            work, = self.Work.create([{
+                'name': 'ABC',
+                'company': self.company.id,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
+                'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': self.reg_user1.id,
+                        'role': 'admin',
+                    }])
+                ]
+            }])
+
+            invitation, = self.ProjectInvitation.create([{
+                'email': 'email@reg_user2.com',
+                'invitation_code': '123',
+                'project': project.id,
+            }])
+
+            with app.test_client() as c:
+                response = c.get('/registration')
+                self.assertEqual(response.status_code, 200)   # GET Request
+
+                data = {
+                    'name': 'Registered User',
+                    'email': 'regd_user@openlabs.co.in',
+                    'password': 'password',
+                    'confirm': 'password',
+                }
+
+                self.assertFalse(invitation.nereid_user)
+                self.assertFalse(self.Activity.search([]))
+
+                response = c.post(
+                    '/registration?invitation_code=123', data=data
+                )
+                self.assertEqual(response.status_code, 302)
+
+                # Check if invitation has nereid user
+                self.assertTrue(invitation.nereid_user)
+
+                # Check if invitation code is none
+                self.assertFalse(invitation.invitation_code)
+
+                # Check if same user is added as am member of project
+                self.assertTrue(
+                    invitation.nereid_user in
+                    [m.user for m in invitation.project.members]
+                )
+
+                # Check if activity stream is created for same
+                self.assertEqual(self.Activity.search([], count=True), 1)
+
+                activity, = self.Activity.search([])
+                self.assertEqual(activity.actor, invitation.nereid_user)
+                self.assertEqual(activity.verb, 'joined_project')
+
+    def test_0006_registration_without_invitation_code(self):
+        """
+        Check user registration without invitation code
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.create_defaults()
+            app = self.get_app()
+
+            # Create Project
+            work, = self.Work.create([{
+                'name': 'ABC',
+                'company': self.company.id,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
+                'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': self.reg_user1.id,
+                        'role': 'admin',
+                    }])
+                ]
+            }])
+
+            invitation, = self.ProjectInvitation.create([{
+                'email': 'email@reg_user2.com',
+                'invitation_code': '123',
+                'project': project.id,
+            }])
+
+            with app.test_client() as c:
+                response = c.get('/registration?invitation_code=123')
+                self.assertEqual(response.status_code, 200)   # GET Request
+
+                data = {
+                    'name': 'Registered User',
+                    'email': 'regd_user@openlabs.co.in',
+                    'password': 'password',
+                    'confirm': 'password',
+                }
+
+                self.assertFalse(invitation.nereid_user)
+                response = c.post('/registration', data=data)
+                self.assertEqual(response.status_code, 302)
+
+                self.assertFalse(invitation.nereid_user)
+                self.assertTrue(invitation.invitation_code)
+
+                response = self.login(
+                    c, 'regd_user@openlabs.co.in', 'password', assert_=False
+                )
+                # Login failed
+                self.assertNotEqual(response.status_code, 302)
+
     def test_0020_check_login_logout(self):
         """
         Test if login and logout works successfully
@@ -115,11 +240,15 @@ class TestProject(TestBase):
                     'parent': None,
                     'state': 'opened',
                 })
+                project, = self.Project.search([
+                    ('work.name', '=', 'ABC')
+                ])
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(
-                    response.location, 'http://localhost/project-1'
+                    response.location,
+                    'http://localhost/project-%d' % project.id
                 )
-                response = c.get('http://localhost/project-1')
+                response = c.get('http://localhost/project-%d' % project.id)
                 self.assertEqual(response.status_code, 200)
 
                 # Check Flash message

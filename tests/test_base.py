@@ -87,6 +87,8 @@ class TestBase(NereidTestCase):
             'project/comment.jinja': '',
             'project/tasks-by-employee.jinja': '',
             'project/project-task-list.jinja': '{{ tasks|length }}',
+            '_helpers.jinja': '',
+            'registration.jinja': '',
         }
 
     def create_defaults(self):
