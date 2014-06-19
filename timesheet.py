@@ -38,7 +38,7 @@ class TimesheetEmployeeDay(ModelView):
                 'FROM "timesheet_line" ' \
                 'GROUP BY timesheet_line.date, timesheet_line.employee;'
 
-        if CONFIG['db_type'] == 'postgres':
+        if CONFIG['db_type'] == 'postgresql':
             Transaction().cursor.execute('CREATE OR REPLACE VIEW ' + query)
 
         elif CONFIG['db_type'] == 'sqlite':

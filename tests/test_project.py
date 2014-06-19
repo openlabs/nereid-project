@@ -12,6 +12,7 @@ import unittest
 import json
 import smtplib
 from StringIO import StringIO
+from werkzeug.exceptions import Forbidden
 
 from trytond.config import CONFIG
 CONFIG.options['data_path'] = '.'
@@ -1700,6 +1701,64 @@ class TestProject(TestBase):
                         rv_json['items']
                     )
                 )
+
+    def test_0210_check_gantt_data_access(self):
+        """
+        Check if only project manager and project admin can access
+        gantt data.
+        """
+        # Check if unregistered users don't have access to gantt data
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_defaults()
+            app = self.get_app()
+
+            with app.test_client() as c:
+
+                with self.assertRaises(RuntimeError):
+                    gantt_data = self.Project.get_gantt_data()
+
+        # Check if Project Admin has access to gantt data
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_defaults()
+            app = self.get_app()
+
+            with app.test_client() as c:
+
+                # User Login
+                rv = self.login(c, self.project_admin_user.email, 'password')
+                self.assertEqual(rv.status_code, 302)
+
+                gantt_data = self.Project.get_gantt_data()
+                self.assert_(gantt_data)
+
+        # Check if Project Manager has access to gantt data
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_defaults()
+            app = self.get_app()
+
+            with app.test_client() as c:
+
+                # User Login
+                rv = self.login(c, self.project_manager_user.email, 'password')
+                self.assertEqual(rv.status_code, 302)
+
+                gantt_data = self.Project.get_gantt_data()
+                self.assert_(gantt_data)
+
+        # Check if users other than project admin and project manager
+        # don't have access to gantt data
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_defaults()
+            app = self.get_app()
+
+            with app.test_client() as c:
+
+                # User Login
+                rv = self.login(c, self.reg_user1.email, 'password')
+                self.assertEqual(rv.status_code, 302)
+
+                with self.assertRaises(Forbidden):
+                    gantt_data = self.Project.get_gantt_data()
 
 
 def suite():
