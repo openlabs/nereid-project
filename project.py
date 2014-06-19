@@ -566,7 +566,7 @@ class Project:
 
         :param user: The browse record of the current nereid user
         """
-        if request.nereid_user.has_permissions(['project.admin']):
+        if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
             raise abort(404)
@@ -581,7 +581,7 @@ class Project:
         # XXX: this method and the method above check exactly same thing
         # either of it can be removed and method can be renamed as
         # can_read_write()
-        if request.nereid_user.has_permissions(['project.admin']):
+        if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
             raise abort(404)
