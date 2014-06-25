@@ -1296,8 +1296,6 @@ class Project:
         Upload the file to a project or task with owner/uploader
         as the current user
         """
-        Attachment = Pool().get('ir.attachment')
-
         work = None
         if request.form.get('project', None):
             work = cls.get_project(request.form.get('project', type=int))
@@ -1308,50 +1306,63 @@ class Project:
             # Neither task, nor the project is specified
             raise abort(404)
 
-        attached_file = request.files["file"]
-        resource = '%s,%d' % (cls.__name__, work.id)
-
-        filename = attached_file.filename
-        if Attachment.search([
-            ('name', '=', filename),
-            ('resource', '=', resource)
-        ]):
-            # try to create a unique filename
-            filename, extension = filename.split('.', 1)
-            filename = '%s-%d.%s' % (
-                filename, time.time(), extension
-            )
-
-        data = {
-            'resource': resource,
-            'description': request.form.get('description', '')
-        }
-
+        # Create attachment
         if request.form.get('file_type') == 'link':
             link = request.form.get('url')
-            data.update({
-                'link': link,
-                'name': link.split('/')[-1],
-                'type': 'link'
-            })
+            attachment = work.create_attachment(
+                link.split('/')[-1], data=link, type='link'
+            )
         else:
-            data.update({
-                'data': attached_file.stream.read(),
-                'name': filename,
-                'type': 'data'
-            })
-
-        attachment, = Attachment.create([data])
+            file = request.files["file"]
+            attachment = work.create_attachment(
+                file.filename, data=file.stream.read()
+            )
 
         if request.is_xhr or request_wants_json():
             with Transaction().set_context(task=work.id):
                 return jsonify({
-                    'success': True,
                     'data': attachment.serialize('listing'),
-                })
+                }), 201
 
         flash("Attachment added to %s" % work.rec_name)
         return redirect(request.referrer)
+
+    def create_attachment(self, filename, data, type='data'):
+        """
+        Creates attchment for project
+
+        :param filename: Name of the file
+        :param data: Content of the file or Url of the file
+        :param type: Either data or link
+        """
+        Attachment = Pool().get('ir.attachment')
+
+        assert type in ('data', 'link')
+
+        resource = '%s,%d' % (self.__name__, self.id)
+
+        if Attachment.search([
+            ('name', '=', filename),
+            ('resource', '=', resource)
+        ]):
+            # Try to create a unique filename
+            filename, extension = filename.split('.', 1)
+            filename = '%s-%d.%s' % (
+                filename, time.time(), extension
+            )
+        values = {
+            'data': data,
+            'name': filename,
+            'type': type,
+            'resource': resource,
+        }
+
+        if has_request_context():
+            values.update({
+                'description': request.form.get('description', '')
+            })
+
+        return Attachment.create([values])[0]
 
     @classmethod
     def write(cls, projects, values):
