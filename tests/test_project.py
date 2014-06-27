@@ -1486,23 +1486,23 @@ class TestProject(TestBase):
                 'company': self.company.id,
             }])
 
-            project, = self.Project.create([{
+            task, = self.Project.create([{
                 'work': work.id,
-                'type': 'project',
+                'type': 'task',
                 'parent': False,
                 'state': 'opened',
             }])
 
             # Add participant to project
             self.TaskUsers.create([{
-                'project': project.id,
+                'task': task.id,
                 'user': self.reg_user2.id,
             }])
             self.assertRaises(
                 Exception, self.TaskUsers.create,
                 [{
-                    'project': project.id,
                     'user': self.reg_user2.id,
+                    'task': task.id,
                 }]
             )
 
@@ -1759,6 +1759,70 @@ class TestProject(TestBase):
 
                 with self.assertRaises(Forbidden):
                     gantt_data = self.Project.get_gantt_data()
+
+    def test_0200_check_all_participants_admins(self):
+        '''
+        Check all participants of the projects and tasks
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_defaults_for_project()
+
+            work1, = self.Work.create([{
+                'name': 'Test Project1',
+                'company': self.company.id,
+            }])
+            work2, = self.Work.create([{
+                'name': 'Test Project2',
+                'company': self.company.id,
+            }])
+
+            project, = self.Project.create([{
+                'work': work1.id,
+                'type': 'project',
+                'parent': False,
+                'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': self.reg_user1.id
+                    }, {
+                        'user': self.reg_user2.id
+                    }, {
+                        'user': self.reg_user3.id,
+                        'role': 'admin'
+                    }])
+                ]
+            }])
+            task, = self.Project.create([{
+                'work': work2.id,
+                'type': 'task',
+                'parent': project.id,
+                'state': 'opened',
+                'participants': [('set', [self.reg_user2.id])]
+            }])
+
+            # Project has 3 participants
+            self.assertTrue(len(project.members), 3)
+
+            # Task has 1 participants
+            self.assertTrue(len(task.participants), 1)
+
+            self.assertTrue(self.reg_user1 in project.all_participants)
+            self.assertTrue(self.reg_user2 in project.all_participants)
+            self.assertTrue(self.reg_user3 in project.all_participants)
+
+            # All participants of task must be same as all participants of
+            # project
+            self.assertEqual(
+                len(project.all_participants),
+                len(task.all_participants),
+            )
+            self.assertTrue(self.reg_user1 in task.all_participants)
+            self.assertTrue(self.reg_user2 in task.all_participants)
+            self.assertTrue(self.reg_user3 in task.all_participants)
+
+            self.assertTrue(self.reg_user1 not in project.admins)
+            self.assertTrue(self.reg_user2 not in project.admins)
+            self.assertTrue(self.reg_user3 in project.admins)
 
 
 def suite():

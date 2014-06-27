@@ -9,6 +9,12 @@ of this repository contains the full copyright notices and license terms. -->
             <field name="name">project_form</field>
         </record>
 
+        <record id="task_view_form" model="ir.ui.view">
+            <field name="model">project.work</field>
+            <field name="inherit" ref="project.work_view_form"/>
+            <field name="name">task_form</field>
+        </record>
+
         <record model="nereid.activity.allowed_model"
                 id="activity_allowed_model_work">
           <field name="name">ProjectWork</field>
