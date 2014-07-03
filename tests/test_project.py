@@ -954,6 +954,150 @@ class TestProject(TestBase):
                 # Total file added in attachments
                 self.assertEqual(len(self.Attachment.search([])), 4)
 
+    def test_0120_upload_file_using_link(self):
+        """
+        Checks that file is uploaded using link
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.create_defaults()
+            app = self.get_app(DEBUG=True)
+
+            # Create Project
+            work, = self.Work.create([{
+                'name': 'ABC',
+                'company': self.company.id,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
+                'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': self.reg_user1.id,
+                    }])
+                ]
+            }])
+            work1, = self.Work.create([{
+                'name': 'ABC_task',
+                'company': self.company.id,
+            }])
+            task1, = self.Project.create([{
+                'work': work1.id,
+                'comment': 'task_desc',
+                'parent': project.id,
+                'type': 'task',
+            }])
+
+            with app.test_client() as c:
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
+
+                # Upload file
+                response = c.post(
+                    '/attachment/-upload', data={
+                        'url': 'http://www.picturesnew.com'
+                        '/media/images/images-background.jpg',
+                        'file_type': 'link',
+                        'task': task1.id,
+                    },
+                    content_type="multipart/form-data"
+                )
+                self.assertEqual(response.status_code, 302)
+
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Attachment added to ABC_task' in response.data
+                )
+
+                # File 'test1.txt' added successfully in task1
+                self.assertEqual(len(self.Attachment.search([])), 1)
+                attachment, = self.Attachment.search([])
+                self.assertEqual(attachment.name, 'images-background.jpg')
+                self.assertEqual(attachment.type, 'link')
+
+    def test_0120_create_attachment_using_file(self):
+        """
+        Checks if attachment is created (without request context) using file
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.create_defaults()
+
+            # Create Project
+            work, = self.Work.create([{
+                'name': 'ABC',
+                'company': self.company.id,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
+                'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': self.reg_user1.id,
+                    }])
+                ]
+            }])
+            work1, = self.Work.create([{
+                'name': 'ABC_task',
+                'company': self.company.id,
+            }])
+            task, = self.Project.create([{
+                'work': work1.id,
+                'comment': 'task_desc',
+                'parent': project.id,
+                'type': 'task',
+            }])
+
+            # Create attachment for task
+            attachment = task.create_attachment(
+                'test1.txt', data='testfile contents'
+            )
+            self.assertEqual(attachment.name, 'test1.txt')
+            self.assertEqual(attachment.type, 'data')
+
+    def test_0120_create_attachment_using_link(self):
+        """
+        Checks if attachment is created (without request context) using link
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.create_defaults()
+
+            # Create Project
+            work, = self.Work.create([{
+                'name': 'ABC',
+                'company': self.company.id,
+            }])
+            project, = self.Project.create([{
+                'work': work.id,
+                'type': 'project',
+                'state': 'opened',
+                'members': [
+                    ('create', [{
+                        'user': self.reg_user1.id,
+                    }])
+                ]
+            }])
+            work1, = self.Work.create([{
+                'name': 'ABC_task',
+                'company': self.company.id,
+            }])
+            task, = self.Project.create([{
+                'work': work1.id,
+                'comment': 'task_desc',
+                'parent': project.id,
+                'type': 'task',
+            }])
+
+            # Create attachment for task
+            attachment = task.create_attachment(
+                'images-background.jpg',
+                data='http://www.picturesnew.com'
+                    '/media/images/images-background.jpg',
+                type='link'
+            )
+            self.assertEqual(attachment.name, 'images-background.jpg')
+            self.assertEqual(attachment.type, 'link')
+
     def test_0130_render_files(self):
         """
         Tests rendering of files
