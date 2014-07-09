@@ -4,7 +4,7 @@
 
     TestCompany
 
-    :copyright: (c) 2013 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 import unittest
@@ -38,6 +38,7 @@ class TestCompany(NereidTestCase):
         self.Language = POOL.get('ir.lang')
         self.Website = POOL.get('nereid.website')
         self.Locale = POOL.get('nereid.website.locale')
+        self.Permission = POOL.get('nereid.permission')
 
     def get_template_source(self, name):
         """
@@ -48,9 +49,9 @@ class TestCompany(NereidTestCase):
         }
         return self.templates.get(name)
 
-    def test_0010_is_project_admin(self):
+    def test_0010_check_project_admins(self):
         """
-        Tests if project is added by nereid user
+        Tests project admins for the company
         """
 
         with Transaction().start(DB_NAME, USER, CONTEXT):
@@ -60,72 +61,145 @@ class TestCompany(NereidTestCase):
                 'code': 'USD',
                 'symbol': '$',
             }])
-            company_party, = self.Party.create([{
+            company_party1, = self.Party.create([{
                 'name': 'Openlabs',
             }])
-            company, = self.Company.create([{
-                'party': company_party.id,
+
+            company_party2, = self.Party.create([{
+                'name': 'Openlabs',
+            }])
+            company1, = self.Company.create([{
+                'party': company_party1.id,
                 'currency': currency.id,
             }])
-            party1, = self.Party.create([{
-                'name': 'Non registered user',
+
+            company2, = self.Company.create([{
+                'party': company_party2.id,
+                'currency': currency.id,
             }])
 
-            # Create guest user
-            guest_user, = self.NereidUser.create([{
+            party1, party2, party3 = self.Party.create([{
+                'name': 'Test User 1',
+            }, {
+                'name': 'Test User 2',
+            }, {
+                'name': 'Test Party 3',
+            }])
+
+            admin_permission, = self.Permission.search([
+                ('value', '=', 'project.admin')
+            ])
+
+            # Create user with project admin permission
+            user1, = self.NereidUser.create([{
                 'party': party1.id,
-                'display_name': 'Guest User',
+                'display_name': 'Test user 1',
                 'email': 'guest@openlabs.co.in',
                 'password': 'password',
-                'company': company.id,
+                'company': company1.id,
+                'permissions': [('set', [admin_permission.id])]
             }])
 
-            party2, = self.Party.create([{
-                'name': 'Registered User1',
-            }])
-            registered_user1, = self.NereidUser.create([{
+            # Create user with project admin permission
+            user2, = self.NereidUser.create([{
                 'party': party2.id,
-                'display_name': 'Registered User',
+                'display_name': 'Test user 2',
                 'email': 'email@example.com',
                 'password': 'password',
-                'company': company.id,
+                'company': company1.id,
             }])
 
-            # Create nereid project site
-            url_map, = self.URLMap.search([], limit=1)
-            en_us, = self.Language.search([('code', '=', 'en_US')])
-            self.locale_en_us, = self.Locale.create([{
-                'code': 'en_US',
-                'language': en_us.id,
+            # Create user with project admin permission but for some other
+            # company
+            user3, = self.NereidUser.create([{
+                'party': party2.id,
+                'display_name': 'Test user 3',
+                'email': 'email@example.com',
+                'password': 'password',
+                'company': company2.id,
+                'permissions': [('set', [admin_permission.id])]
+            }])
+
+            self.assertTrue(user1 in company1.project_admins)
+            self.assertTrue(user2 not in company1.project_admins)
+            self.assertTrue(user3 not in company1.project_admins)
+            self.assertTrue(user3 in company2.project_admins)
+
+    def test_0010_check_managers(self):
+        """
+        Tests project admins for the company
+        """
+
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+
+            currency, = self.Currency.create([{
+                'name': 'US Dollar',
+                'code': 'USD',
+                'symbol': '$',
+            }])
+            company_party1, = self.Party.create([{
+                'name': 'Openlabs',
+            }])
+
+            company_party2, = self.Party.create([{
+                'name': 'Openlabs',
+            }])
+            company1, = self.Company.create([{
+                'party': company_party1.id,
                 'currency': currency.id,
             }])
-            nereid_project_website, = self.Website.create([{
-                'name': 'localhost',
-                'url_map': url_map.id,
-                'company': company.id,
-                'application_user': USER,
-                'default_locale': self.locale_en_us.id,
-                'guest_user': guest_user.id,
-            }])
-            self.Company.write([company], {
-                'project_admins': [('add', [registered_user1.id])],
-            })
 
-            login_data = {
+            company2, = self.Company.create([{
+                'party': company_party2.id,
+                'currency': currency.id,
+            }])
+
+            party1, party2, party3 = self.Party.create([{
+                'name': 'Test User 1',
+            }, {
+                'name': 'Test User 2',
+            }, {
+                'name': 'Test Party 3',
+            }])
+
+            manager_permission, = self.Permission.search([
+                ('value', '=', 'project.manager')
+            ])
+
+            # Create user with project manager permission
+            user1, = self.NereidUser.create([{
+                'party': party1.id,
+                'display_name': 'Test user 1',
+                'email': 'guest@openlabs.co.in',
+                'password': 'password',
+                'company': company1.id,
+                'permissions': [('set', [manager_permission.id])]
+            }])
+
+            # Create user with project manager permission
+            user2, = self.NereidUser.create([{
+                'party': party2.id,
+                'display_name': 'Test user 2',
                 'email': 'email@example.com',
                 'password': 'password',
-            }
+                'company': company1.id,
+            }])
 
-            app = self.get_app()
-            with app.test_client() as c:
-                rv = c.post('/login', data=login_data)
-                self.assertEqual(rv.status_code, 302)
+            # Create user with project manager permission but for some other
+            # company
+            user3, = self.NereidUser.create([{
+                'party': party2.id,
+                'display_name': 'Test user 3',
+                'email': 'email@example.com',
+                'password': 'password',
+                'company': company2.id,
+                'permissions': [('set', [manager_permission.id])]
+            }])
 
-                # Assert project admin.
-                self.assertEqual(
-                    nereid_project_website.company.project_admins[0],
-                    registered_user1
-                )
+            self.assertTrue(user1 in company1.project_managers)
+            self.assertTrue(user2 not in company1.project_managers)
+            self.assertTrue(user3 not in company1.project_managers)
+            self.assertTrue(user3 in company2.project_managers)
 
 
 def suite():

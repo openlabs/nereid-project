@@ -69,7 +69,7 @@ def invitation_new_user_handler(nereid_user_id):
         % (invitation.project.rec_name, nereid_user.display_name)
 
     receivers = [
-        m.email for m in invitation.project.members
+        m.user.email for m in invitation.project.members
         if m.user.email and m.role == 'admin'
     ]
 
@@ -86,7 +86,7 @@ def invitation_new_user_handler(nereid_user_id):
         [invitation.project], {
             'members': [
                 ('create', [{
-                    'user': [nereid_user_id]
+                    'user': nereid_user_id
                 }])
             ]
         }

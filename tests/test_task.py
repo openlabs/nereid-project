@@ -11,6 +11,8 @@ import unittest
 import json
 import smtplib
 import pytz
+import hashlib
+import hmac
 
 from trytond.config import CONFIG
 CONFIG['smtp_from'] = 'test@openlabs.co.in'
@@ -18,300 +20,18 @@ CONFIG['data_path'] = '.'
 from minimock import Mock
 from datetime import datetime
 
-import trytond.tests.test_tryton
 from trytond.tests.test_tryton import POOL, DB_NAME, USER, CONTEXT
 from trytond.transaction import Transaction
-# from trytond.error import UserError
-from nereid.testing import NereidTestCase
+from test_base import TestBase
 
 smtplib.SMTP = Mock('smtplib.SMTP')
 smtplib.SMTP.mock_returns = Mock('smtp_connection')
 
 
-class TestTask(NereidTestCase):
+class TestTask(TestBase):
     '''
     Test Task
     '''
-
-    def setUp(self):
-        """
-        Set up data used in the tests.
-        this method is called before each test function execution.
-        """
-        trytond.tests.test_tryton.install_module('nereid_project')
-        self.ActivityAllowedModel = POOL.get('nereid.activity.allowed_model')
-        self.Work = POOL.get('timesheet.work')
-        self.Model = POOL.get('ir.model')
-        self.Company = POOL.get('company.company')
-        self.Employee = POOL.get('company.employee')
-        self.Currency = POOL.get('currency.currency')
-        self.Language = POOL.get('ir.lang')
-        self.Website = POOL.get('nereid.website')
-        self.NereidUser = POOL.get('nereid.user')
-        self.URLMap = POOL.get('nereid.url_map')
-        self.Party = POOL.get('party.party')
-        self.User = POOL.get('res.user')
-        self.Action = POOL.get('ir.action')
-        self.Project = POOL.get('project.work')
-        self.Timesheet = POOL.get('timesheet.line')
-        self.Tag = POOL.get('project.work.tag')
-        self.History = POOL.get('project.work.history')
-        self.Permission = POOL.get('nereid.permission')
-        self.ProjectWorkCommit = POOL.get('project.work.commit')
-        self.Activity = POOL.get('nereid.activity')
-        self.Locale = POOL.get('nereid.website.locale')
-        self.xhr_header = [
-            ('X-Requested-With', 'XMLHttpRequest'),
-        ]
-
-    def create_defaults(self):
-        """
-        Setup the defaults for all tests.
-        """
-        currency, = self.Currency.create([{
-            'name': 'US Dollar',
-            'code': 'USD',
-            'symbol': '$',
-        }])
-        company_party, = self.Party.create([{
-            'name': 'Openlabs',
-        }])
-        company, = self.Company.create([{
-            'party': company_party.id,
-            'currency': currency.id,
-        }])
-        party0, party1, party2, party3, party4, party5 = self.Party.create([{
-            'name': 'Non registered user',
-        }, {
-            'name': 'Registered User1',
-        }, {
-            'name': 'Registered User2',
-        }, {
-            'name': 'Registered User3',
-        }, {
-            'name': 'Project Admin',
-        }, {
-            'name': 'Project Manager',
-        }])
-
-        # Create guest user
-        guest_user, = self.NereidUser.create([{
-            'party': party0.id,
-            'display_name': 'Guest User',
-            'email': 'guest@openlabs.co.in',
-            'password': 'password',
-            'company': company.id,
-        }])
-
-        employee1, = self.Employee.create([{
-            'company': company.id,
-            'party': party1.id,
-        }])
-        registered_user1, = self.NereidUser.create([{
-            'party': party1.id,
-            'display_name': 'Registered User',
-            'email': 'email@reg_user1.com',
-            'password': 'password',
-            'company': company.id,
-            'employee': employee1.id,
-        }])
-        registered_user2, = self.NereidUser.create([{
-            'party': party2.id,
-            'display_name': 'Registered User',
-            'email': 'email@reg_user2.com',
-            'password': 'password',
-            'company': company.id,
-        }])
-        registered_user3, = self.NereidUser.create([{
-            'party': party3.id,
-            'display_name': 'Registered User 3',
-            'email': 'email@reg_user3.com',
-            'password': 'password',
-            'company': company.id,
-        }])
-        self.Company.write([company], {
-            'employees': [('add', [employee1.id])],
-        })
-        menu_list = self.Action.search([('usage', '=', 'menu')])
-        user1, = self.User.create([{
-            'name': 'res_user1',
-            'login': 'res_user1',
-            'password': '1234',
-            'menu': menu_list[0].id,
-            'main_company': company.id,
-            'company': company.id,
-        }])
-        user2, = self.User.create([{
-            'name': 'res_user2',
-            'login': 'res_user2',
-            'password': '5678',
-            'menu': menu_list[0].id,
-        }])
-
-        # Create nereid project site
-        url_map, = self.URLMap.search([], limit=1)
-        en_us, = self.Language.search([('code', '=', 'en_US')])
-
-        self.locale_en_us, = self.Locale.create([{
-            'code': 'en_US',
-            'language': en_us.id,
-            'currency': currency.id,
-        }])
-        nereid_project_website, = self.Website.create([{
-            'name': 'localhost',
-            'url_map': url_map.id,
-            'company': company.id,
-            'application_user': USER,
-            'default_locale': self.locale_en_us.id,
-            'guest_user': guest_user.id,
-        }])
-
-        # Create project
-        work1, = self.Work.create([{
-            'name': 'ABC',
-            'company': company.id,
-        }])
-        project1, = self.Project.create([{
-            'work': work1.id,
-            'type': 'project',
-            'state': 'opened',
-        }])
-
-        # Create Tags
-        tag1, = self.Tag.create([{
-            'name': 'tag1',
-            'color': 'color1',
-            'project': project1.id
-        }])
-        tag2, = self.Tag.create([{
-            'name': 'tag2',
-            'color': 'color2',
-            'project': project1.id
-        }])
-        tag3, = self.Tag.create([{
-            'name': 'tag3',
-            'color': 'color3',
-            'project': project1.id
-        }])
-
-        # Nereid Permission
-        admin_permission = self.Permission.search([
-            ('value', '=', 'project.admin')
-        ])
-
-        manager_permission = self.Permission.search([
-            ('value', '=', 'project.manager')
-        ])
-        project_admin_user, = self.NereidUser.create([{
-            'party': party4.id,
-            'display_name': 'Project Admin User',
-            'email': 'admin@project.com',
-            'password': 'password',
-            'company': company.id,
-        }])
-
-        project_manager_user, = self.NereidUser.create([{
-            'party': party5.id,
-            'display_name': 'Project Manager User',
-            'email': 'manager@project.com',
-            'password': 'password',
-            'company': company.id,
-        }])
-        self.Permission.write(
-            admin_permission, {
-                'nereid_users': [('add', [project_admin_user.id])]
-            }
-        )
-
-        self.Permission.write(
-            manager_permission, {
-                'nereid_users': [('add', [project_manager_user.id])]
-            }
-        )
-
-        self.templates = {
-            'login.jinja': '{{ get_flashed_messages()|safe }}',
-            'project/comment.jinja': '',
-            'project/emails/text_content.jinja': '',
-            'project/emails/html_content.jinja': '',
-            'project/task.jinja': '{{ task.id }}',
-            'project/comment.jinja': '',
-            'project/tasks-by-employee.jinja': '',
-            'project/project-task-list.jinja': '{{ tasks|length }}',
-        }
-
-        return {
-            'company': company,
-            'employee1': employee1,
-            'party1': party1,
-            'party2': party2,
-            'nereid_project_website': nereid_project_website,
-            'registered_user1': registered_user1,
-            'registered_user2': registered_user2,
-            'registered_user3': registered_user3,
-            'guest_user': guest_user,
-            'user1': user1,
-            'user2': user2,
-            'work1': work1,
-            'project1': project1,
-            'tag1': tag1,
-            'tag2': tag2,
-            'tag3': tag3,
-        }
-
-    def create_task_dafaults(self):
-        '''
-        Create Default for from create_defaults() Task.
-        '''
-        data = self.create_defaults()
-        data['work2'], = self.Work.create([{
-            'name': 'ABC_task',
-            'company': data['company'].id,
-        }])
-        data['task1'], = self.Project.create([{
-            'work': data['work2'].id,
-            'comment': 'task_desc',
-            'parent': data['project1'].id,
-        }])
-        data['work3'], = self.Work.create([{
-            'name': 'ABC_task2',
-            'company': data['company'].id,
-        }])
-        data['task2'], = self.Project.create([{
-            'work': data['work3'].id,
-            'comment': 'task_desc',
-            'parent': data['project1'].id,
-        }])
-        data['work4'], = self.Work.create([{
-            'name': 'ABC_task3',
-            'company': data['company'].id,
-        }])
-        data['task3'], = self.Project.create([{
-            'work': data['work4'].id,
-            'comment': 'task_desc',
-            'parent': data['project1'].id,
-        }])
-
-        self.Project.write(
-            [data['task1'].parent],
-            {
-                'members': [
-                    ('create', [{
-                        'user': data['registered_user2'].id,
-                    }, {
-                        'user': data['registered_user1'].id
-                    }])
-                ]
-            }
-        )
-
-        # Add tag2 to task
-        self.Project.write(
-            [data['task1'], data['task2']],
-            {'tags': [('add', [data['tag2'].id])]}
-        )
-
-        return data
 
     def get_template_source(self, name):
         """
@@ -324,270 +44,194 @@ class TestTask(NereidTestCase):
         Test create task by logged in user
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
-
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
+                # Create Task
+                response = c.post(
+                    '/project-%d/task/-new' % self.project1.id,
+                    data={
+                        'name': 'ABC_task',
+                        'description': 'task_desc',
+                    }
+                )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Create Task
-                    response = c.post(
-                        '/project-%d/task/-new' % data['project1'].id,
-                        data={
-                            'name': 'ABC_task',
-                            'description': 'task_desc',
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
-
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Task successfully added to project ABC' in
-                        response.data
-                    )
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Task successfully added to project ABC' in
+                    response.data
+                )
 
     def test_0020_edit_task(self):
         """
         Test edit tasks added by logged in user
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Edit Task
+                response = c.post(
+                    '/task-%d/-edit' % self.task1.id,
+                    data={
+                        'name': 'ABC_task',
+                        'comment': 'task_desc2',
+                    },
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Edit Task
-                    response = c.post(
-                        '/task-%d/-edit' % task.id,
-                        data={
-                            'name': 'ABC_task',
-                            'comment': 'task_desc2',
-                        },
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
-                    self.assertEqual(data['task1'].comment, 'task_desc2')
+                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(self.task1.comment, 'task_desc2')
 
     def test_0030_watch_unwatch(self):
         """
         Test watching and unwatching of a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user2.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Unwatching task
+                response = c.post(
+                    '/task-%d/-unwatch' % self.task1.id,
+                    data={},
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Unwatching task
-                    response = c.post(
-                        '/task-%d/-unwatch' % task.id,
-                        data={},
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
+                self.assertTrue(json.loads(response.data)['success'])
+                self.assertFalse(
+                    self.reg_user2 in self.task1.participants
+                )
 
-                    self.assertTrue(json.loads(response.data)['success'])
-                    self.assertFalse(
-                        data['registered_user1'] in task.participants
-                    )
+                # Watching task
+                response = c.post(
+                    '/task-%d/-watch' % self.task1.id,
+                    data={},
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                    # Watching task
-                    response = c.post(
-                        '/task-%d/-watch' % data['task1'].id,
-                        data={},
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
-                    self.assertTrue(
-                        data['registered_user1'] in task.participants
-                    )
+                self.assertTrue(json.loads(response.data)['success'])
+                self.assertTrue(
+                    self.reg_user2 in self.task1.participants
+                )
 
     def test_0040_update_task(self):
         """
         Test task update from user.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
+                # Add Comment without xhr
+                response = c.post(
+                    '/task-%d/-update' % self.task1.id,
+                    data={
+                        'comment': 'comment1',
+                    }
+                )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Add Comment without xhr
-                    response = c.post(
-                        '/task-%d/-update' % task.id,
-                        data={
-                            'comment': 'comment1',
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
+                # Add Comment with XHR
+                response = c.post(
+                    '/task-%d/-update' % self.task1.id,
+                    data={
+                        'comment': 'comment2',
+                    },
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                    # Add Comment with XHR
-                    response = c.post(
-                        '/task-%d/-update' % task.id,
-                        data={
-                            'comment': 'comment2',
-                        },
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
+                self.assertTrue(json.loads(response.data)['success'])
 
     def test_0050_clear_assigned_user(self):
         """
         Test clear assigned user from a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Clear Assigned User
+                response = c.post(
+                    '/task-%d/-remove-assign' % self.task1.id,
+                    data={},
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Clear Assigned User
-                    response = c.post(
-                        '/task-%d/-remove-assign' % task.id,
-                        data={},
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
+                self.assertTrue(json.loads(response.data)['success'])
 
     def test_0060_assign_user(self):
         """
         Test assigning task to a User.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
-
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
+                # Assign User
+                response = c.post(
+                    '/task-%d/-assign' % self.task1.id,
+                    data={
+                        'user': self.reg_user2.id,
+                    },
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
+
+                self.assertTrue(json.loads(response.data)['success'])
+
+                # Change Assigned User
+                response = c.post(
+                    '/task-%d/-assign' % self.task1.id,
+                    data={
+                        'user': self.reg_user1.id,
+                    }
+                )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Assign User
-                    response = c.post(
-                        '/task-%d/-assign' % task.id,
-                        data={
-                            'user': data['registered_user2'].id,
-                        },
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
-
-                    # Change Assigned User
-                    response = c.post(
-                        '/task-%d/-assign' % task.id,
-                        data={
-                            'user': data['registered_user1'].id,
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
 
     def test_0070_state_change(self):
         """
         Test state update of a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
-
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
-
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
                 # Update with state change
                 response = c.post(
-                    '/task-%d/-update' % task.id,
+                    '/task-%d/-update' % self.task1.id,
                     data={
                         'progress_state': 'Planning',
                         'state': 'opened',
@@ -601,346 +245,264 @@ class TestTask(NereidTestCase):
         Test to add and remove tag from task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
-
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
+                # add_tag tag1
+                response = c.post(
+                    '/task-%d/tag-%d/-add' %
+                    (self.task1.id, self.tag1.id), data={}
+                )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # add_tag tag1
-                    response = c.post(
-                        '/task-%d/tag-%d/-add' %
-                        (task.id, data['tag1'].id), data={}
-                    )
-                    self.assertEqual(response.status_code, 302)
+                # Check Flash Message
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Tag added to task ABC_task' in response.data
+                )
 
-                    # Check Flash Message
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Tag added to task ABC_task' in response.data
-                    )
+                # Add_tag tag2
+                response = c.post(
+                    '/task-%d/tag-%d/-add' %
+                    (self.task1.id, self.tag2.id), data={}
+                )
 
-                    # Add_tag tag2
-                    response = c.post(
-                        '/task-%d/tag-%d/-add' %
-                        (data['task1'].id, data['tag2'].id), data={}
-                    )
+                self.assertEqual(response.status_code, 302)
 
-                    self.assertEqual(response.status_code, 302)
+                # Check Flash Message
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Tag added to task ABC_task' in response.data
+                )
 
-                    # Check Flash Message
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Tag added to task ABC_task' in response.data
-                    )
+                # Remove_tag tag1
+                response = c.post(
+                    '/task-%d/tag-%d/-remove' %
+                    (self.task1.id, self.tag1.id), data={}
+                )
 
-                    # Remove_tag tag1
-                    response = c.post(
-                        '/task-%d/tag-%d/-remove' %
-                        (data['task1'].id, data['tag1'].id), data={}
-                    )
+                self.assertEqual(response.status_code, 302)
 
-                    self.assertEqual(response.status_code, 302)
-
-                    # Check Flash Message
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Tag removed from task ABC_task' in response.data
-                    )
+                # Check Flash Message
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Tag removed from task ABC_task' in response.data
+                )
 
     def test_0090_render_task_list(self):
         """
         Test render task list for a project.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Render_task_list for project
+                response = c.get(
+                    '/project-%d/task-list' % self.project1.id,
+                    headers=self.xhr_header,
+                )
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_task_list for project
-                    response = c.get(
-                        '/project-%d/task-list' % data['project1'].id,
-                        headers=self.xhr_header,
-                    )
-
-                    # Checking list count
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 3
-                    )
+                # Checking list count
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 3
+                )
 
     def test_0100_render_task_search_with_query(self):
         """
         Tests if task can be searched by providing some query.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Render_task_list for project with query 'test'
+                response = c.get(
+                    '/project-%d/task-list?q=test' %
+                    self.project1.id, headers=self.xhr_header,
+                )
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_task_list for project with query 'test'
-                    response = c.get(
-                        '/project-%d/task-list?q=test' %
-                        data['project1'].id, headers=self.xhr_header,
-                    )
+                # Checking list count
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 0
+                )
 
-                    # Checking list count
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 0
-                    )
+                # Render_task_list for project with query 'task3'
+                response = c.get(
+                    '/project-%d/task-list?q=task3' %
+                    self.project1.id, headers=self.xhr_header,
+                )
 
-                    # Render_task_list for project with query 'task3'
-                    response = c.get(
-                        '/project-%d/task-list?q=task3' %
-                        data['project1'].id, headers=self.xhr_header,
-                    )
-
-                    # Checking list count
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 1
-                    )
+                # Checking list count
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 1
+                )
 
     def test_0110_render_task_search_by_tag(self):
         """
         Test render task list for a project with tag.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Render_task_list for project with tag 'tag1'
+                response = c.get(
+                    '/project-%d/task-list?tag=%d' %
+                    (self.project1.id, self.tag1.id),
+                    headers=self.xhr_header,
+                )
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_task_list for project with tag 'tag1'
-                    response = c.get(
-                        '/project-%d/task-list?tag=%d' %
-                        (data['project1'].id, data['tag1'].id),
-                        headers=self.xhr_header,
-                    )
+                # Checking list count
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 0
+                )
 
-                    # Checking list count
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 0
-                    )
+                # Render_task_list for project with tag 'tag2'
+                response = c.get(
+                    '/project-%d/task-list?tag=%d' %
+                    (self.project1.id, self.tag2.id),
+                    headers=self.xhr_header,
+                )
 
-                    # Render_task_list for project with tag 'tag2'
-                    response = c.get(
-                        '/project-%d/task-list?tag=%d' %
-                        (data['project1'].id, data['tag2'].id),
-                        headers=self.xhr_header,
-                    )
-
-                    # Checking list count
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 2
-                    )
+                # Checking list count
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 2
+                )
 
     def test_0120_mark_time(self):
         """
         Test marking time.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
-            login_data2 = {
-                'email': 'email@reg_user2.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
+                with Transaction().set_context({"company": self.company.id}):
                     # Mark time
                     response = c.post(
-                        '/task-%d/-mark-time' % task.id,
+                        '/task-%d/-mark-time' % self.task1.id,
                         data={
                             'hours': '8',
                         }
                     )
 
-                    self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 302)
 
-                    # Check Flash Message
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Time has been marked on task ABC_task' in
-                        response.data
-                    )
+                # Check Flash Message
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Time has been marked on task ABC_task' in
+                    response.data
+                )
 
-                    # Logout
-                    response = c.get('/logout')
+                # Logout
+                response = c.get('/logout')
 
-                    # Login with other user
-                    response = c.post('/login', data=login_data2)
+                # Login with other user
+                response = self.login(c, self.reg_user3.email, 'password')
 
-                    # Login Success
-                    self.assertEqual(response.status_code, 302)
-                    self.assertEqual(
-                        response.location, 'http://localhost/'
-                    )
+                # Mark time when user is not employee
+                response = c.post(
+                    '/task-%d/-mark-time' % self.task1.id,
+                    data={
+                        'hours': '8',
+                    }
+                )
 
-                    # Mark time when user is not employee
-                    response = c.post(
-                        '/task-%d/-mark-time' % task.id,
-                        data={
-                            'hours': '8',
-                        }
-                    )
+                self.assertEqual(response.status_code, 302)
+                response = c.get('/logout')
 
-                    self.assertEqual(response.status_code, 302)
-                    response = c.get('/logout')
-
-                    # Check Flash Message
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Only employees can mark time on tasks!' in
-                        response.data
-                    )
+                # Check Flash Message
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Only employees can mark time on tasks!' in
+                    response.data
+                )
 
     def test_0130_change_estimated_hours(self):
         """
         Test changing estimated hours of a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
+                # Change estimated hours
+                response = c.post(
+                    '/task-%d/change-estimated-hours' % self.task1.id,
+                    data={
+                        'new_estimated_hours': '15',
+                    }
+                )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Change estimated hours
-                    response = c.post(
-                        '/task-%d/change-estimated-hours' % task.id,
-                        data={
-                            'new_estimated_hours': '15',
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
-                    self.assertEqual(task.effort, 15)
+                self.assertEqual(self.task1.effort, 15)
 
     def test_0140_check_my_tasks(self):
         """
         Check my tasks.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
+            task = self.task1
 
             self.Project.write([task], {
-                'assigned_to': data['registered_user1'].id,
+                'assigned_to': self.reg_user1.id,
             })
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Check my tasks
+                response = c.get(
+                    '/my-tasks', headers=self.xhr_header
+                )
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 1
+                )
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Check my tasks
-                    response = c.get(
-                        '/my-tasks', headers=self.xhr_header
-                    )
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 1
-                    )
+                # Check my tasks with tag1
+                response = c.get(
+                    '/my-tasks?tag=%d' % self.tag1.id,
+                    headers=self.xhr_header
+                )
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 0
+                )
 
-                    # Check my tasks with tag1
-                    response = c.get(
-                        '/my-tasks?tag=%d' % data['tag1'].id,
-                        headers=self.xhr_header
-                    )
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 0
-                    )
-
-                    # Check my tasks with tag2
-                    response = c.get(
-                        '/my-tasks?tag=%d' % data['tag2'].id,
-                        headers=self.xhr_header
-                    )
-                    self.assertEqual(
-                        len(json.loads(response.data)['items']), 1
-                    )
+                # Check my tasks with tag2
+                response = c.get(
+                    '/my-tasks?tag=%d' % self.tag2.id,
+                    headers=self.xhr_header
+                )
+                self.assertEqual(
+                    len(json.loads(response.data)['items']), 1
+                )
 
     def test_0150_render_tasks_by_employee(self):
         """
@@ -948,406 +510,336 @@ class TestTask(NereidTestCase):
         """
         # Project admin user
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'admin@project.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(
+                    c, self.project_admin_user.email, 'password'
+                )
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_tasks_by_employee
-                    response = c.get('/tasks-by-employee')
-                    self.assertEqual(response.status_code, 200)
+                # Render_tasks_by_employee
+                response = c.get('/tasks-by-employee')
+                self.assertEqual(response.status_code, 200)
 
         # Project manager user
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'manager@project.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(
+                    c, self.project_manager_user.email, 'password'
+                )
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_tasks_by_employee
-                    response = c.get('/tasks-by-employee')
-                    self.assertEqual(response.status_code, 200)
+                # Render_tasks_by_employee
+                response = c.get('/tasks-by-employee')
+                self.assertEqual(response.status_code, 200)
 
         # Neither project admin nor manager
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_tasks_by_employee
-                    response = c.get('/tasks-by-employee')
-                    self.assertEqual(response.status_code, 403)
+                # Render_tasks_by_employee
+                response = c.get('/tasks-by-employee')
+                self.assertEqual(response.status_code, 403)
 
     def test_0160_render_task(self):
         """
         Render a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Render_task
-                    response = c.get(
-                        '/project-%d/task-%d' % (task.parent.id, task.id)
+                # Render_task
+                response = c.get(
+                    '/project-%d/task-%d' % (
+                        self.task1.parent.id, self.task1.id
                     )
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.data, str(task.id))
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data, str(self.task1.id))
 
     def test_0170_update_comment(self):
         """
         Update a previous comment on a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
             comment, = self.History.create([{
-                'project': task.id,
-                'updated_by': data['registered_user1'].id,
+                'project': self.task1.id,
+                'updated_by': self.reg_user1.id,
                 'comment': 'comment1',
             }])
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
+
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Update_comment
+                response = c.post(
+                    '/task-%d/comment-%d/-update' %
+                    (self.task1.id, comment.id), data={'comment': 'comment2'},
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Update_comment
-                    response = c.post(
-                        '/task-%d/comment-%d/-update' %
-                        (task.id, comment.id), data={'comment': 'comment2'},
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    self.assertTrue(json.loads(response.data)['success'])
-                    self.assertEqual(comment.comment, 'comment2')
+                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(comment.comment, 'comment2')
 
     def test_0180_change_constraint_dates(self):
         """
         Change estimated hours of a task.
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
+                # Change_constraint_dates
+                response = c.post(
+                    '/task-%d/change_constraint_dates' % self.task1.id,
+                    data={
+                        'constraint_start_time': '06/24/2013',
+                        'constraint_finish_time': '06/30/2013',
+                    },
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    # Change_constraint_dates
-                    response = c.post(
-                        '/task-%d/change_constraint_dates' % task.id,
-                        data={
-                            'constraint_start_time': '06/24/2013',
-                            'constraint_finish_time': '06/30/2013',
-                        },
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
-
-                    # Checking json success
-                    self.assertTrue(json.loads(response.data)['success'])
+                # Checking json success
+                self.assertTrue(json.loads(response.data)['success'])
 
     def test_0190_delete_task(self):
         """
-        Delete a task only if user is an admin member in the project
+        Tests that task can be deleted only by
+
+        1. Project Admin
+        2. Admin member of the project
         """
         ProjectMember = POOL.get('project.work.member')
 
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task1 = data['task1']
-            login_data2 = {
-                'email': 'email@reg_user2.com',
-                'password': 'password',
-            }
-
-            user1, = self.NereidUser.search([
-                ('email', '=', 'email@reg_user1.com')
-            ])
-
-            user2, = self.NereidUser.search([
-                ('email', '=', 'email@reg_user2.com')
-            ])
 
             # Case1: When user is not admin member in the project
             with app.test_client() as c:
-                response = c.post('/login', data=login_data2)
+                # User Login
+                response = self.login(c, self.reg_user2.email, 'password')
 
-                # Login Success
+                self.assertFalse(
+                    self.reg_user2.is_admin_of_project(self.task1.parent)
+                )
+
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    3
+                )
+                # Delete_task
+                response = c.post(
+                    '/task-%d/-delete' % self.task1.id,
+                    headers=self.xhr_header
+                )
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
 
-                self.assertFalse(user2.is_admin_of_project(task1.parent))
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        3
-                    )
-                    # Delete_task
-                    response = c.post(
-                        '/task-%d/-delete' % task1.id,
-                        headers=self.xhr_header
-                    )
-                    self.assertEqual(response.status_code, 302)
-
-                    # Task is not deleted
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        3
-                    )
+                # Task is not deleted
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    3
+                )
 
             # Case2: When user is admin member in the project
             with app.test_client() as c:
-                response = c.post('/login', data=login_data2)
+                # User Login
+                response = self.login(c, self.reg_user2.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                self.assertFalse(user2.is_admin_of_project(task1.parent))
+                self.assertFalse(
+                    self.reg_user2.is_admin_of_project(self.task1.parent)
+                )
 
                 project_user, = ProjectMember.search([
-                    ('user', '=', user2.id),
-                    ('project', '=', task1.parent)
+                    ('user', '=', self.reg_user2.id),
+                    ('project', '=', self.task1.parent)
                 ])
                 project_user.role = 'admin'
                 project_user.save()
 
-                self.assertTrue(user2.is_admin_of_project(task1.parent))
+                self.assertTrue(
+                    self.reg_user2.is_admin_of_project(self.task1.parent)
+                )
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        3
-                    )
-                    # Delete_task
-                    response = c.post(
-                        '/task-%d/-delete' % task1.id,
-                        headers=self.xhr_header
-                    )
-                    self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    3
+                )
+                # Delete_task
+                response = c.post(
+                    '/task-%d/-delete' % self.task1.id,
+                    headers=self.xhr_header
+                )
+                self.assertEqual(response.status_code, 200)
 
-                    self.assertTrue(json.loads(response.data)['success'])
+                self.assertTrue(json.loads(response.data)['success'])
 
-                    # Total tasks before deletion are 3 after deletion 2
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        2
-                    )
+                # Total tasks before deletion are 3 after deletion 2
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    2
+                )
 
-    def test_0200_create_task_with_multiple_tags_non_admin_member(self):
-        """
-        Create task with multiple tags as non admin member
-        """
-        with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
-            app = self.get_app(DEBUG=True)
-
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
+            # Case3: When user is project admin
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
-                self.assertEqual(response.status_code, 302)
+                # User Login
+                response = self.login(
+                    c, self.project_admin_user.email, 'password'
+                )
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        3
-                    )
+                self.assertTrue(
+                    self.reg_user2.is_admin_of_project(self.task2.parent)
+                )
 
-                    # Create Task
-                    response = c.post(
-                        '/project-%d/task/-new' % data['project1'].id,
-                        data={
-                            'name': 'Task with multiple tags',
-                            'description': 'Multi selection tags field',
-                            'tags': [
-                                data['tag1'].id,
-                                data['tag2'].id,
-                                data['tag3'].id,
-                            ],
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
-                    # One task created
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        4
-                    )
-                    self.assertTrue(
-                        self.Project.search([
-                            ('rec_name', '=', 'Task with multiple tags')
-                        ])
-                    )
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    2
+                )
+                # Delete_task
+                response = c.post(
+                    '/task-%d/-delete' % self.task2.id,
+                    headers=self.xhr_header
+                )
+                self.assertEqual(response.status_code, 200)
 
-                    task, = self.Project.search([
-                        ('rec_name', '=', 'Task with multiple tags'),
-                    ])
+                self.assertTrue(json.loads(response.data)['success'])
 
-                    # Tags are not added in above created task since user
-                    # is not admin member
-                    self.assertEqual(len(task.tags), 0)
+                # Total tasks before deletion are 2, after deletion 1
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    1
+                )
 
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Task successfully added to project ABC' in
-                        response.data
-                    )
-
-    def test_0200_create_task_with_multiple_tags_admin_member(self):
+    def test_0200_create_task_with_multiple_tags(self):
         """
-        Create task with multiple tags as admin member
+        Tests that task can be created with mulitple tags only if user is
+
+        1. Project Admin or
+        2. Admin member of the project
         """
         ProjectMember = POOL.get('project.work.member')
 
+        # As non admin member
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app(DEBUG=True)
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
-
-            member, = ProjectMember.search([
-                ('user.email', '=', 'email@reg_user1.com'),
-                ('project', '=', data['project1'].id),
-            ])
-            member.role = 'admin'
-            member.save()
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
+
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    3
+                )
+
+                # Create Task
+                response = c.post(
+                    '/project-%d/task/-new' % self.project1.id,
+                    data={
+                        'name': 'Task with multiple tags',
+                        'description': 'Multi selection tags field',
+                        'tags': [
+                            self.tag1.id,
+                            self.tag2.id,
+                            self.tag3.id,
+                        ],
+                    }
+                )
                 self.assertEqual(response.status_code, 302)
-
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        3
-                    )
-
-                    # Create Task
-                    response = c.post(
-                        '/project-%d/task/-new' % data['project1'].id,
-                        data={
-                            'name': 'Task with multiple tags',
-                            'description': 'Multi selection tags field',
-                            'tags': [
-                                data['tag1'].id,
-                                data['tag2'].id,
-                                data['tag3'].id,
-                            ],
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
-                    # One task created
-                    self.assertEqual(
-                        len(self.Project.search([('type', '=', 'task')])),
-                        4
-                    )
-                    self.assertTrue(
-                        self.Project.search([
-                            ('rec_name', '=', 'Task with multiple tags')
-                        ])
-                    )
-
-                    task, = self.Project.search([
-                        ('rec_name', '=', 'Task with multiple tags'),
+                # One task created
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    4
+                )
+                self.assertTrue(
+                    self.Project.search([
+                        ('rec_name', '=', 'Task with multiple tags')
                     ])
+                )
 
-                    # Tags are addedd successfully
-                    self.assertEqual(len(task.tags), 3)
+                task, = self.Project.search([
+                    ('rec_name', '=', 'Task with multiple tags'),
+                ])
 
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Task successfully added to project ABC' in
-                        response.data
-                    )
+                # Tags are not added in above created task since user
+                # is not admin member
+                self.assertEqual(len(task.tags), 0)
+
+            # As project admin
+            with app.test_client() as c:
+
+                member, = ProjectMember.search([
+                    ('user.email', '=', 'email@reg_user1.com'),
+                    ('project', '=', self.project1.id),
+                ])
+                member.role = 'admin'
+                member.save()
+
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
+
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    4
+                )
+
+                # Create Task
+                response = c.post(
+                    '/project-%d/task/-new' % self.project1.id,
+                    data={
+                        'name': 'Task 2 with multiple tags',
+                        'description': 'Multi selection tags field',
+                        'tags': [
+                            self.tag1.id,
+                            self.tag2.id,
+                            self.tag3.id,
+                        ],
+                    }
+                )
+                self.assertEqual(response.status_code, 302)
+                # One task created
+                self.assertEqual(
+                    len(self.Project.search([('type', '=', 'task')])),
+                    5
+                )
+                self.assertTrue(
+                    self.Project.search([
+                        ('rec_name', '=', 'Task 2 with multiple tags')
+                    ])
+                )
+
+                task, = self.Project.search([
+                    ('rec_name', '=', 'Task 2 with multiple tags'),
+                ])
+
+                # Tags are addedd successfully
+                self.assertEqual(len(task.tags), 3)
 
     def test_0210_github_commit_activity_stream(self):
         """
@@ -1355,20 +847,15 @@ class TestTask(NereidTestCase):
         handler
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_task_dafaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-            task = data['task1']
 
-            login_data = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
             utc = pytz.UTC
 
-            payload = {
+            payload = json.dumps({
                 'commits': [{
                     'author': {'email': 'email@reg_user1.com'},
-                    'message': 'Add commit #%d' % task.id,
+                    'message': 'Add commit #%d' % self.task1.id,
                     'timestamp': str(utc.localize(datetime.utcnow())),
                     'url': 'repo/url/1',
                     'id': '54321',
@@ -1377,45 +864,53 @@ class TestTask(NereidTestCase):
                     'name': 'ABC Repository',
                     'url': 'repo/url',
                 }
-            }
+            })
+
+            # Generate signature for request header
+            signature = "sha1=%s" % hmac.new(
+                'somesecret', payload, hashlib.sha1
+            ).hexdigest()
+
+            headers = [
+                ('X-Hub-Signature', signature),
+            ]
 
             with app.test_client() as c:
-                response = c.post('/login', data=login_data)
+                # User Login
+                response = self.login(c, 'email@reg_user1.com', 'password')
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
 
-                with Transaction().set_context(
-                    {'company': data['company'].id}
-                ):
-                    self.assertEqual(
-                        len(data['registered_user1'].activities), 0
-                    )
+                self.assertEqual(
+                    len(self.reg_user1.activities), 0
+                )
 
-                    # Check github handler
-                    response = c.post(
-                        '/-project/-github-hook',
-                        data={
-                            'payload': json.dumps(payload)
-                        }
-                    )
-                    self.assertEqual(response.status_code, 200)
-                    self.assertTrue(response.data, 'OK')
+                # Check github handler
+                response = c.post(
+                    '/-project/-github-hook',
+                    data={
+                        'payload': payload
+                    },
+                    headers=headers
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.data, 'OK')
 
-                    # Activity stream is created for commit user
-                    self.assertEqual(
-                        len(data['registered_user1'].activities), 1
-                    )
+                # Activity stream is created for commit user
+                self.assertEqual(
+                    len(self.reg_user1.activities), 1
+                )
 
-                    commit, = self.ProjectWorkCommit.search([
-                        ('commit_id', '=', '54321')
-                    ])
+                commit, = self.ProjectWorkCommit.search([
+                    ('commit_id', '=', '54321')
+                ])
 
-                    activities = self.Activity.search([
-                        ('object_', '=', 'project.work.commit, %d' % commit.id)
-                    ]),
+                activities = self.Activity.search([
+                    ('object_', '=', 'project.work.commit, %d' % commit.id)
+                ]),
 
-                    self.assertEqual(len(activities), 1)
+                self.assertEqual(len(activities), 1)
 
     def test_0220_unique_users_per_project(self):
         """
@@ -1423,140 +918,115 @@ class TestTask(NereidTestCase):
         http://sentry.openlabs.co.in/default/my-openlabs-production/group/2271/
         """
         with Transaction().start(DB_NAME, USER, CONTEXT):
-            data = self.create_defaults()
+            self.create_defaults_for_project()
             app = self.get_app()
-
-            # Add participants to project1
-            self.Project.write([data['project1']], {
-                'members': [
-                    ('create', [{
-                        'user': data['registered_user2'].id,
-                    }, {
-                        'user': data['registered_user1'].id
-                    }])
-                ]
-            })
-
-            login_data_user1 = {
-                'email': 'email@reg_user1.com',
-                'password': 'password',
-            }
 
             # Nereid User-1 creates a task and assign it to himself
             with app.test_client() as c:
-                response = c.post('/login', data=login_data_user1)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.location, 'http://localhost/')
 
-                with Transaction().set_context({'company': data['company'].id}):
-                    response = c.post(
-                        '/project-%d/task/-new' % data['project1'].id,
-                        data={
-                            'name': 'Test Task 1',
-                            'description': 'task_desc',
-                            'assign_to': data['registered_user1'].id,
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
+                response = c.post(
+                    '/project-%d/task/-new' % self.project1.id,
+                    data={
+                        'name': 'Test Task 1',
+                        'description': 'task_desc',
+                        'assign_to': self.reg_user1.id,
+                    }
+                )
+                self.assertEqual(response.status_code, 302)
 
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Task successfully added to project ABC' in
-                        response.data
-                    )
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Task successfully added to project ABC' in
+                    response.data
+                )
 
             # Nereid User-1 creates a task and assign it to other
             # participant of the project
             with app.test_client() as c:
-                response = c.post('/login', data=login_data_user1)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                with Transaction().set_context({'company': data['company'].id}):
-                    response = c.post(
-                        '/project-%d/task/-new' % data['project1'].id,
-                        data={
-                            'name': 'Test Task 2',
-                            'description': 'task_desc',
-                            'assign_to': data['registered_user2'].id,
-                        }
-                    )
-                    self.assertEqual(response.status_code, 302)
+                response = c.post(
+                    '/project-%d/task/-new' % self.project1.id,
+                    data={
+                        'name': 'Test Task 2',
+                        'description': 'task_desc',
+                        'assign_to': self.reg_user2.id,
+                    }
+                )
+                self.assertEqual(response.status_code, 302)
 
-                    response = c.get('/login')
-                    self.assertTrue(
-                        u'Task successfully added to project ABC' in
-                        response.data
-                    )
+                response = c.get('/login')
+                self.assertTrue(
+                    u'Task successfully added to project ABC' in
+                    response.data
+                )
 
             # Nereid User-1 creates a task and assign it to non
             # participant user
             with app.test_client() as c:
-                response = c.post('/login', data=login_data_user1)
+                # User Login
+                response = self.login(c, self.reg_user1.email, 'password')
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
-                with Transaction().set_context({'company': data['company'].id}):
-                    response = c.post(
-                        '/project-%d/task/-new' % data['project1'].id,
-                        data={
-                            'name': 'Test Task 3',
-                            'description': 'task_desc',
-                            'assign_to': data['registered_user3'].id,
-                        }
-                    )
-                    self.assertEqual(response.status_code, 404)
+                response = c.post(
+                    '/project-%d/task/-new' % self.project1.id,
+                    data={
+                        'name': 'Test Task 3',
+                        'description': 'task_desc',
+                        'assign_to': self.reg_user3.id,
+                    }
+                )
+                self.assertEqual(response.status_code, 404)
 
             task, = self.Project.search([
                 ('type', '=', 'task'), ('work.name', '=', 'Test Task 1')
             ])
 
-            login_data_user2 = {
-                'email': 'email@reg_user2.com',
-                'password': 'password',
-            }
-
             # Nereid User-2 updates the task and assigned to himself
             with app.test_client() as c:
-                response = c.post('/login', data=login_data_user2)
+                # User Login
+                response = self.login(c, self.reg_user2.email, 'password')
 
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.location, 'http://localhost/')
-
-                with Transaction().set_context({'company': data['company'].id}):
-                    response = c.post(
-                        '/task-%d/-update' % task.id,
-                        data={
-                            'comment': 'comment1',
-                            'assigned_to': data['registered_user2'].id,
-                            'progress_state': 'In Progress',
-                        },
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
+                response = c.post(
+                    '/task-%d/-update' % task.id,
+                    data={
+                        'comment': 'comment1',
+                        'assigned_to': self.reg_user2.id,
+                        'progress_state': 'In Progress',
+                    },
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
             # Nereid User-2 updates the task and assigned to other
             # participant of the project
             with app.test_client() as c:
-                response = c.post('/login', data=login_data_user2)
+                # User Login
+                response = self.login(c, self.reg_user2.email, 'password')
 
                 # Login Success
                 self.assertEqual(response.status_code, 302)
 
-                with Transaction().set_context({'company': data['company'].id}):
-                    response = c.post(
-                        '/task-%d/-update' % task.id,
-                        data={
-                            'comment': 'comment1',
-                            'assigned_to': data['registered_user1'].id,
-                            'progress_state': 'In Progress',
-                        },
-                        headers=self.xhr_header,
-                    )
-                    self.assertEqual(response.status_code, 200)
+                response = c.post(
+                    '/task-%d/-update' % task.id,
+                    data={
+                        'comment': 'comment1',
+                        'assigned_to': self.reg_user1.id,
+                        'progress_state': 'In Progress',
+                    },
+                    headers=self.xhr_header,
+                )
+                self.assertEqual(response.status_code, 200)
 
 
 def suite():
@@ -1570,4 +1040,3 @@ def suite():
 
 if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite())
-# pylint: enable-msg=C0103

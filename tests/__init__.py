@@ -4,12 +4,12 @@
 
     Test Suite
 
-    :copyright: (c) 2013 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 from tests.test_views_depends import TestViewsDepends
 from tests.test_company import TestCompany
-from tests.test_project import TestNereidProject
+from tests.test_project import TestProject
 from tests.test_task import TestTask
 
 import unittest
@@ -38,7 +38,7 @@ def suite():
     test_suite.addTests([
         unittest.TestLoader().loadTestsFromTestCase(TestViewsDepends),
         unittest.TestLoader().loadTestsFromTestCase(TestCompany),
-        unittest.TestLoader().loadTestsFromTestCase(TestNereidProject),
+        unittest.TestLoader().loadTestsFromTestCase(TestProject),
         unittest.TestLoader().loadTestsFromTestCase(TestTask),
     ])
     return test_suite

@@ -4,5 +4,8 @@
         <page string="Project Admins" id="project_admins">
             <field name="project_admins" colspan="4"/>
         </page>
+        <page string="Project Managers" id="project_managers">
+            <field name="project_managers" colspan="4"/>
+        </page>
     </xpath>
 </data>

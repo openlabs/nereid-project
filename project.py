@@ -40,9 +40,11 @@ from trytond.tools import get_smtp_server
 from trytond import backend
 
 from utils import request_wants_json
+import hashlib
+import hmac
 
 __all__ = [
-    'ProjectUsers', 'ProjectWorkMember', 'ProjectInvitation',
+    'ProjectWorkMember', 'ProjectInvitation',
     'ProjectWorkInvitation', 'Project', 'ProjectHistory', 'ProjectWorkCommit',
 ]
 __metaclass__ = PoolMeta
@@ -65,45 +67,6 @@ STATIC_FOLDER = os.path.join(
         os.path.dirname(__file__)
     ), 'static'
 )
-
-
-class ProjectUsers(ModelSQL):
-    'Project Users'
-    __name__ = 'project.work-nereid.user'
-
-    project = fields.Many2One(
-        'project.work', 'Project',
-        ondelete='CASCADE', select=True, required=True
-    )
-
-    user = fields.Many2One(
-        'nereid.user', 'User', select=1, required=True
-    )
-
-    @classmethod
-    def __setup__(cls):
-        super(ProjectUsers, cls).__setup__()
-        cls._sql_constraints += [(
-            'check_user',
-            'UNIQUE(project, "user")',
-            'Users must be unique per project'
-        )]
-
-    @classmethod
-    def __register__(cls, module_name):
-        '''
-        Register class and update table name to new.
-        '''
-        cursor = Transaction().cursor
-        TableHandler = backend.get('TableHandler')
-        table = TableHandler(cursor, cls, module_name)
-        super(ProjectUsers, cls).__register__(module_name)
-        # Migration
-        if table.table_exist(cursor, 'project_work_nereid_user_rel'):
-            table.table_rename(
-                cursor, 'project_work_nereid_user_rel',
-                'project_work-nereid_user'
-            )
 
 
 class ProjectWorkMember(ModelSQL, ModelView):
@@ -159,8 +122,8 @@ class ProjectWorkMember(ModelSQL, ModelView):
             # table
             cursor.execute(
                 "INSERT INTO %s (project, \"user\", role) "
-                "SELECT old.project, old.user, 'member' from \"%s\" old "
-                "JOIN %s as p on old.project=p.id where p.type='project'"
+                "SELECT old.task, old.user, 'member' from \"%s\" old "
+                "JOIN %s as p on old.task=p.id where p.type='project'"
                 % (
                     cls._table, ProjectUsers._table, ProjectWork._table
                 )
@@ -269,8 +232,10 @@ class ProjectInvitation(ModelSQL, ModelView):
         """
         # Check if user is among the project admin members
         if not request.nereid_user.is_admin_of_project(self.project):
-            flash("Sorry! You are not allowed to resend invites. \
-                Contact your project admin for the same.")
+            flash(
+                "Sorry! You are not allowed to resend invites. "
+                "Contact your project admin for the same."
+            )
             return redirect(request.referrer)
 
         if request.method == 'POST':
@@ -333,11 +298,6 @@ class Project:
         states={'invisible': Eval('type') != 'project'},
         depends=['type']
     )
-    participants = fields.Many2Many(
-        'project.work-nereid.user', 'project', 'user',
-        'Participants', states={'invisible': Eval('type') != 'task'},
-        depends=['type']
-    )
 
     admins = fields.Function(
         fields.One2Many('nereid.user', None, "Admins"), 'get_admins'
@@ -351,32 +311,7 @@ class Project:
         }
     )
 
-    #: Tags for tasks.
-    tags = fields.Many2Many(
-        'project.work-project.work.tag', 'task', 'tag',
-        'Tags', depends=['type'],
-        states={
-            'invisible': Eval('type') != 'task',
-            'readonly': Eval('type') != 'task',
-        }
-    )
-
     created_by = fields.Many2One('nereid.user', 'Created by')
-
-    all_participants = fields.Function(
-        fields.One2Many(
-            'nereid.user', None,
-            'All Participants', depends=['company']
-        ), 'get_all_participants'
-    )
-    assigned_to = fields.Many2One(
-        'nereid.user', 'Assigned to', depends=['all_participants'],
-        domain=[('id', 'in', Eval('all_participants'))],
-        states={
-            'invisible': Eval('type') != 'task',
-            'readonly': Eval('type') != 'task',
-        }
-    )
 
     #: Get all the attachments on the object and return them
     attachments = fields.Function(
@@ -384,27 +319,21 @@ class Project:
         'get_attachments'
     )
 
-    progress_state = fields.Selection(
-        PROGRESS_STATES, 'Progress State',
-        depends=['state', 'type'], select=True,
-        states={
-            'invisible':
-            (Eval('type') != 'task') | (Eval('state') != 'opened'),
-            'readonly':
-            (Eval('type') != 'task') | (Eval('state') != 'opened'),
-        }
-    )
-
     repo_commits = fields.One2Many(
         'project.work.commit', 'project', 'Repo Commits'
     )
 
-    @staticmethod
-    def default_progress_state():
-        '''
-        Default for progress state
-        '''
-        return 'Backlog'
+    def get_admins(self, name):
+        """
+        Return all admin users of the project
+        """
+
+        assert self.type == 'project'
+
+        return [
+            member.user.id for member in self.members
+            if member.role == 'admin'
+        ]
 
     @classmethod
     @route('/projects')
@@ -510,33 +439,6 @@ class Project:
             ])
         )
 
-    def get_all_participants(self, name):
-        """
-        All participants includes the participants in the project and also
-        the admins
-
-        """
-        if self.parent:
-            users = [
-                p.id for p in self.participants + self.parent.all_participants
-            ]
-        else:
-            users = [member.user.id for member in self.members]
-
-        return list(set(users))
-
-    def get_admins(self, name):
-        """
-        Return all admin users of the project
-        """
-
-        assert self.type == 'project'
-
-        return [
-            member.user.id for member in self.members
-            if member.role == 'admin'
-        ]
-
     @classmethod
     def create(cls, vlist):
         '''
@@ -547,10 +449,6 @@ class Project:
         for values in vlist:
             if has_request_context():
                 values['created_by'] = request.nereid_user.id
-                if values['type'] == 'task':
-                    values.setdefault('participants', []).append(
-                        ('add', [request.nereid_user.id])
-                    )
             else:
                 # TODO: identify the nereid user through employee
                 pass
@@ -562,7 +460,7 @@ class Project:
 
         :param user: The browse record of the current nereid user
         """
-        if request.nereid_user.has_permissions(['project.admin']):
+        if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
             raise abort(404)
@@ -574,10 +472,7 @@ class Project:
 
         :param user: The browse record of the current nereid user
         """
-        # XXX: this method and the method above check exactly same thing
-        # either of it can be removed and method can be renamed as
-        # can_read_write()
-        if request.nereid_user.has_permissions(['project.admin']):
+        if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
             raise abort(404)
@@ -604,43 +499,6 @@ class Project:
             raise abort(404)
 
         return projects[0]
-
-    @classmethod
-    def get_task(cls, task_id):
-        """
-        Common base for fetching the task while validating if the user
-        can use it.
-
-        :param task_id: Task Id of project to fetch.
-        """
-        tasks = cls.search([
-            ('id', '=', task_id),
-            ('type', '=', 'task'),
-        ])
-
-        if not tasks:
-            raise abort(404)
-
-        if not tasks[0].parent.can_write(request.nereid_user):
-            # If the user is not allowed to access this project then dont let
-            raise abort(403)
-
-        return tasks[0]
-
-    @classmethod
-    def get_tasks_by_tag(cls, tag_id):
-        """
-        Return the tasks associated with a tag
-
-        :param tag_id: tag Id of which tasks to fetch.
-        """
-        TaskTags = Pool().get('project.work-project.work.tag')
-
-        tasks = map(int, TaskTags.search([
-            ('tag', '=', tag_id),
-            ('task.state', '=', 'opened'),
-        ]))
-        return tasks
 
     @classmethod
     @route('/project-<int:project_id>')
@@ -701,197 +559,6 @@ class Project:
             )
 
         flash("Could not create project. Try again.")
-        return redirect(request.referrer)
-
-    @login_required
-    @route('/project-<int:active_id>/task/-new', methods=['GET', 'POST'])
-    def create_task(self):
-        """Create a new task for the specified project
-
-        POST will create a new task
-        """
-        NereidUser = Pool().get('nereid.user')
-        Activity = Pool().get('nereid.activity')
-        Work = Pool().get('timesheet.work')
-
-        project = self.get_project(self.id)
-
-        # Check if user is among the participants
-        self.can_write(request.nereid_user)
-
-        if request.method == 'POST':
-            if request.is_xhr and request.json:
-                name = request.json['name']
-            else:
-                name = request.form['name']
-            data = {
-                'parent': self.id,
-                'work': Work.create([{
-                    'name': name,
-                    'company': request.nereid_website.company.id
-                }])[0].id,
-                'type': 'task',
-                'comment': request.form.get('description', None),
-            }
-
-            if request.form.getlist('tags', int) and \
-                    request.nereid_user.is_admin_of_project(self):
-                data['tags'] = [('set', request.form.getlist('tags', int))]
-
-            constraint_start_time = request.form.get(
-                'constraint_start_time', None)
-            constraint_finish_time = request.form.get(
-                'constraint_finish_time', None)
-            if constraint_start_time:
-                data['constraint_start_time'] = datetime.strptime(
-                    constraint_start_time, '%m/%d/%Y')
-            if constraint_finish_time:
-                data['constraint_finish_time'] = datetime.strptime(
-                    constraint_finish_time, '%m/%d/%Y')
-
-            task, = self.create([data])
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': 'project.work, %d' % task.id,
-                'verb': 'created_task',
-                'target': 'project.work, %d' % project.id,
-                'project': project.id,
-            }])
-
-            email_receivers = [p.email for p in self.all_participants]
-            if request.form.get('assign_to', None):
-                assignee = NereidUser(request.form.get('assign_to', type=int))
-
-                # Check if assignee is among the participants, if not add
-                # it to the participants
-                if self.can_write(assignee):
-                    self.write([task], {
-                        'assigned_to': assignee.id,
-                        'participants': [
-                            ('add', [assignee.id])
-                        ]
-                    })
-                email_receivers = [assignee.email]
-            task.send_mail(email_receivers)
-            if request.is_xhr:
-                return jsonify(task.serialize())
-            flash("Task successfully added to project %s" % self.rec_name)
-            return redirect(
-                url_for(
-                    'project.work.render_task',
-                    project_id=self.id, task_id=task.id
-                )
-            )
-
-        flash("Could not create task. Try again.")
-        return redirect(request.referrer)
-
-    @login_required
-    @route('/task-<int:active_id>/-edit', methods=['POST'])
-    def edit_task(self):
-        """
-        Edit the task
-        """
-        Activity = Pool().get('nereid.activity')
-        Work = Pool().get('timesheet.work')
-
-        task = self.get_task(self.id)
-
-        Work.write([task.work], {
-            'name': request.form.get('name'),
-        })
-        self.write([task], {
-            'comment': request.form.get('comment')
-        })
-        Activity.create([{
-            'actor': request.nereid_user.id,
-            'object_': 'project.work, %d' % task.id,
-            'verb': 'edited_task',
-            'target': 'project.work, %d' % task.parent.id,
-            'project': task.parent.id,
-        }])
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-                'name': self.rec_name,
-                'comment': self.comment,
-            })
-        return redirect(request.referrer)
-
-    def send_mail(self, receivers=None):
-        """Send mail when task created.
-
-        :param receivers: Receivers of email.
-        """
-        subject = "[#%s %s] - %s" % (
-            self.id, self.parent.rec_name, self.rec_name
-        )
-
-        if not receivers:
-            receivers = [
-                p.email for p in self.participants if p.email
-            ]
-        if self.created_by.email in receivers:
-            receivers.remove(self.created_by.email)
-
-        if not receivers:
-            return
-
-        message = render_email(
-            from_email=CONFIG['smtp_from'],
-            to=', '.join(receivers),
-            subject=subject,
-            text_template='project/emails/project_text_content.jinja',
-            html_template='project/emails/project_html_content.jinja',
-            task=self,
-            updated_by=request.nereid_user.display_name
-        )
-
-        # Send mail.
-        server = get_smtp_server()
-        server.sendmail(CONFIG['smtp_from'], receivers, message.as_string())
-        server.quit()
-
-    @classmethod
-    @route('/task-<int:task_id>/-unwatch', methods=['GET', 'POST'])
-    @login_required
-    def unwatch(cls, task_id):
-        """
-        Remove the current user from the participants of the task
-
-        :params task_id: task's id to unwatch.
-        """
-        task = cls.get_task(task_id)
-
-        if request.nereid_user in task.participants:
-            cls.write(
-                [task], {
-                    'participants': [('unlink', [request.nereid_user.id])]
-                }
-            )
-        if request.is_xhr:
-            return jsonify({'success': True})
-        return redirect(request.referrer)
-
-    @classmethod
-    @route('/task-<int:task_id>/-watch', methods=['GET', 'POST'])
-    @login_required
-    def watch(cls, task_id):
-        """
-        Add the current user from the participants of the task
-
-        :params task_id: task's id to watch.
-        """
-        task = cls.get_task(task_id)
-
-        if request.nereid_user not in task.participants:
-            cls.write(
-                [task], {
-                    'participants': [('add', [request.nereid_user.id])]
-                }
-            )
-        if request.is_xhr:
-            return jsonify({'success': True})
         return redirect(request.referrer)
 
     @classmethod
@@ -1086,165 +753,6 @@ class Project:
 
         flash("Could not remove participant! Try again.")
         return redirect(request.referrer)
-
-    @classmethod
-    @route('/project-<int:project_id>/task-list')
-    @login_required
-    def render_task_list(cls, project_id):
-        """
-        Renders a project's task list page
-        """
-        project = cls.get_project(project_id)
-        state = request.args.get('state', None)
-        page = request.args.get('page', 1, int)
-
-        filter_domain = [
-            ('type', '=', 'task'),
-            ('parent', '=', project.id),
-        ]
-
-        query = request.args.get('q', None)
-        if query:
-            # This search is probably the suckiest search in the
-            # history of mankind in terms of scalability and utility
-            # TODO: Figure out something better
-            filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
-
-        tag = request.args.get('tag', None, int)
-        if tag:
-            filter_domain.append(('tags', '=', tag))
-
-        user = request.args.get('user', None, int)
-        if user:
-            filter_domain.append(('assigned_to', '=', user))
-
-        counts = {}
-        counts['opened_tasks_count'] = cls.search(
-            filter_domain + [('state', '=', 'opened')], count=True
-        )
-        counts['done_tasks_count'] = cls.search(
-            filter_domain + [('state', '=', 'done')], count=True
-        )
-        counts['all_tasks_count'] = cls.search(
-            filter_domain, count=True
-        )
-
-        if state and state in ('opened', 'done'):
-            filter_domain.append(('state', '=', state))
-
-        if request.is_xhr:
-            tasks = cls.search(filter_domain)
-            return jsonify({
-                'items': map(lambda task: task.serialize('listing'), tasks),
-                'domain': filter_domain,
-            })
-
-        if state and state == 'opened':
-            # Group and return tasks for regular web viewing
-            tasks_by_state = defaultdict(list)
-            for task in cls.search(filter_domain):
-                tasks_by_state[task.progress_state].append(task)
-            return render_template(
-                'project/task-list-kanban.jinja',
-                active_type_name='render_task_list', counts=counts,
-                state_filter=state, tasks_by_state=tasks_by_state,
-                states=PROGRESS_STATES[:-1], project=project
-            )
-
-        tasks = Pagination(cls, filter_domain, page, 20)
-        return render_template(
-            'project/task-list.jinja', project=project,
-            active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks=tasks
-        )
-
-    @classmethod
-    @route('/my-tasks')
-    @login_required
-    def my_tasks(cls):
-        """
-        Renders all tasks of the user in all projects
-        """
-        state = request.args.get('state', None)
-
-        filter_domain = [
-            ('type', '=', 'task'),
-        ]
-        if request.args.get('watched'):
-            # Show all tasks watched, not assigned
-            filter_domain.append(('participants', '=', request.nereid_user.id))
-        else:
-            filter_domain.append(('assigned_to', '=', request.nereid_user.id))
-        query = request.args.get('q', None)
-        if query:
-            # This search is probably the suckiest search in the
-            # history of mankind in terms of scalability and utility
-            # TODO: Figure out something better
-            filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
-
-        tag = request.args.get('tag', None, int)
-        if tag:
-            filter_domain.append(('tags', '=', tag))
-
-        counts = {}
-        counts['opened_tasks_count'] = cls.search(
-            filter_domain + [('state', '=', 'opened')], count=True
-        )
-
-        if state and state in ('opened', 'done'):
-            filter_domain.append(('state', '=', state))
-
-        tasks = cls.search(filter_domain, order=[('progress_state', 'ASC')])
-
-        if request.is_xhr:
-            return jsonify({
-                'items': map(lambda task: task.serialize('listing'), tasks),
-                'domain': filter_domain,
-            })
-
-        # Group and return tasks for regular web viewing
-        tasks_by_state = defaultdict(list)
-        for task in tasks:
-            tasks_by_state[task.progress_state].append(task)
-        return render_template(
-            'project/global-task-list.jinja',
-            active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks_by_state=tasks_by_state,
-            states=PROGRESS_STATES[:-1]
-        )
-
-    @classmethod
-    @route('/project-<int:project_id>/task-<int:task_id>')
-    @login_required
-    def render_task(cls, task_id, project_id):
-        """
-        Renders the task in a project
-        """
-        task = cls.get_task(task_id)
-
-        comments = sorted(
-            task.history + task.work.timesheet_lines + task.attachments +
-            task.repo_commits, key=lambda x: x.create_date
-        )
-
-        hours = {}
-        for line in task.work.timesheet_lines:
-            hours[line.employee] = hours.setdefault(line.employee, 0) + \
-                line.hours
-
-        if request.is_xhr:
-            response = cls.serialize(task)
-            with Transaction().set_context(task=task_id):
-                response['comments'] = [
-                    comment.serialize('listing') for comment in comments
-                ]
-            return jsonify(response)
-
-        return render_template(
-            'project/task.jinja', task=task,
-            active_type_name='render_task_list', project=task.parent,
-            comments=comments, timesheet_summary=hours
-        )
 
     @classmethod
     @route('/project-<int:project_id>/-files', methods=['GET', 'POST'])
@@ -1550,6 +1058,8 @@ class Project:
         )
 
     @classmethod
+    @login_required
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
     def get_gantt_data(cls):
         """
         Get gantt data for the last 1 month.
@@ -1650,32 +1160,6 @@ class Project:
         employees = Employee.search([])
         return render_template(
             'project/global-timesheet.jinja', employees=employees
-        )
-
-    @classmethod
-    @route('/tasks-by-employee')
-    @login_required
-    @permissions_required(perm_any=['project.admin', 'project.manager'])
-    def render_tasks_by_employee(cls):
-        '''
-        Returns rendered task, for employee.
-        '''
-        open_tasks = cls.search([
-            ('state', '=', 'opened'),
-            ('assigned_to.employee', '!=', None),
-        ], order=[('assigned_to', 'ASC')])
-        tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
-        for task in open_tasks:
-            tasks_by_employee_by_state[task.assigned_to][
-                task.progress_state
-            ].append(task)
-        employees = tasks_by_employee_by_state.keys()
-        employees.sort()
-        return render_template(
-            'project/tasks-by-employee.jinja',
-            tasks_by_employee_by_state=tasks_by_employee_by_state,
-            employees=employees,
-            states=PROGRESS_STATES[:-1],
         )
 
     @classmethod
@@ -1812,8 +1296,6 @@ class Project:
         Upload the file to a project or task with owner/uploader
         as the current user
         """
-        Attachment = Pool().get('ir.attachment')
-
         work = None
         if request.form.get('project', None):
             work = cls.get_project(request.form.get('project', type=int))
@@ -1824,232 +1306,63 @@ class Project:
             # Neither task, nor the project is specified
             raise abort(404)
 
-        attached_file = request.files["file"]
-        resource = '%s,%d' % (cls.__name__, work.id)
-
-        filename = attached_file.filename
-        if Attachment.search([
-            ('name', '=', filename),
-            ('resource', '=', resource)
-        ]):
-            # try to create a unique filename
-            filename, extension = filename.split('.', 1)
-            filename = '%s-%d.%s' % (
-                filename, time.time(), extension
-            )
-
-        data = {
-            'resource': resource,
-            'description': request.form.get('description', '')
-        }
-
+        # Create attachment
         if request.form.get('file_type') == 'link':
             link = request.form.get('url')
-            data.update({
-                'link': link,
-                'name': link.split('/')[-1],
-                'type': 'link'
-            })
+            attachment = work.create_attachment(
+                link.split('/')[-1], data=link, type='link'
+            )
         else:
-            data.update({
-                'data': attached_file.stream.read(),
-                'name': filename,
-                'type': 'data'
-            })
-
-        attachment, = Attachment.create([data])
+            file = request.files["file"]
+            attachment = work.create_attachment(
+                file.filename, data=file.stream.read()
+            )
 
         if request.is_xhr or request_wants_json():
             with Transaction().set_context(task=work.id):
                 return jsonify({
-                    'success': True,
                     'data': attachment.serialize('listing'),
-                })
+                }), 201
 
         flash("Attachment added to %s" % work.rec_name)
         return redirect(request.referrer)
 
-    @classmethod
-    @route('/task-<int:task_id>/-update', methods=['GET', 'POST'])
-    @login_required
-    def update_task(cls, task_id):
+    def create_attachment(self, filename, data, type='data'):
         """
-        Accepts a POST request against a task_id and updates the ticket
+        Creates attchment for project
 
-        :param task_id: The ID of the task which needs to be updated
+        :param filename: Name of the file
+        :param data: Content of the file or Url of the file
+        :param type: Either data or link
         """
-        History = Pool().get('project.work.history')
-        TimesheetLine = Pool().get('timesheet.line')
-        Activity = Pool().get('nereid.activity')
+        Attachment = Pool().get('ir.attachment')
 
-        task = cls.get_task(task_id)
+        assert type in ('data', 'link')
 
-        history_data = {
-            'project': task.id,
-            'updated_by': request.nereid_user.id,
-            'comment': request.form['comment']
+        resource = '%s,%d' % (self.__name__, self.id)
+
+        if Attachment.search([
+            ('name', '=', filename),
+            ('resource', '=', resource)
+        ]):
+            # Try to create a unique filename
+            filename, extension = filename.split('.', 1)
+            filename = '%s-%d.%s' % (
+                filename, time.time(), extension
+            )
+        values = {
+            'data': data,
+            'name': filename,
+            'type': type,
+            'resource': resource,
         }
 
-        updatable_attrs = ['progress_state']
-        new_participant_ids = set()
-        current_participant_ids = [p.id for p in task.participants]
-        post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
-        if any(post_attrs):
-            # Combined update of task and history since there is some value
-            # posted in addition to the comment
-            task_changes = {}
-            for attr in updatable_attrs:
-                if getattr(task, attr) != request.form.get(attr, None):
-                    task_changes[attr] = request.form[attr]
-
-            if task_changes.get('progress_state') == 'Done':
-                task_changes['state'] = 'done'
-            else:
-                task_changes['state'] = 'opened'
-
-            new_assignee_id = request.form.get('assigned_to', None, int)
-            if new_assignee_id is not None:
-                if (new_assignee_id and
-                        (not task.assigned_to or
-                            new_assignee_id != task.assigned_to.id)) \
-                        or (request.form.get('assigned_to', None) == ""):
-                        # Clear the user
-                    history_data['previous_assigned_to'] = \
-                        task.assigned_to and task.assigned_to.id or None
-                    history_data['new_assigned_to'] = new_assignee_id
-                    task_changes['assigned_to'] = new_assignee_id
-                    if new_assignee_id and new_assignee_id not in \
-                            current_participant_ids:
-                        new_participant_ids.add(new_assignee_id)
-            if task_changes:
-                # Only write change if anything has really changed
-                cls.write([task], task_changes)
-                comment = task.history[-1]
-                History.write([comment], history_data)
-            else:
-                # just create comment since nothing really changed since this
-                # update. This is to cover to cover cases where two users who
-                # havent refreshed the web page close the ticket
-                comment, = History.create([history_data])
-        else:
-            # Just comment, no update to task
-            comment, = History.create([history_data])
-        Activity.create([{
-            'actor': request.nereid_user.id,
-            'object_': 'project.work.history, %d' % comment.id,
-            'verb': 'updated_task',
-            'target': 'project.work, %d' % task.id,
-            'project': task.parent.id,
-        }])
-
-        if request.nereid_user.id not in current_participant_ids:
-            # Add the user to the participants if not already in the list
-            new_participant_ids.add(request.nereid_user.id)
-
-        for nereid_user in request.form.getlist('notify[]', int):
-            # Notify more people if there are people
-            # who havent been added as participants
-            if nereid_user not in current_participant_ids:
-                new_participant_ids.add(nereid_user)
-
-        if new_participant_ids:
-            cls.write([task], {
-                'participants': [('add', list(new_participant_ids))]
+        if has_request_context():
+            values.update({
+                'description': request.form.get('description', '')
             })
 
-        hours = request.form.get('hours', None, type=float)
-        if hours and request.nereid_user.employee:
-            timesheet_line, = TimesheetLine.create([{
-                'employee': request.nereid_user.employee.id,
-                'hours': hours,
-                'work': task.work.id
-            }])
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': 'timesheet.line, %d' % timesheet_line.id,
-                'verb': 'reported_time',
-                'target': 'project.work, %d' % task.id,
-                'project': task.parent.id,
-            }])
-
-        # Send the email since all thats required is done
-        comment.send_mail()
-
-        if request.is_xhr:
-            html = render_template(
-                'project/comment.jinja', comment=comment)
-            return jsonify({
-                'success': True,
-                'html': unicode(html),
-                'state': task.state,
-                'progress_state': task.progress_state,
-                'comment': comment.serialize(),
-            })
-        return redirect(request.referrer)
-
-    @classmethod
-    @route('/task-<int:task_id>/tag-<int:tag_id>/-add', methods=['GET', 'post'])
-    @login_required
-    def add_tag(cls, task_id, tag_id):
-        """
-        Assigns the provided to this task
-
-        :param task_id: ID of task
-        :param tag_id: ID of tag
-        """
-        Activity = Pool().get('nereid.activity')
-        task = cls.get_task(task_id)
-
-        cls.write(
-            [task], {'tags': [('add', [tag_id])]}
-        )
-        Activity.create([{
-            'actor': request.nereid_user.id,
-            'object_': 'project.work.tag, %d' % tag_id,
-            'verb': 'added_tag_to_task',
-            'target': 'project.work, %d' % task.id,
-            'project': task.parent.id,
-        }])
-
-        if request.method == 'POST':
-            flash('Tag added to task %s' % task.rec_name)
-            return redirect(request.referrer)
-
-        flash("Tag cannot be added")
-        return redirect(request.referrer)
-
-    @classmethod
-    @route(
-        '/task-<int:task_id>/tag-<int:tag_id>/-remove', methods=['GET', 'POST']
-    )
-    @login_required
-    def remove_tag(cls, task_id, tag_id):
-        """
-        Assigns the provided to this task
-
-        :param task_id: ID of task
-        :param tag_id: ID of tag
-        """
-        Activity = Pool().get('nereid.activity')
-        task = cls.get_task(task_id)
-
-        cls.write(
-            [task], {'tags': [('unlink', [tag_id])]}
-        )
-        Activity.create([{
-            'actor': request.nereid_user.id,
-            'object_': 'project.work, %d' % task.id,
-            'verb': 'removed_tag_from_task',
-            'target': 'project.work, %d' % task.parent.id,
-            'project': task.parent.id,
-        }])
-
-        if request.method == 'POST':
-            flash('Tag removed from task %s' % task.rec_name)
-            return redirect(request.referrer)
-
-        flash("Tag cannot be removed")
-        return redirect(request.referrer)
+        return Attachment.create([values])[0]
 
     @classmethod
     def write(cls, projects, values):
@@ -2065,194 +1378,6 @@ class Project:
             WorkHistory.create_history_line(project, values)
 
         return super(Project, cls).write(projects, values)
-
-    @classmethod
-    @route('/task-<int:task_id>/-mark-time', methods=['GET', 'POST'])
-    @login_required
-    def mark_time(cls, task_id):
-        """
-        Marks the time against the employee for the task
-
-        :param task_id: ID of task
-        """
-        TimesheetLine = Pool().get('timesheet.line')
-
-        if not request.nereid_user.employee:
-            flash("Only employees can mark time on tasks!")
-            return redirect(request.referrer)
-
-        task = cls.get_task(task_id)
-
-        with Transaction().set_user(0):
-            TimesheetLine.create([{
-                'employee': request.nereid_user.employee.id,
-                'hours': request.form['hours'],
-                'work': task.work.id,
-            }])
-
-        flash("Time has been marked on task %s" % task.rec_name)
-        return redirect(request.referrer)
-
-    @classmethod
-    @route('/task-<int:task_id>/-assign', methods=['GET', 'POST'])
-    @login_required
-    def assign_task(cls, task_id):
-        """
-        Assign task to a user
-
-        :param task_id: Id of Task
-        """
-        NereidUser = Pool().get('nereid.user')
-        Activity = Pool().get('nereid.activity')
-
-        task = cls.get_task(task_id)
-
-        new_assignee = NereidUser(int(request.form['user']))
-
-        if task.assigned_to == new_assignee:
-            flash("Task already assigned to %s" % new_assignee.display_name)
-            return redirect(request.referrer)
-        if task.parent.can_write(new_assignee):
-            cls.write([task], {
-                'assigned_to': new_assignee.id,
-                'participants': [('add', [new_assignee.id])]
-            })
-            task.history[-1].send_mail()
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': 'project.work, %d' % task.id,
-                'verb': 'assigned_task_to',
-                'target': 'nereid.user, %d' % new_assignee.id,
-                'project': task.parent.id,
-            }])
-            if request.is_xhr:
-                return jsonify({
-                    'success': True,
-                })
-            flash("Task assigned to %s" % new_assignee.display_name)
-            return redirect(request.referrer)
-        flash("Only employees can be assigned to tasks.")
-        return redirect(request.referrer)
-
-    @classmethod
-    @route('/task-<int:task_id>/-remove-assign', methods=['POST'])
-    @login_required
-    def clear_assigned_user(cls, task_id):
-        """Clear the assigned user from the task
-
-        :param task_id: Id of Task
-        """
-        task = cls.get_task(task_id)
-
-        cls.write([task], {
-            'assigned_to': None
-        })
-
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-            })
-
-        flash("Removed the assigned user from task")
-        return redirect(request.referrer)
-
-    @classmethod
-    @route('/task-<int:task_id>/change_constraint_dates', methods=['POST'])
-    @login_required
-    def change_constraint_dates(cls, task_id):
-        """
-        Change the constraint dates
-        """
-        Activity = Pool().get('nereid.activity')
-
-        task = cls.get_task(task_id)
-
-        data = {
-            'constraint_start_time': False,
-            'constraint_finish_time': False
-        }
-
-        constraint_start = request.form.get('constraint_start_time', None)
-        constraint_finish = request.form.get('constraint_finish_time', None)
-
-        if constraint_start:
-            data['constraint_start_time'] = datetime.strptime(
-                constraint_start, '%m/%d/%Y')
-        if constraint_finish:
-            data['constraint_finish_time'] = datetime.strptime(
-                constraint_finish, '%m/%d/%Y')
-
-        cls.write([task], data)
-        Activity.create([{
-            'actor': request.nereid_user.id,
-            'object_': 'project.work, %d' % task.id,
-            'verb': 'changed_date',
-            'project': task.parent.id,
-        }])
-
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-            })
-
-        flash("The constraint dates have been changed for this task.")
-        return redirect(request.referrer)
-
-    @classmethod
-    @route('/task-<int:task_id>/-delete', methods=['POST'])
-    @login_required
-    def delete_task(cls, task_id):
-        """
-        Delete the task from project
-
-        Tasks can be deleted only if
-            1. The user is project admin
-            2. The user is an admin member in the project
-
-        :param task_id: Id of the task to be deleted
-        """
-        task = cls.get_task(task_id)
-
-        # Check if user is among the project admins
-        if not request.nereid_user.is_admin_of_project(task.parent):
-            flash(
-                "Sorry! You are not allowed to delete tasks. \
-                Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
-
-        cls.write([task], {'active': False})
-
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-            })
-
-        flash("The task has been deleted")
-        return redirect(
-            url_for('project.work.render_project', project_id=task.parent.id)
-        )
-
-    @login_required
-    @route(
-        '/task-<int:active_id>/change-estimated-hours', methods=['GET', 'POST']
-    )
-    def change_estimated_hours(self):
-        """Change estimated hours.
-
-        :param task_id: ID of the task.
-        """
-        if not request.nereid_user.employee:
-            flash("Sorry! You are not allowed to change estimate hours.")
-            return redirect(request.referrer)
-
-        estimated_hours = request.form.get(
-            'new_estimated_hours', None, type=float
-        )
-        if estimated_hours:
-            self.write([self], {'effort': estimated_hours})
-        flash("The estimated hours have been changed for this task.")
-        return redirect(request.referrer)
 
     @login_required
     @route('/project-<int:active_id>/stream')
@@ -2348,6 +1473,18 @@ class Project:
             STATIC_FOLDER, filename,
             cache_timeout=cache_timeout
         )
+
+    @classmethod
+    def verify_github_payload_sign(cls, payload, signature, secret):
+        """
+        Returns True if the webhook signature matches the
+        computed signature
+        """
+        computed_signature = "sha1=%s" % hmac.new(
+            str(secret), payload, hashlib.sha1
+        ).hexdigest()
+
+        return (computed_signature == signature)
 
 
 class ProjectHistory(ModelSQL, ModelView):
@@ -2570,9 +1707,26 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         NereidUser = Pool().get('nereid.user')
         Activity = Pool().get('nereid.activity')
         Project = Pool().get('project.work')
+        Configuration = Pool().get('project.configuration')
 
         if request.method == "POST":
             payload = json.loads(request.form['payload'])
+
+            # Exit if Headers has no signature
+            if 'X-Hub-Signature' not in request.headers:
+                return
+
+            # Exit if signature does not begin with 'sha1='
+            if not request.headers['X-Hub-Signature'].startswith('sha1='):
+                return
+
+            if not Project.verify_github_payload_sign(
+                request.form['payload'],
+                request.headers['X-Hub-Signature'],
+                Configuration(1).git_webhook_secret
+            ):
+                return
+
             for commit in payload['commits']:
                 nereid_users = NereidUser.search([
                     ('email', '=', commit['author']['email'])

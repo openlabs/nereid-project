@@ -100,9 +100,9 @@
   <h4>System Administrators</h4>
 </div>
   <div class="row-fluid">
-    {% if request.nereid_user.has_permissions(['project.admin']) %}
-       {{ render_participant(request.nereid_user, remove_button=False) }}
-    {% endif %}
+    {% for admin_user in project.company.project_admins %}
+       {{ render_participant(admin_user, remove_button=False) }}
+    {% endfor %}
   </div>
 <hr/>
 

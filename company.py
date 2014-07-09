@@ -5,7 +5,7 @@
     :copyright: (c) 2012-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
-from trytond.pool import PoolMeta
+from trytond.pool import PoolMeta, Pool
 from trytond.model import ModelSQL, fields
 
 __all__ = ['Company', 'CompanyProjectAdmins']
@@ -18,12 +18,35 @@ class Company:
     """
     __name__ = "company.company"
 
-    #: Administrators for project management.Only admins can create new
-    #: project.
-    project_admins = fields.Many2Many(
-        'company.company-nereid.user', 'company', 'user',
-        'Project Administrators'
+    project_admins = fields.Function(
+        fields.One2Many("nereid.user", None, "Project Admins"),
+        'get_admins'
     )
+
+    project_managers = fields.Function(
+        fields.One2Many("nereid.user", None, "Project Managers"),
+        'get_admins'
+    )
+
+    def get_admins(self, name):
+        """
+        Returns all the nereid users who are admin for this company
+        """
+        NereidUser = Pool().get('nereid.user')
+
+        assert name in ('project_admins', 'project_managers')
+
+        if name == 'project_admins':
+            permission = 'project.admin'
+        else:
+            permission = 'project.manager'
+
+        domain = [
+            ('company', '=', self.id),
+            ('permissions.value', '=', permission),
+        ]
+
+        return map(int, NereidUser.search(domain))
 
 
 class CompanyProjectAdmins(ModelSQL):
