@@ -67,6 +67,13 @@ class TestTask(TestBase):
                     response.data
                 )
 
+                task, = self.Project.search([
+                    ('type', '=', 'task'),
+                    ('rec_name', '=', 'ABC_task')
+                ])
+
+                self.assertEqual(task.state, 'backlog')
+
     def test_0020_edit_task(self):
         """
         Test edit tasks added by logged in user
