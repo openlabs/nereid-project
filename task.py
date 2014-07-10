@@ -138,6 +138,13 @@ class Task:
         }
     )
 
+    @staticmethod
+    def default_progress_state():
+        '''
+        Default for progress state
+        '''
+        return 'Backlog'
+
     def get_all_participants(self, name):
         """
         Returns all the nereid user which are participants in the project
