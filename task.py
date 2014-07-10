@@ -20,7 +20,6 @@ from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
-from trytond.tools import get_smtp_server
 from trytond import backend
 
 
@@ -331,6 +330,8 @@ class Task:
 
         :param receivers: Receivers of email.
         """
+        EmailQueue = Pool().get('email.queue')
+
         subject = "[#%s %s] - %s" % (
             self.id, self.parent.rec_name, self.rec_name
         )
@@ -356,9 +357,10 @@ class Task:
         )
 
         # Send mail.
-        server = get_smtp_server()
-        server.sendmail(CONFIG['smtp_from'], receivers, message.as_string())
-        server.quit()
+        EmailQueue.queue_mail(
+            CONFIG['smtp_from'], receivers,
+            message.as_string()
+        )
 
     @classmethod
     @route('/task-<int:task_id>/-unwatch', methods=['GET', 'POST'])
