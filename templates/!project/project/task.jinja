@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block title %}
-{{ _("Task #%d: " % task.id) + task.work.name }}
+{{ _("Task ") + "#%d: %s" % (task.id, task.work.name) }}
 {% endblock %}
 
 {% block left %}
