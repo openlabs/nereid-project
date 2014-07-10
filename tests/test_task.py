@@ -55,7 +55,7 @@ class TestTask(TestBase):
                 response = c.post(
                     '/project-%d/task/-new' % self.project1.id,
                     data={
-                        'name': 'ABC_task',
+                        'name': 'Test Task',
                         'description': 'task_desc',
                     }
                 )
@@ -69,10 +69,11 @@ class TestTask(TestBase):
 
                 task, = self.Project.search([
                     ('type', '=', 'task'),
-                    ('rec_name', '=', 'ABC_task')
+                    ('rec_name', '=', 'Test Task')
                 ])
 
-                self.assertEqual(task.state, 'backlog')
+                self.assertEqual(task.state, 'opened')
+                self.assertEqual(task.progress_state, 'Backlog')
 
     def test_0020_edit_task(self):
         """
