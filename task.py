@@ -69,8 +69,14 @@ class TaskUsers(ModelSQL):
         cursor = Transaction().cursor
         TableHandler = backend.get('TableHandler')
         table = TableHandler(cursor, cls, module_name)
-        super(TaskUsers, cls).__register__(module_name)
         # Migration
+
+        # If column exist, rename it to 'task'
+        if table.column_exist('project'):
+            table.column_rename('project', 'task')
+
+        super(TaskUsers, cls).__register__(module_name)
+
         if table.table_exist(cursor, 'project_work_nereid_user_rel'):
             table.table_rename(
                 cursor, 'project_work_nereid_user_rel',
