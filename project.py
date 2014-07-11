@@ -36,7 +36,6 @@ from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
-from trytond.tools import get_smtp_server
 from trytond import backend
 
 from utils import request_wants_json
@@ -230,6 +229,8 @@ class ProjectInvitation(ModelSQL, ModelView):
     def resend_invite(self):
         """Resend the invite to a participant
         """
+        EmailQueue = Pool().get('email.queue')
+
         # Check if user is among the project admin members
         if not request.nereid_user.is_admin_of_project(self.project):
             flash(
@@ -247,12 +248,10 @@ class ProjectInvitation(ModelSQL, ModelView):
                 from_email=CONFIG['smtp_from'], project=self.project,
                 invitation=self
             )
-            server = get_smtp_server()
-            server.sendmail(
-                CONFIG['smtp_from'], [self.email],
+            EmailQueue.queue_mail(
+                CONFIG['smtp_from'], self.email,
                 email_message.as_string()
             )
-            server.quit()
 
             if request.is_xhr:
                 return jsonify({
@@ -608,6 +607,7 @@ class Project:
         NereidUser = Pool().get('nereid.user')
         ProjectInvitation = Pool().get('project.work.invitation')
         Activity = Pool().get('nereid.activity')
+        EmailQueue = Pool().get('email.queue')
 
         project = cls.get_project(project_id)
 
@@ -670,12 +670,10 @@ class Project:
             )
             flash_message = "%s has been invited to the project" % email
 
-        server = get_smtp_server()
-        server.sendmail(
-            CONFIG['smtp_from'], [email],
+        EmailQueue.queue_mail(
+            CONFIG['smtp_from'], email,
             email_message.as_string()
         )
-        server.quit()
 
         if request.is_xhr:
             return jsonify({
@@ -1636,6 +1634,8 @@ class ProjectHistory(ModelSQL, ModelView):
         project.
 
         """
+        EmailQueue = Pool().get('email.queue')
+
         # Get the previous updates than the latest one.
         last_history = self.search([
             ('id', '<', self.id),
@@ -1672,11 +1672,10 @@ class ProjectHistory(ModelSQL, ModelView):
         # message.add_header('reply-to', request.nereid_user.email)
 
         # Send mail.
-        server = get_smtp_server()
-        server.sendmail(
-            CONFIG['smtp_from'], receivers, message.as_string()
+        EmailQueue.queue_mail(
+            CONFIG['smtp_from'], receivers,
+            message.as_string()
         )
-        server.quit()
 
 
 class ProjectWorkCommit(ModelSQL, ModelView):
