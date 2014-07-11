@@ -1714,18 +1714,24 @@ class ProjectWorkCommit(ModelSQL, ModelView):
 
             # Exit if Headers has no signature
             if 'X-Hub-Signature' not in request.headers:
-                return
+                raise Exception(
+                    "Github Commit Hook: Headers has no signature"
+                )
 
             # Exit if signature does not begin with 'sha1='
             if not request.headers['X-Hub-Signature'].startswith('sha1='):
-                return
+                raise Exception(
+                    "Github Commit Hook: signature does not begin with 'sha1='"
+                )
 
             if not Project.verify_github_payload_sign(
                 request.form['payload'],
                 request.headers['X-Hub-Signature'],
                 Configuration(1).git_webhook_secret
             ):
-                return
+                raise Exception(
+                    "Github Commit Hook: Payload signature is invalid"
+                )
 
             for commit in payload['commits']:
                 nereid_users = NereidUser.search([
