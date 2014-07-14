@@ -1478,9 +1478,9 @@ class Project:
         Returns True if the webhook signature matches the
         computed signature
         """
-        computed_signature = "sha1=%s" % hmac.new(
-            str(secret), payload, hashlib.sha1
-        ).hexdigest()
+        computed_signature = "sha1=%s" % (
+            hmac.HMAC(str(secret), payload, hashlib.sha1).hexdigest(),
+        )
 
         return (computed_signature == signature)
 
@@ -1697,7 +1697,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     commit_id = fields.Char('Commit Id', required=True)
 
     @classmethod
-    @route('/-project/-github-hook', methods=['GET', 'POST'])
+    @route('/-project/-github-hook', methods=['POST'])
     def commit_github_hook_handler(cls):
         """
         Handle post commit posts from GitHub
@@ -1709,7 +1709,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         Configuration = Pool().get('project.configuration')
 
         if request.method == "POST":
-            payload = json.loads(request.form['payload'])
+            payload = json.loads(request.get_data())
 
             # Exit if Headers has no signature
             if 'X-Hub-Signature' not in request.headers:
@@ -1722,9 +1722,8 @@ class ProjectWorkCommit(ModelSQL, ModelView):
                 raise Exception(
                     "Github Commit Hook: signature does not begin with 'sha1='"
                 )
-
             if not Project.verify_github_payload_sign(
-                request.form['payload'],
+                request.get_data() + request.headers.get("Date", ""),
                 request.headers['X-Hub-Signature'],
                 Configuration(1).git_webhook_secret
             ):
