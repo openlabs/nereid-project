@@ -189,7 +189,7 @@ class Task:
         if not tasks:
             raise abort(404)
 
-        if not tasks[0].parent.can_write(request.nereid_user):
+        if not tasks[0].parent.can_write(request.nereid_user, silent=True):
             # If the user is not allowed to access this project then dont let
             raise abort(403)
 
