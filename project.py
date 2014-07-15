@@ -453,7 +453,7 @@ class Project:
                 pass
         return super(Project, cls).create(vlist)
 
-    def can_read(self, user):
+    def can_read(self, user, silent=False):
         """
         Returns true if the given nereid user can read the project
 
@@ -462,10 +462,12 @@ class Project:
         if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
+            if silent:
+                return False
             raise abort(404)
         return True
 
-    def can_write(self, user):
+    def can_write(self, user, silent=False):
         """
         Returns true if the given user can write to the project
 
@@ -474,6 +476,8 @@ class Project:
         if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
+            if silent:
+                return False
             raise abort(404)
         return True
 
@@ -493,7 +497,7 @@ class Project:
         if not projects:
             raise abort(404)
 
-        if not projects[0].can_read(request.nereid_user):
+        if not projects[0].can_read(request.nereid_user, silent=True):
             # If the user is not allowed to access this project then dont let
             raise abort(404)
 
