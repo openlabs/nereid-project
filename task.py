@@ -987,3 +987,55 @@ class Task:
             self.write([self], {'effort': estimated_hours})
         flash("The estimated hours have been changed for this task.")
         return redirect(request.referrer)
+
+    @route(
+        '/task-<int:active_id>/move-to-project-<int:project_id>',
+        methods=['POST']
+    )
+    @login_required
+    @permissions_required(perm_any=['project.admin', 'project.manager'])
+    def move_task_to_project(self, project_id):
+        """
+        Move task from one project to another.
+        """
+        ProjectWork = Pool().get('project.work')
+
+        assert self.type == 'task'
+
+        try:
+            target_project, = ProjectWork.search([
+                ('id', '=', project_id),
+                ('type', '=', 'project')
+            ], limit=1)
+        except ValueError:
+            flash("No project found with given details")
+            return redirect(request.referrer)
+
+        if not (
+            current_user.is_admin_of_project(self.parent) and
+            current_user.is_admin_of_project(target_project)
+        ):
+            abort(403)
+
+        if self.parent.id == target_project.id:
+            flash("Task already in this project")
+            return redirect(request.referrer)
+
+        if self.assigned_to not in [
+            member.user for member in target_project.members
+        ]:
+            self.assigned_to = None
+
+        # Move task to target project
+        self.parent = target_project.id
+        self.save()
+
+        flash("Task #%d successfully moved to project %s" % (
+            self.id, target_project.work.name
+        ))
+        return redirect(
+            url_for(
+                'project.work.render_task',
+                project_id=target_project.id, task_id=self.id
+            )
+        )
