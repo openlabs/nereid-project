@@ -9,7 +9,6 @@ import warnings
 
 from trytond.pool import Pool
 from trytond.config import CONFIG
-from trytond.tools import get_smtp_server
 from nereid import request, render_email
 from nereid.signals import registration
 
@@ -32,6 +31,8 @@ def invitation_new_user_handler(nereid_user_id):
             to the invitation and project to the user
         If not, perform normal operation
     """
+    EmailQueue = Pool().get('email.queue')
+
     try:
         Invitation = Pool().get('project.work.invitation')
         Project = Pool().get('project.work')
@@ -78,9 +79,10 @@ def invitation_new_user_handler(nereid_user_id):
         subject=subject, to=', '.join(receivers),
         from_email=CONFIG['smtp_from'], invitation=invitation
     )
-    server = get_smtp_server()
-    server.sendmail(CONFIG['smtp_from'], receivers, email_message.as_string())
-    server.quit()
+    EmailQueue.queue_mail(
+        CONFIG['smtp_from'], receivers,
+        email_message.as_string()
+    )
 
     Project.write(
         [invitation.project], {

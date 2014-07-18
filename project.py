@@ -36,7 +36,6 @@ from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import CONFIG
-from trytond.tools import get_smtp_server
 from trytond import backend
 
 from utils import request_wants_json
@@ -230,6 +229,8 @@ class ProjectInvitation(ModelSQL, ModelView):
     def resend_invite(self):
         """Resend the invite to a participant
         """
+        EmailQueue = Pool().get('email.queue')
+
         # Check if user is among the project admin members
         if not request.nereid_user.is_admin_of_project(self.project):
             flash(
@@ -247,12 +248,10 @@ class ProjectInvitation(ModelSQL, ModelView):
                 from_email=CONFIG['smtp_from'], project=self.project,
                 invitation=self
             )
-            server = get_smtp_server()
-            server.sendmail(
-                CONFIG['smtp_from'], [self.email],
+            EmailQueue.queue_mail(
+                CONFIG['smtp_from'], self.email,
                 email_message.as_string()
             )
-            server.quit()
 
             if request.is_xhr:
                 return jsonify({
@@ -454,7 +453,7 @@ class Project:
                 pass
         return super(Project, cls).create(vlist)
 
-    def can_read(self, user):
+    def can_read(self, user, silent=False):
         """
         Returns true if the given nereid user can read the project
 
@@ -463,10 +462,12 @@ class Project:
         if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
+            if silent:
+                return False
             raise abort(404)
         return True
 
-    def can_write(self, user):
+    def can_write(self, user, silent=False):
         """
         Returns true if the given user can write to the project
 
@@ -475,6 +476,8 @@ class Project:
         if user.has_permissions(['project.admin']):
             return True
         if user not in map(lambda member: member.user, self.members):
+            if silent:
+                return False
             raise abort(404)
         return True
 
@@ -494,7 +497,7 @@ class Project:
         if not projects:
             raise abort(404)
 
-        if not projects[0].can_read(request.nereid_user):
+        if not projects[0].can_read(request.nereid_user, silent=True):
             # If the user is not allowed to access this project then dont let
             raise abort(404)
 
@@ -608,6 +611,7 @@ class Project:
         NereidUser = Pool().get('nereid.user')
         ProjectInvitation = Pool().get('project.work.invitation')
         Activity = Pool().get('nereid.activity')
+        EmailQueue = Pool().get('email.queue')
 
         project = cls.get_project(project_id)
 
@@ -670,12 +674,10 @@ class Project:
             )
             flash_message = "%s has been invited to the project" % email
 
-        server = get_smtp_server()
-        server.sendmail(
-            CONFIG['smtp_from'], [email],
+        EmailQueue.queue_mail(
+            CONFIG['smtp_from'], email,
             email_message.as_string()
         )
-        server.quit()
 
         if request.is_xhr:
             return jsonify({
@@ -1480,9 +1482,9 @@ class Project:
         Returns True if the webhook signature matches the
         computed signature
         """
-        computed_signature = "sha1=%s" % hmac.new(
-            str(secret), payload, hashlib.sha1
-        ).hexdigest()
+        computed_signature = "sha1=%s" % (
+            hmac.HMAC(str(secret), payload, hashlib.sha1).hexdigest(),
+        )
 
         return (computed_signature == signature)
 
@@ -1636,6 +1638,8 @@ class ProjectHistory(ModelSQL, ModelView):
         project.
 
         """
+        EmailQueue = Pool().get('email.queue')
+
         # Get the previous updates than the latest one.
         last_history = self.search([
             ('id', '<', self.id),
@@ -1672,11 +1676,10 @@ class ProjectHistory(ModelSQL, ModelView):
         # message.add_header('reply-to', request.nereid_user.email)
 
         # Send mail.
-        server = get_smtp_server()
-        server.sendmail(
-            CONFIG['smtp_from'], receivers, message.as_string()
+        EmailQueue.queue_mail(
+            CONFIG['smtp_from'], receivers,
+            message.as_string()
         )
-        server.quit()
 
 
 class ProjectWorkCommit(ModelSQL, ModelView):
@@ -1698,7 +1701,7 @@ class ProjectWorkCommit(ModelSQL, ModelView):
     commit_id = fields.Char('Commit Id', required=True)
 
     @classmethod
-    @route('/-project/-github-hook', methods=['GET', 'POST'])
+    @route('/-project/-github-hook', methods=['POST'])
     def commit_github_hook_handler(cls):
         """
         Handle post commit posts from GitHub
@@ -1710,22 +1713,27 @@ class ProjectWorkCommit(ModelSQL, ModelView):
         Configuration = Pool().get('project.configuration')
 
         if request.method == "POST":
-            payload = json.loads(request.form['payload'])
+            payload = json.loads(request.get_data())
 
             # Exit if Headers has no signature
             if 'X-Hub-Signature' not in request.headers:
-                return
+                raise Exception(
+                    "Github Commit Hook: Headers has no signature"
+                )
 
             # Exit if signature does not begin with 'sha1='
             if not request.headers['X-Hub-Signature'].startswith('sha1='):
-                return
-
+                raise Exception(
+                    "Github Commit Hook: signature does not begin with 'sha1='"
+                )
             if not Project.verify_github_payload_sign(
-                request.form['payload'],
+                request.get_data() + request.headers.get("Date", ""),
                 request.headers['X-Hub-Signature'],
                 Configuration(1).git_webhook_secret
             ):
-                return
+                raise Exception(
+                    "Github Commit Hook: Payload signature is invalid"
+                )
 
             for commit in payload['commits']:
                 nereid_users = NereidUser.search([

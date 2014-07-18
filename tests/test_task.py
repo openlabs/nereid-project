@@ -10,15 +10,11 @@
 import unittest
 import json
 import smtplib
-import pytz
-import hashlib
-import hmac
 
 from trytond.config import CONFIG
 CONFIG['smtp_from'] = 'test@openlabs.co.in'
 CONFIG['data_path'] = '.'
 from minimock import Mock
-from datetime import datetime
 
 from trytond.tests.test_tryton import POOL, DB_NAME, USER, CONTEXT
 from trytond.transaction import Transaction
@@ -55,7 +51,7 @@ class TestTask(TestBase):
                 response = c.post(
                     '/project-%d/task/-new' % self.project1.id,
                     data={
-                        'name': 'ABC_task',
+                        'name': 'Test Task',
                         'description': 'task_desc',
                     }
                 )
@@ -66,6 +62,14 @@ class TestTask(TestBase):
                     u'Task successfully added to project ABC' in
                     response.data
                 )
+
+                task, = self.Project.search([
+                    ('type', '=', 'task'),
+                    ('rec_name', '=', 'Test Task')
+                ])
+
+                self.assertEqual(task.state, 'opened')
+                self.assertEqual(task.progress_state, 'Backlog')
 
     def test_0020_edit_task(self):
         """
@@ -840,77 +844,6 @@ class TestTask(TestBase):
 
                 # Tags are addedd successfully
                 self.assertEqual(len(task.tags), 3)
-
-    def test_0210_github_commit_activity_stream(self):
-        """
-        Checks activity stream generation for commit message and github hook
-        handler
-        """
-        with Transaction().start(DB_NAME, USER, CONTEXT):
-            self.create_defaults_for_project()
-            app = self.get_app()
-
-            utc = pytz.UTC
-
-            payload = json.dumps({
-                'commits': [{
-                    'author': {'email': 'email@reg_user1.com'},
-                    'message': 'Add commit #%d' % self.task1.id,
-                    'timestamp': str(utc.localize(datetime.utcnow())),
-                    'url': 'repo/url/1',
-                    'id': '54321',
-                }],
-                'repository': {
-                    'name': 'ABC Repository',
-                    'url': 'repo/url',
-                }
-            })
-
-            # Generate signature for request header
-            signature = "sha1=%s" % hmac.new(
-                'somesecret', payload, hashlib.sha1
-            ).hexdigest()
-
-            headers = [
-                ('X-Hub-Signature', signature),
-            ]
-
-            with app.test_client() as c:
-                # User Login
-                response = self.login(c, 'email@reg_user1.com', 'password')
-
-                # Login Success
-                self.assertEqual(response.status_code, 302)
-
-                self.assertEqual(
-                    len(self.reg_user1.activities), 0
-                )
-
-                # Check github handler
-                response = c.post(
-                    '/-project/-github-hook',
-                    data={
-                        'payload': payload
-                    },
-                    headers=headers
-                )
-                self.assertEqual(response.status_code, 200)
-                self.assertTrue(response.data, 'OK')
-
-                # Activity stream is created for commit user
-                self.assertEqual(
-                    len(self.reg_user1.activities), 1
-                )
-
-                commit, = self.ProjectWorkCommit.search([
-                    ('commit_id', '=', '54321')
-                ])
-
-                activities = self.Activity.search([
-                    ('object_', '=', 'project.work.commit, %d' % commit.id)
-                ]),
-
-                self.assertEqual(len(activities), 1)
 
     def test_0220_unique_users_per_project(self):
         """
