@@ -11,7 +11,7 @@ from datetime import datetime
 
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
-    flash, jsonify, render_email, permissions_required, route
+    flash, jsonify, render_email, permissions_required, route, current_user
 )
 from nereid.ctx import has_request_context
 from nereid.contrib.pagination import Pagination
@@ -164,9 +164,9 @@ class Task:
         '''
         for values in vlist:
             if has_request_context():
-                if values['type'] == 'task':
+                if values['type'] == 'task' and not current_user.is_anonymous():
                     values.setdefault('participants', []).append(
-                        ('add', [request.nereid_user.id])
+                        ('add', [current_user.id])
                     )
             else:
                 # TODO: identify the nereid user through employee
