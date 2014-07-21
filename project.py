@@ -1531,6 +1531,11 @@ class ProjectHistory(ModelSQL, ModelView):
     previous_constraint_finish_time = fields.DateTime("Constraint Finish Time")
     new_constraint_finish_time = fields.DateTime("Constraint  Finish Time")
 
+    comment_markup = fields.Selection([
+        ('rst', 'reStructuredText'),
+        ('markdown', 'Markdown'),
+    ], 'Comment Markup Type')
+
     @staticmethod
     def default_date():
         '''
@@ -1672,6 +1677,10 @@ class ProjectHistory(ModelSQL, ModelView):
             CONFIG['smtp_from'], receivers,
             message.as_string()
         )
+
+    @staticmethod
+    def default_comment_markup():
+        return 'rst'
 
 
 class ProjectWorkCommit(ModelSQL, ModelView):

@@ -137,6 +137,18 @@ class Task:
         }
     )
 
+    description_markup = fields.Selection([
+        ('rst', 'reStructuredText'),
+        ('markdown', 'Markdown'),
+    ], 'Description Markup Type', states={
+        'invisible': Eval('type') != 'task',
+    }, depends=['type']
+    )
+
+    @staticmethod
+    def default_description_markup():
+        return 'rst'
+
     @staticmethod
     def default_progress_state():
         '''
