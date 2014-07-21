@@ -16,6 +16,21 @@
   </ul>
 </div>
 
+{% if not counts['opened_tasks_count'] == 0 %}
+<div class="row-fluid">
+  {% set backlog = tasks_by_state['Backlog']|length * 100 / counts['opened_tasks_count'] %}
+  {% set planning = tasks_by_state['Planning']|length * 100 / counts['opened_tasks_count'] %}
+  {% set in_progress = tasks_by_state['In Progress']|length * 100 / counts['opened_tasks_count'] %}
+  {% set review = tasks_by_state['Review']|length * 100 / counts['opened_tasks_count'] %}
+  <div class="progress">
+    <div class="bar" style="width:{{ backlog }}%; background-color:#999999; background-image: none;" title="{{ backlog | round(3, 'floor') }}% in Backlog"></div>
+    <div class="bar bar-general" style="width:{{ planning }}%;" title="{{ planning | round(3, 'floor') }}% in Planning"></div>
+    <div class="bar bar-success" style="width:{{ in_progress }}%;" title="{{ in_progress | round(3, 'floor') }}% in Progress"></div>
+    <div class="bar bar-warning" style="width:{{ review }}%;" title="{{ review | round(3, 'floor') }}% in Review"></div>
+  </div>
+</div>
+{% endif %}
+
 <div class="row-fluid">
   <div class="pagination">
     <ul class="span12">
