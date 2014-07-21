@@ -431,9 +431,12 @@ class Task:
         if tag:
             filter_domain.append(('tags', '=', tag))
 
-        user = request.args.get('user', None, int)
-        if user:
-            filter_domain.append(('assigned_to', '=', user))
+        if request.args.get('user') == 'no one':
+            filter_domain.append(('assigned_to', '=', None))
+        elif request.args.get('user', None, int):
+            filter_domain.append(
+                ('assigned_to', '=', request.args.get('user', None, int))
+            )
 
         counts = {}
         counts['opened_tasks_count'] = cls.search(
@@ -448,6 +451,19 @@ class Task:
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
+
+        counts['backlog'] = cls.search(
+            filter_domain + [('progress_state', '=', 'Backlog')], count=True
+        )
+        counts['planning'] = cls.search(
+            filter_domain + [('progress_state', '=', 'Planning')], count=True
+        )
+        counts['in_progress'] = cls.search(
+            filter_domain + [('progress_state', '=', 'In Progress')], count=True
+        )
+        counts['review'] = cls.search(
+            filter_domain + [('progress_state', '=', 'Review')], count=True
+        )
 
         if request.is_xhr:
             tasks = cls.search(filter_domain)

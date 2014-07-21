@@ -114,7 +114,7 @@
               <div>No Tag to add</div>
             {% endfor %}'></a>
             {% for tag in task.tags %}
-              <a class="" href="{{ url_for('project.work.render_task_list', project_id=task.parent.id, tag=tag.id) }}">{{ tag.name }}</a>
+              <a class="" href="{{ url_for('project.work.render_task_list', project_id=task.parent.id, tag=tag.id, state='opened') }}">{{ tag.name }}</a>
             {% endfor %}
           </td>
           <td valign="top" width="20">
@@ -276,4 +276,24 @@
   </div>
   </div>
 {% endif %}
+{% endmacro %}
+
+
+{% macro render_progress_bar(total_tasks, counts, include_done=False) %}
+  <div class="row-fluid">
+    {% set backlog = counts['backlog'] * 100 / total_tasks %}
+    {% set planning = counts['planning'] * 100 / total_tasks %}
+    {% set in_progress = counts['in_progress'] * 100 / total_tasks %}
+    {% set review = counts['review'] * 100 / total_tasks %}
+    <div class="progress">
+      <div class="bar" style="width:{{ backlog }}%; background-color:#999999; background-image: none;" title="{{ backlog | round(3, 'floor') }}% in Backlog"></div>
+      <div class="bar bar-general" style="width:{{ planning }}%;" title="{{ planning | round(3, 'floor') }}% in Planning"></div>
+      <div class="bar bar-success" style="width:{{ in_progress }}%;" title="{{ in_progress | round(3, 'floor') }}% in Progress"></div>
+      <div class="bar bar-warning" style="width:{{ review }}%;" title="{{ review | round(3, 'floor') }}% in Review"></div>
+      {% if include_done %}
+        {% set done = counts['done_tasks_count'] * 100 / total_tasks %}
+        <div class="bar bar-danger" style="width:{{ done }}%;" title="{{ done | round(3, 'floor') }}% in Done"></div>
+      {% endif %}
+    </div>
+  </div>
 {% endmacro %}
