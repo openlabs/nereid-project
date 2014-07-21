@@ -11,7 +11,7 @@ from datetime import datetime
 
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
-    flash, jsonify, render_email, permissions_required, route
+    flash, jsonify, render_email, permissions_required, route, current_user
 )
 from nereid.ctx import has_request_context
 from nereid.contrib.pagination import Pagination
@@ -137,6 +137,18 @@ class Task:
         }
     )
 
+    description_markup = fields.Selection([
+        ('rst', 'reStructuredText'),
+        ('markdown', 'Markdown'),
+    ], 'Description Markup Type', states={
+        'invisible': Eval('type') != 'task',
+    }, depends=['type']
+    )
+
+    @staticmethod
+    def default_description_markup():
+        return 'rst'
+
     @staticmethod
     def default_progress_state():
         '''
@@ -164,9 +176,9 @@ class Task:
         '''
         for values in vlist:
             if has_request_context():
-                if values['type'] == 'task':
+                if values['type'] == 'task' and not current_user.is_anonymous():
                     values.setdefault('participants', []).append(
-                        ('add', [request.nereid_user.id])
+                        ('add', [current_user.id])
                     )
             else:
                 # TODO: identify the nereid user through employee
@@ -431,9 +443,12 @@ class Task:
         if tag:
             filter_domain.append(('tags', '=', tag))
 
-        user = request.args.get('user', None, int)
-        if user:
-            filter_domain.append(('assigned_to', '=', user))
+        if request.args.get('user') == 'no one':
+            filter_domain.append(('assigned_to', '=', None))
+        elif request.args.get('user', None, int):
+            filter_domain.append(
+                ('assigned_to', '=', request.args.get('user', None, int))
+            )
 
         counts = {}
         counts['opened_tasks_count'] = cls.search(
@@ -448,6 +463,19 @@ class Task:
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
+
+        counts['backlog'] = cls.search(
+            filter_domain + [('progress_state', '=', 'Backlog')], count=True
+        )
+        counts['planning'] = cls.search(
+            filter_domain + [('progress_state', '=', 'Planning')], count=True
+        )
+        counts['in_progress'] = cls.search(
+            filter_domain + [('progress_state', '=', 'In Progress')], count=True
+        )
+        counts['review'] = cls.search(
+            filter_domain + [('progress_state', '=', 'Review')], count=True
+        )
 
         if request.is_xhr:
             tasks = cls.search(filter_domain)

@@ -2,6 +2,7 @@
 
 {% from "_helpers.jinja" import status_label, render_pagination %}
 {% from "_helpers.jinja" import render_task with context %}
+{% from "_helpers.jinja" import render_progress_bar %}
 
 {% block breadcrumb %}
 {{ super() }}
@@ -19,9 +20,6 @@
   <div class="row-fluid">
     <div class="span6">
       <ul id="task-list-tab" class="nav nav-tabs">
-        <li class="{% if state_filter == None %}active{% endif %} ">
-          <a href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">All Tasks</a>
-        </li>
         {% if not request.args.get('orphans', None) %}
         <li class="{% if state_filter == 'opened' %}active{% endif %} ">
           <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">{{ counts['opened_tasks_count'] }} Open Tasks</a>
@@ -30,16 +28,44 @@
           <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='done', tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">{{ counts['done_tasks_count'] }} Done Tasks</a>
         </li>
         {% endif %}
+        <li class="{% if state_filter == None %}active{% endif %} ">
+          <a href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">All Tasks</a>
+        </li>
         {% if request.nereid_user.has_permissions(['project.scrum_master']) and iteration %}
           <a class="btn icon icon-edit pull-right btn-warning" href="{{ url_for('project.iteration.render', project_id=0, active_id=iteration) }}"> Edit Iteration</a>
         {% endif %}
       </ul>
     </div>
     <div class="span6 pull-right">
-      <form class="form-search pull-right">
+      <form class="form-search pull-right" id="filter-task">
         <input type="hidden" name="state" value="{{ state_filter }}"/>
         <div class="input-append">
-
+          <select name="user" class="select-user">
+            <optgroup label="Assigned to:">
+              <option value="">Anyone</option>
+              {% for member in project.members %}
+                {% if not member.user.id == request.nereid_user.id %}
+                  <option value="{{ member.user.id }}"
+                    {% if request.args.get('user') == member.user.id|string() %}
+                      selected
+                    {% endif %}
+                  >{{ member.user.rec_name }}</option>
+                {% endif %}
+              {% endfor %}
+            </optgroup>
+            <option value="no one" {% if request.args.get('user') == 'no one' %}selected{% endif %}>Unassigned</option>
+            <option value="{{ request.nereid_user.id }}" {% if request.args.get('user') == request.nereid_user.id|string() %}selected{% endif %}>Assigned to Me</option>
+          </select>
+          <select name="tag" class="select-tag" style="width:100px;">
+            <option value="">Any Tag</option>
+            {% for tag in project.tags_for_projects %}
+              <option value="{{ tag.id }}"
+                {% if request.args.get('tag') == tag.id|string() %}
+                  selected
+                {% endif %}
+              >{{ tag.name }}</option>
+            {% endfor %}
+          </select>
           <input type="text" class="input-medium search-query" id="search-tasks" 
             placeholder="Search Tasks" name="q" value="{{ request.args.get('q', '') }}">
           <button type="submit" class="btn btn-info"><i class="icon-search"></i> Search</button>
@@ -71,6 +97,10 @@
         {{ _("New Task") }}
       </a>
     </div>
+  {% endif %}
+
+  {% if not counts['opened_tasks_count'] == 0 %}
+    {{ render_progress_bar(counts['opened_tasks_count'], counts) }}
   {% endif %}
 
   {# For search.#}
@@ -192,6 +222,9 @@
         btn.parent("li").removeClass("active");
         btn.parent("li").children("a.unwatch").hide();
       });
+    });
+    $(".select-user, .select-tag").change(function () {
+      $("#filter-task").submit();
     });
   });
 </script>

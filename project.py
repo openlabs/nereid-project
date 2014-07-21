@@ -25,7 +25,8 @@ import simplejson as json
 from babel.dates import parse_date, format_date
 from nereid import (
     request, abort, render_template, login_required, url_for, redirect,
-    flash, jsonify, render_email, permissions_required, current_app, route
+    flash, jsonify, render_email, permissions_required, current_app, route,
+    current_user
 )
 from flask import send_file
 from flask.helpers import send_from_directory
@@ -322,6 +323,12 @@ class Project:
         'project.work.commit', 'project', 'Repo Commits'
     )
 
+    @staticmethod
+    def default_created_by():
+        if has_request_context() and not current_user.is_anonymous():
+            return current_user.id
+        return None
+
     def get_admins(self, name):
         """
         Return all admin users of the project
@@ -437,21 +444,6 @@ class Project:
                 ('resource', '=', '%s,%d' % (self.__name__, self.id))
             ])
         )
-
-    @classmethod
-    def create(cls, vlist):
-        '''
-        Create a Project.
-
-        :param vlist: List of dictionaries of values to create
-        '''
-        for values in vlist:
-            if has_request_context():
-                values['created_by'] = request.nereid_user.id
-            else:
-                # TODO: identify the nereid user through employee
-                pass
-        return super(Project, cls).create(vlist)
 
     def can_read(self, user, silent=False):
         """
@@ -1539,6 +1531,11 @@ class ProjectHistory(ModelSQL, ModelView):
     previous_constraint_finish_time = fields.DateTime("Constraint Finish Time")
     new_constraint_finish_time = fields.DateTime("Constraint  Finish Time")
 
+    comment_markup = fields.Selection([
+        ('rst', 'reStructuredText'),
+        ('markdown', 'Markdown'),
+    ], 'Comment Markup Type')
+
     @staticmethod
     def default_date():
         '''
@@ -1680,6 +1677,10 @@ class ProjectHistory(ModelSQL, ModelView):
             CONFIG['smtp_from'], receivers,
             message.as_string()
         )
+
+    @staticmethod
+    def default_comment_markup():
+        return 'rst'
 
 
 class ProjectWorkCommit(ModelSQL, ModelView):
