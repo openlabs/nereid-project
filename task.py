@@ -138,6 +138,7 @@ class Task:
     )
 
     description_markup = fields.Selection([
+        (None, 'Plain text'),
         ('rst', 'reStructuredText'),
         ('markdown', 'Markdown'),
     ], 'Description Markup Type', states={

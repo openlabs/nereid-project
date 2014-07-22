@@ -1532,6 +1532,7 @@ class ProjectHistory(ModelSQL, ModelView):
     new_constraint_finish_time = fields.DateTime("Constraint  Finish Time")
 
     comment_markup = fields.Selection([
+        (None, 'Plain Text'),
         ('rst', 'reStructuredText'),
         ('markdown', 'Markdown'),
     ], 'Comment Markup Type')
