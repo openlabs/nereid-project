@@ -98,7 +98,13 @@
       <a class="btn pull-right btn-cancel-comment" displayed-div="#comment-display-{{ comment.id }}" 
         textarea="#comment-{{ comment.id }}"
         style="display:none"><i class="icon-remove-circle"></i> Cancel</a>
-      <div id="comment-display-{{ comment.id }}">{{ comment.comment|rst|safe }}</div>
+      <div id="comment-display-{{ comment.id }}">
+        {% if comment.comment_markup == 'rst' %}
+          {{ comment.comment|rst|safe }}
+        {% else %}
+          <pre>{{ comment.comment }}</pre>
+        {% endif %}
+      </div>
       <textarea id="comment-{{ comment.id }}" 
         class="input-xlarge span12" style="display:none">{{ comment.comment }}</textarea>
     </div>

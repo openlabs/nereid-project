@@ -377,7 +377,11 @@
       <a class="btn pull-right btn-edit-task-description" style="display:none" input="#task-description-{{ task.id }}"><i class="icon-edit"></i> Edit</a>
       <p>
         {% if task.comment %}
-          {{ task.comment|rst|safe }}
+          {% if not task.description_markup %}
+            <pre>{{ task.comment }}</pre>
+          {% elif task.description_markup == 'rst' %}
+            {{ task.comment|rst|safe }}
+          {% endif %}
         {% else %}
           No description given.
         {% endif %}
