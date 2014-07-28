@@ -961,6 +961,141 @@ class TestTask(TestBase):
                 )
                 self.assertEqual(response.status_code, 200)
 
+    def test_0230_move_task(self):
+        """
+        Tests moving task from one project to another
+        """
+        with Transaction().start(DB_NAME, USER, CONTEXT):
+            self.create_defaults_for_project()
+            app = self.get_app()
+
+            self.test_work, = self.Work.create([{
+                'name': 'Test Project',
+                'company': self.company.id,
+            }])
+            test_project, = self.Project.create([{
+                'work': self.test_work.id,
+                'type': 'project',
+                'state': 'opened',
+            }])
+
+            with app.test_client() as c:
+                # Case I: Project Admin
+                response = self.login(
+                    c, self.project_admin_user.email, 'password'
+                )
+
+                response = c.post(
+                    '/task-%d/move-to-project-%d' % (
+                        self.task1.id, test_project.id,
+                    ),
+                )
+                self.assertEqual(response.status_code, 302)
+
+                # Test if the task has moved to test_project
+                self.assertEqual(self.task1.parent.id, test_project.id)
+
+                # Logout
+                response = c.get('/logout')
+
+                # Case II: Project Manager (Not a member of Project)
+                response = self.login(
+                    c, self.project_manager_user.email, 'password'
+                )
+
+                response = c.post(
+                    '/task-%d/move-to-project-%d' % (
+                        self.task1.id, self.project1.id,
+                    ),
+                )
+                # Check if 403 is raised as user doesn't have permission
+                self.assertEqual(response.status_code, 403)
+                # Test if the task has not moved to project1
+                self.assertNotEqual(self.task1.parent.id, self.project1.id)
+
+                # Case III: Project Manager (Member of both Projects)
+
+                # Make Project Manager admin of both projects
+                self.Project.write([test_project], {
+                    'members': [
+                        ('create', [{
+                            'user': self.project_manager_user.id,
+                            'role': 'admin',
+                        }])
+                    ]
+                })
+                self.Project.write([self.project1], {
+                    'members': [
+                        ('create', [{
+                            'user': self.project_manager_user.id,
+                            'role': 'admin',
+                        }])
+                    ]
+                })
+
+                response = c.post(
+                    '/task-%d/move-to-project-%d' % (
+                        self.task1.id, self.project1.id,
+                    ),
+                )
+                self.assertEqual(response.status_code, 302)
+
+                # Test if the task has moved to project1
+                self.assertEqual(self.task1.parent.id, self.project1.id)
+
+                # Logout
+                response = c.get('/logout')
+
+                # Case IV: Registered User (Neither Project Admin or Manager)
+                response = self.login(
+                    c, self.reg_user1.email, 'password'
+                )
+
+                response = c.post(
+                    '/task-%d/move-to-project-%d' % (
+                        self.task1.id, test_project.id,
+                    ),
+                )
+                self.assertEqual(response.status_code, 403)
+                # Test if the task has not moved to test_project
+                self.assertNotEqual(self.task1.parent.id, test_project.id)
+
+                # Logout
+                response = c.get('/logout')
+
+                # Case V: Project Admin: The task is assigned to reg_user1
+                # who is not a member of target project
+
+                # Assigning task2 to reg_user1
+                self.task2.assigned_to = self.reg_user1.id
+                self.task2.save()
+
+                # Sign In as Project Admin
+                response = self.login(
+                    c, self.project_admin_user.email, 'password'
+                )
+
+                # Check if reg_user1 is assigned to task2
+                self.assertEqual(self.task2.assigned_to, self.reg_user1)
+
+                # Move task2 to test_project
+                response = c.post(
+                    '/task-%d/move-to-project-%d' % (
+                        self.task2.id, test_project.id,
+                    ),
+                )
+                self.assertEqual(response.status_code, 302)
+
+                # Test if the task has moved to test_project
+                self.assertEqual(self.task2.parent.id, test_project.id)
+
+                # Test if there is no user assigned to task2 in new project
+                # as reg_user1 is not a member of test_project
+                self.assertIsNone(self.task2.assigned_to)
+
+                # Logout
+                response = c.get('/logout')
+
 
 def suite():
     "Nereid test suite"
