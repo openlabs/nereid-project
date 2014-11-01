@@ -80,25 +80,7 @@ Here in above screenshot a new nereid user as a guest is created. But for
 giving privileges to the project, you need to create other nereid users also,
 they can be employee of your company, the clients, the stakeholders, etc.
 
-.. _admin:
-
-Admin Users
-------------
-
-After creating website as mentioned in `creating website`_, create a new
-admin user as shown below:
-
-.. image:: images/nereid-admin-user.png
-   
-Now we need to set up the created nereid user as project admin, because only 
-project admins are able to create, maintain, the project. And there should
-be one project admin at least, it entirely depends upon you, how many project 
-admins does anybody wants for a project. For that goto company's module, and 
-for that company add the nereid user in ``Project Admins`` tab.
- 
-.. image:: images/add-admin.png
-
-Refer to the :py:class:`trytond_nereid.routing.WebSite` for details on what 
+Refer to the :py:class:`nereid.trytond_nereid.website.WebSite` for details on what 
 each of the fields mean.
 
 .. tip::
@@ -108,10 +90,65 @@ each of the fields mean.
     production url. This can be overcome by using a simple WSGI middleware
     which overwrite HTTP_HOST in the environ.
 
+.. _admin:
+
+Admin Users
+------------
+
+Project Admin / Manager
+```````````````````````
+
+After creating website as mentioned in `creating website`_, create a new
+admin user by adding project admin or project manager permission as shown
+below:
+
+.. image:: images/nereid-admin-user.png
+
+Project Admin has complete access to entire project management system.
+
+Though project manager is limited just to:
+
+* Global Timesheet
+
+* Performance Graph
+
+* Tasks By Employee
+   
+All the project admins / managers of company can be seen on company's
+screen using ``Project Admins`` or ``Project Managers`` tab.
+
+.. image:: images/project_admins.png
+
+----
+
+.. image:: images/project_managers.png
+
+Admin Member
+````````````
+
+Admin member is project specific nereid user with role as **admin**. This
+admin member is allowed to do anything but only inside the entire project where
+he is added as an admin member. There can be multiple admin members of a project.
+
+To add admin member of the project, open the project and add members using
+``Participants`` tab as shown below.
+
+.. image:: images/add_admin_member.png
+
+
+Alternatively, projects can be added with admin rights to nereid user.
+
+To add projects with admin rights, open nereid user and add projects using
+``Member Of Projects`` tab as shown below:
+
+.. image:: images/add_projects_for_member.png
+
+
+
 .. _launching_application:
 
 Launching the application and template
-```````````````````````````````````````
+--------------------------------------
 
 Once the website is created, a python script which loads nereid and runs
 the application needs to be written. This script is used to load Nereid,
