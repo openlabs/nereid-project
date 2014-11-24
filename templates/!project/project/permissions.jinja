@@ -10,7 +10,7 @@
         <strong>{{ user.display_name }}</strong><br>
         <a href="mailto:{{ user.email }}" rel="tooltip" title="Send Email"><i class="icon-envelope"></i></a>
         <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', user=user.id) }}" rel="tooltip" title="View open tasks"><i class="icon-tasks"></i></a>
-        {% if remove_button and request.nereid_user.is_admin_of_project(project) %}
+        {% if remove_button and current_user.is_admin_of_project(project) %}
         <br>
         <a class="btn btn-mini btn-danger btn-remove-participant"
           title="Remove {{ user.display_name }}" rel="tooltip" data-id="{{ user.id }}"
@@ -47,7 +47,7 @@
   </div>
 </div>
 
-{% if request.nereid_user.is_admin_of_project(project) and invitations %}
+{% if current_user.is_admin_of_project(project) and invitations %}
 <div class="page-header">
   <h4>Invited Users <small>Who have not joined yet</small></h4>
 </div>

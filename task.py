@@ -256,7 +256,7 @@ class Task:
 
             if request.form.getlist('tags', int) and \
                     request.nereid_user.is_admin_of_project(self):
-                data['tags'] = [('set', request.form.getlist('tags', int))]
+                data['tags'] = [('add', request.form.getlist('tags', int))]
 
             constraint_start_time = request.form.get(
                 'constraint_start_time', None)
@@ -389,7 +389,7 @@ class Task:
         if request.nereid_user in task.participants:
             cls.write(
                 [task], {
-                    'participants': [('unlink', [request.nereid_user.id])]
+                    'participants': [('remove', [request.nereid_user.id])]
                 }
             )
         if request.is_xhr:
@@ -783,7 +783,7 @@ class Task:
         task = cls.get_task(task_id)
 
         cls.write(
-            [task], {'tags': [('unlink', [tag_id])]}
+            [task], {'tags': [('remove', [tag_id])]}
         )
         Activity.create([{
             'actor': request.nereid_user.id,
