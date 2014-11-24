@@ -1856,10 +1856,11 @@ class TestProject(TestBase):
             self.create_defaults()
             app = self.get_app()
 
-            with app.test_client() as c:
+            with app.test_request_context('/'):
+                    rv = self.Project.get_gantt_data()
 
-                with self.assertRaises(RuntimeError):
-                    gantt_data = self.Project.get_gantt_data()
+                    self.assertEqual(rv.status_code, 302)
+                    self.assertEqual(rv.location, '/login?next=%2F')
 
         # Check if Project Admin has access to gantt data
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
