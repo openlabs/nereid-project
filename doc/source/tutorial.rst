@@ -133,16 +133,17 @@ features:
   attach as many as files you want. You can also see the preview of the
   images on the task itself. Learn more about it in `files`_.
 
-* **People and Permissions:** The project admin can invite and remove users
-  from here. See `invitation`_.
+* **People and Permissions:** The project admin or admin member of the project
+can invite and remove users from here. See `invitation`_.
 
 .. _tag:
 
-* **Tags :** Creating a tag is only possible by admin. The admin can select a
-  colour for tags and create tags. User can add tags along with the task.
-  You can click the tags from the task view and see all the tasks tagged with
-  it. For example, tag several tasks as *Priority* now you can just click the
-  tag from the Kanban view and you can see all the task under that tag.
+* **Tags :** Creating a tag is only possible by project admin or admin member
+  of the project. The admin can select a colour for tags and create tags. User
+  can add tags along with the task. You can click the tags from the task view
+  and see all the tasks tagged with it. For example, tag several tasks as
+  *Priority* now you can just click the tag from the Kanban view and you
+  can see all the task under that tag.
   
 * **Estimated Effort** : You can also estimate a task. You just need to
   put the time needed to do one task. Learn more about it `estimated effort`_.
@@ -153,10 +154,11 @@ People and Permission
 
 Nereid project makes it very easy collaborate and work together on a
 project. You can invite as many as user you want to your project. Only the
-project admin can send the invitations. To invite a user just go to the
-people and permission tab on the project view and add the email address of
-the user you wanted to invite. That user can accept the invitation and
-start collaborating to the project. 
+project admin or admin member of the project can send the invitations.
+
+To invite a user just go to the people and permission tab on the project
+view and add the email address of the user you wanted to invite. That user
+can accept the invitation and start collaborating to the project. 
 
 This user can be a developer, designer, customer/client, vendor, etc.
 Everybody can work together, and create tickets and assign it to each other.
@@ -515,8 +517,8 @@ Task by employees
 ``````````````````
 
 It show the task assigned to all your employees throughout the project
-management system in Kanban view. It is also visible to the project admin.
-:ref:`admin`
+management system in Kanban view. It is visible to only project admin or
+project manager. :ref:`admin`
 
 .. image:: images/tasks-employee.png
    :width: 900

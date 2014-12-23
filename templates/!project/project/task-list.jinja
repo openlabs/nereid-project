@@ -43,8 +43,8 @@
         {% endif %}
         <div class="input-append">
           <select name="user" class="select-user">
+            <option value="">Anyone</option>
             <optgroup label="Assigned to:">
-              <option value="">Anyone</option>
               {% for member in project.members %}
                 {% if not member.user.id == request.nereid_user.id %}
                   <option value="{{ member.user.id }}"

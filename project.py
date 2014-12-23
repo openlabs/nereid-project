@@ -402,6 +402,11 @@ class Project:
             value['project'] = self and self.id
             value['created_by'] = self.created_by and \
                 self.created_by.serialize('listing')
+            value['displayName'] = '#%d' % self.id
+            value['url'] = url_for(
+                'project.work.render_task', project_id=self.parent.id,
+                task_id=self.id,
+            )
         elif purpose == 'activity_stream':
             value['create_date'] = self.create_date.isoformat()
             value['id'] = self.id

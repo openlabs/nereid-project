@@ -92,6 +92,7 @@ requires = [
     'blinker',
     'simplejson',
     'trytond >= 3.0.3, < 3.1',
+    'docutils',
 ]
 
 MODULE2PREFIX = {

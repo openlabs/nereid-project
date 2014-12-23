@@ -660,10 +660,15 @@ class TestProject(TestBase):
                 # Rendering back to next page
                 self.assertEqual(response.status_code, 200)
 
-                # Tests for deleting tag for project with get request
-                response = c.get('/tag-%d/-delete' % tag.id)
+                tag1, = self.Tag.create([{
+                    'name': 'tag',
+                    'color': 'color',
+                    'project': project.id
+                }])
 
-                # Redirecting back to refer page
+                # Tests for deleting tag for project with get request
+                response = c.get('/tag-%d/-delete' % tag1.id)
+
                 self.assertEqual(response.status_code, 302)
 
                 # Check Flash Message
@@ -1856,10 +1861,11 @@ class TestProject(TestBase):
             self.create_defaults()
             app = self.get_app()
 
-            with app.test_client() as c:
+            with app.test_request_context('/'):
+                    rv = self.Project.get_gantt_data()
 
-                with self.assertRaises(RuntimeError):
-                    gantt_data = self.Project.get_gantt_data()
+                    self.assertEqual(rv.status_code, 302)
+                    self.assertEqual(rv.location, '/login?next=%2F')
 
         # Check if Project Admin has access to gantt data
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
