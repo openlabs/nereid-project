@@ -660,10 +660,15 @@ class TestProject(TestBase):
                 # Rendering back to next page
                 self.assertEqual(response.status_code, 200)
 
-                # Tests for deleting tag for project with get request
-                response = c.get('/tag-%d/-delete' % tag.id)
+                tag1, = self.Tag.create([{
+                    'name': 'tag',
+                    'color': 'color',
+                    'project': project.id
+                }])
 
-                # Redirecting back to refer page
+                # Tests for deleting tag for project with get request
+                response = c.get('/tag-%d/-delete' % tag1.id)
+
                 self.assertEqual(response.status_code, 302)
 
                 # Check Flash Message
