@@ -30,7 +30,7 @@
           <li class="{% if state_filter == None %}active{% endif %} ">
             <a href="{{ url_for('project.work.render_task_list', project_id=project.id, tag=request.args.get('tag', None), user=request.args.get('user', None), q=request.args.get('q', None), iteration=iteration) }}">All Tasks</a>
           </li>
-          {% if request.nereid_user.has_permissions(['project.scrum_master']) and iteration %}
+          {% if current_user.has_permissions(['project.scrum_master']) and iteration %}
             <a class="btn icon icon-edit pull-right btn-warning" href="{{ url_for('project.iteration.render', project_id=0, active_id=iteration) }}"> Edit Iteration</a>
           {% endif %}
         </ul>
@@ -46,7 +46,7 @@
             <option value="">Anyone</option>
             <optgroup label="Assigned to:">
               {% for member in project.members %}
-                {% if not member.user.id == request.nereid_user.id %}
+                {% if not member.user.id == current_user.id %}
                   <option value="{{ member.user.id }}"
                     {% if request.args.get('user') == member.user.id|string() %}
                       selected
@@ -56,7 +56,7 @@
               {% endfor %}
             </optgroup>
             <option value="no one" {% if request.args.get('user') == 'no one' %}selected{% endif %}><b>Unassigned</b></option>
-            <option value="{{ request.nereid_user.id }}" {% if request.args.get('user') == request.nereid_user.id|string() %}selected{% endif %}><b>Assigned to Me</b></option>
+            <option value="{{ current_user.id }}" {% if request.args.get('user') == current_user.id|string() %}selected{% endif %}><b>Assigned to Me</b></option>
           </select>
           <select name="tag" class="select-tag" style="width:100px;">
             <option value="">Any Tag</option>

@@ -92,16 +92,16 @@ textarea {
               {% else %}
               <li class="display-phone hidden-tablet hidden-desktop"><a href="{{ url_for('nereid.website.logout') }}">Sign Out</a></li>
               <li class="hidden-phone">
-                <img src="{{ request.nereid_user.get_profile_picture(size=40, https=True) }}" class="img-circle"/>
+                <img src="{{ current_user.get_profile_picture(size=40, https=True) }}" class="img-circle"/>
               </li>
               <li class="dropdown pull-right hidden-phone">
                 <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                  {{ request.nereid_user.display_name }}
+                  {{ current_user.display_name }}
                   <span class="caret"></span>
                 </a>
                 <ul class="dropdown-menu">
                   <li><a href="{{ url_for('nereid.user.profile') }}">Profile</a></li>
-                 {% if request.nereid_user.employee %}
+                 {% if current_user.employee %}
                   <li><a href="{{ url_for('project.work.my_tasks', state="opened") }}"><i class="icon-list"></i> {{ _('My tasks') }}</a></li>
                   <li><a href="{{ url_for('project.work.my_tasks', state="opened", watched='true') }}"><i class="icon-eye-open"></i> {{ _('Tasks I am watching') }}</a></li>
                   {% endif %}

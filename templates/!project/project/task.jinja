@@ -20,7 +20,7 @@
 
 {{ render_time_reported() }}
 
-{% if request.nereid_user.employee %}
+{% if current_user.employee %}
 <div id="my-last-7-days"></div>
 <br/>
 {% endif %}
@@ -173,7 +173,7 @@
 
 <!--Modal for Estimated hours-->
   <h4>{{ ('Estimated Hours') }} - {{ task.effort }}
-  {% if request.nereid_user.employee %}
+  {% if current_user.employee %}
     <div class="btn-group pull-right">
       <button class="btn pull-right dropdown-toggle" data-toggle="modal" title="Estimated hours" 
         href="#change_estimated_hours">
@@ -184,12 +184,12 @@
   </h4>
   <hr>
 
-{% if not request.nereid_user.employee %}
+{% if not current_user.employee %}
 <h4>{{ _('Time Spent') }}
 {% else %}
 <h4>{{ _('Time Spent') }}
 {% endif %}
-  {% if False and request.nereid_user.employee %}
+  {% if False and current_user.employee %}
 
   <!-- Modal for marking time on  task -->
   <div class="modal fade" id="mark-time">
@@ -315,7 +315,7 @@
 <div class="row-fluid">
   <div class="span12">
     <div class="task-bg" id="comments-content">
-      <p>{{ task.created_by.display_name or task.create_uid.name }} reported <abbr title="{{ request.nereid_user.aslocaltime(task.create_date) }}" class="timeago"> on {{ request.nereid_user.aslocaltime(task.create_date) }}</abbr>
+      <p>{{ task.created_by.display_name or task.create_uid.name }} reported <abbr title="{{ current_user.aslocaltime(task.create_date) }}" class="timeago"> on {{ current_user.aslocaltime(task.create_date) }}</abbr>
       </p>
       <input type="text" id="task-{{ task.id }}" 
         class="input-xlarge span6" style="display:none" value="{{ task.work.name }}">
@@ -362,8 +362,8 @@
               </a>
             </li>
           </ul>
-          <a class="btn watch" {% if request.nereid_user in task.participants %}style="display:none"{% endif %}><i class="icon-eye-open"></i> Watch</a>
-          <a class="btn unwatch" {% if request.nereid_user not in task.participants %}style="display:none"{% endif %}><i class="icon-eye-close"></i> Un-Watch</a>
+          <a class="btn watch" {% if current_user in task.participants %}style="display:none"{% endif %}><i class="icon-eye-open"></i> Watch</a>
+          <a class="btn unwatch" {% if current_user not in task.participants %}style="display:none"{% endif %}><i class="icon-eye-close"></i> Un-Watch</a>
         </div>
       </div>
       <br/>
@@ -480,7 +480,7 @@
           </td>
         </tr>
 
-        {% if request.nereid_user.employee %}
+        {% if current_user.employee %}
         <tr id="log-hours">
           <td><i class="icon-time"></i> Hours:</td>
           <td colspan="3">
@@ -497,7 +497,7 @@
         <tr>
           <div class="btn-group" data-toggle="buttons-checkbox">
             <a id="notify" class="btn" rel="tooltip" title="Notify People"><i class="icon-group"></i></a>
-            {% if request.nereid_user.employee %}
+            {% if current_user.employee %}
             <a id="log-hours" class="btn active" rel="tooltip" title="Log Hours"><i class="icon-time"></i></a>
             {% endif %}
           </div>
@@ -530,7 +530,7 @@
   function reset_for_new_comment() {
     // Hide the row for notification
     $('tr#notify').hide();
-    {% if not request.nereid_user.employee %}
+    {% if not current_user.employee %}
     $("tr#log-hours").hide();
     {% endif %} 
 
@@ -585,7 +585,7 @@
       var comment_hours = $("input#comment_hours").val();
       if (comment.length == 0) {
         alert('Oops! Seems like an empty comment');
-      {% if request.nereid_user.employee %}
+      {% if current_user.employee %}
       } else if (comment_hours.length == 0) {
         alert('Oops! Seems like you forgot to mark time');
       } else if (comment_hours > 12) {
@@ -901,7 +901,7 @@
     pie_options.series[0].data.push({
       name: "{{ employee.rec_name }}",
       y: {{ hours }}
-      {% if request.nereid_user.employee == employee %}
+      {% if current_user.employee == employee %}
       ,sliced: true
       {% endif %}
     });
@@ -993,7 +993,7 @@
 </script>
 
 
-{% if request.nereid_user.employee %}
+{% if current_user.employee %}
 {# my last 7 days #}
 <script>
 $(document).ready(function() {
@@ -1024,7 +1024,7 @@ $(document).ready(function() {
       },
       tooltip: {
         formatter: function() {
-            var emp_name = '{{ request.nereid_user.employee.rec_name.split(' ')|first }}';
+            var emp_name = '{{ current_user.employee.rec_name.split(' ')|first }}';
             rv = '<b>';
             if (this.y < 4) {
               rv += 'WTF ' + emp_name + ' ?';

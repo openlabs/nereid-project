@@ -11,13 +11,13 @@
 
 {% block main %}
 <div class="page-header">
-  <h1>Addresses <small>of {{ request.nereid_user.display_name }}</small></h1><br>
+  <h1>Addresses <small>of {{ current_user.display_name }}</small></h1><br>
   <a class="btn" href="{{ url_for('party.address.edit_address') }}">
     <i class="icon-plus"></i> Add another Address
   </a>
 </div>
 <table class="table">
-  {% for address in request.nereid_user.addresses %}
+  {% for address in current_user.addresses %}
   <div class="row-fluid">
   <tr>
     <td span="3">
@@ -25,9 +25,9 @@
       <a href="{{ url_for('party.address.edit_address', address=address.id) }}" class="btn"><i class="icon-edit"></i> Edit Address</a>
     </td>
     {% if loop.index==1 %}
-      <td rowspan="{{ request.nereid_user.addresses|count }}" class="span9">
+      <td rowspan="{{ current_user.addresses|count }}" class="span9">
         <div id="map_canvas_{{ address.id }}" class="address" data-address-id="{{ address.id }}"
-          style="width:90%; height:{{ 160*request.nereid_user.addresses|count }}px" data-address="{{ address.street }},{{ address.streetbis }}, {{ address.city }}, {{ address.zip }}, {{ address.country and address.country.code or '' }}"></div>
+          style="width:90%; height:{{ 160*current_user.addresses|count }}px" data-address="{{ address.street }},{{ address.streetbis }}, {{ address.city }}, {{ address.zip }}, {{ address.country and address.country.code or '' }}"></div>
       </td>
     {% else %}
         <div id="map_canvas_{{ address.id }}" class="address" data-address-id="{{ address.id }}"

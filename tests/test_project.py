@@ -1947,7 +1947,7 @@ class TestProject(TestBase):
                 'type': 'task',
                 'parent': project.id,
                 'state': 'opened',
-                'participants': [('set', [self.reg_user2.id])]
+                'participants': [('add', [self.reg_user2.id])]
             }])
 
             # Project has 3 participants

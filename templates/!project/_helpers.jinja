@@ -267,12 +267,12 @@
 
 
 {% macro render_time_reported() %}
-{% if request.nereid_user.employee %}
+{% if current_user.employee %}
   <div id="time-today">
-    {% set hours= request.nereid_user.hours_reported_today() %}
+    {% set hours= current_user.hours_reported_today() %}
     <h3>Time today: {{ hours|float_to_time }}</h3>
   <div class="progress progress-{% if hours < 4 %}danger{% elif hours < 6 %}warning{% else %}success{% endif %}">
-    <div class="bar" style="width: {{ request.nereid_user.hours_reported_today() * 100 /12 }}%;"></div>
+    <div class="bar" style="width: {{ current_user.hours_reported_today() * 100 /12 }}%;"></div>
   </div>
   </div>
 {% endif %}

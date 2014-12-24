@@ -323,6 +323,24 @@ class Project:
         'project.work.commit', 'project', 'Repo Commits'
     )
 
+    project = fields.Function(
+        fields.Many2One(
+            'project.work', 'Project', domain=[('type', '=', 'project')],
+            states={
+                'invisible': Eval('type') != 'project'
+            }
+        ), 'get_parent_project'
+    )
+
+    def get_parent_project(self, name):
+        """
+        Gets the parent of this project
+        """
+        # TODO: Make this function work even with highly nested tasks
+        if self.parent:
+            return self.parent.id
+        return self.id
+
     @staticmethod
     def default_created_by():
         if has_request_context() and not current_user.is_anonymous():
@@ -723,7 +741,7 @@ class Project:
                 map(
                     lambda rec_id: self.__class__(rec_id),
                     task_ids_to_update
-                ), {'participants': [('unlink', [participant_id])]}
+                ), {'participants': [('remove', [participant_id])]}
             )
 
             project_member, = ProjectMember.search([

@@ -2,7 +2,7 @@
 
 {% from '_helpers.jinja' import render_field %}
 
-{% set user = request.nereid_user %}
+{% set user = current_user %}
 
 {% block breadcrumb %}
 {{ super() }}
@@ -41,7 +41,7 @@
 
 {% block left %}
 <div class="row-fluid" style="text-align: center">
-  <img src="{{ request.nereid_user.get_profile_picture(size=80, https=True) }}" class="img-rounded"/>
+  <img src="{{ current_user.get_profile_picture(size=80, https=True) }}" class="img-rounded"/>
   <br>
   <a target="new" href="http://en.gravatar.com/emails/">Change Gravatar</a>
 </div>
