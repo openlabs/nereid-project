@@ -103,7 +103,7 @@
   <li  {% if active_type_name == 'files' %}class="active"{% endif %}>
     <a href="{{ url_for('project.work.render_files', project_id=project.id) }}"><i class="icon-folder-close"></i> {{ _('Files') }}</a>
   </li>
-  {% if request.nereid_user.is_admin_of_project(project) %}
+  {% if current_user.is_admin_of_project(project) %}
   <li>
     <a href="#"><i class="icon-wrench"></i> {{ _('Settings') }}</a>
   </li>
@@ -116,7 +116,7 @@
 
 <ul class="nav nav-list">
   <li>
-    <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', user=request.nereid_user.id) }}">
+    <a href="{{ url_for('project.work.render_task_list', project_id=project.id, state='opened', user=current_user.id) }}">
       <i class="icon-tasks"></i> {{ _("My Tasks in this project") }}
     </a>
   </li>
@@ -129,7 +129,7 @@
 </ul>
 
 <div class="row-fluid">
-  {% if request.nereid_user.is_admin_of_project(project) %} 
+  {% if current_user.is_admin_of_project(project) %} 
     <h4 class="pull-left span12"><small><i class="icon-tags"></i></small> {{ _('Tags') }} </h4>
 
     {% if project.tags_for_projects %} 
@@ -437,7 +437,7 @@
     });
   </script>
 
-  {% if False and request.nereid_user.employee %}
+  {% if False and current_user.employee %}
   <script>
     $(document).ready(function () {
 	
@@ -528,7 +528,7 @@
 	
 	    series: [{
 	        name: 'Hours Reported',
-	        data: [{{ request.nereid_user.hours_reported_today(request.nereid_user) }}],
+	        data: [{{ current_user.hours_reported_today(current_user) }}],
 	        tooltip: {
 	            valueSuffix: 'hours'
 	        }

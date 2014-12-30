@@ -27,6 +27,37 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
+class SQLiteTest(Command):
+    """
+    Run the tests on SQLite
+    """
+    description = "Run tests on SQLite"
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+
+        if self.distribution.tests_require:
+            self.distribution.fetch_build_eggs(self.distribution.tests_require)
+
+        from trytond.config import CONFIG
+        CONFIG['db_type'] = 'sqlite'
+        os.environ['DB_NAME'] = ':memory:'
+
+        from tests import suite
+        test_result = unittest.TextTestRunner(verbosity=3).run(suite())
+
+        if test_result.wasSuccessful():
+            sys.exit(0)
+        sys.exit(-1)
+
+
 class PostgresTest(Command):
     """
     Run the tests on Postgres.
@@ -42,10 +73,6 @@ class PostgresTest(Command):
         pass
 
     def run(self):
-        if self.distribution.install_requires:
-            self.distribution.fetch_build_eggs(
-                self.distribution.install_requires
-            )
         if self.distribution.tests_require:
             self.distribution.fetch_build_eggs(self.distribution.tests_require)
 
@@ -54,20 +81,9 @@ class PostgresTest(Command):
         CONFIG['db_host'] = 'localhost'
         CONFIG['db_port'] = 5432
         CONFIG['db_user'] = 'postgres'
+        CONFIG['smtp_from'] = 'no_reply@openlabs.co.in'
 
-        from trytond import backend
-        import trytond.tests.test_tryton
-
-        # Set the db_type again because test_tryton writes this to sqlite
-        # again
-        CONFIG['db_type'] = 'postgresql'
-
-        trytond.tests.test_tryton.DB_NAME = 'test_' + str(int(time.time()))
-        from trytond.tests.test_tryton import DB_NAME
-        trytond.tests.test_tryton.DB = backend.get('Database')(DB_NAME)
-        from trytond.pool import Pool
-        Pool.test = True
-        trytond.tests.test_tryton.POOL = Pool(DB_NAME)
+        os.environ['DB_NAME'] = 'test_' + str(int(time.time()))
 
         from tests import suite
         test_result = unittest.TextTestRunner(verbosity=3).run(suite())
@@ -75,7 +91,6 @@ class PostgresTest(Command):
         if test_result.wasSuccessful():
             sys.exit(0)
         sys.exit(-1)
-
 
 config = ConfigParser.ConfigParser()
 config.readfp(open('tryton.cfg'))
@@ -91,7 +106,6 @@ requires = [
     'raven',
     'blinker',
     'simplejson',
-    'trytond >= 3.0.3, < 3.1',
     'docutils',
 ]
 
@@ -112,20 +126,23 @@ requires.append(
     (major_version, minor_version, major_version, minor_version + 1)
 )
 
+MODULE = "nereid_project"
+PREFIX = "trytond"
+
 setup(
-    name='trytond_nereid_project',
+    name='%s_%s' % (PREFIX, MODULE),
     version=info.get('version', '0.0.1'),
     description='Tryton Nereid Web based Project Management',
     author='Openlabs Technologies & Consulting (P) Limited',
     author_email='info@openlabs.co.in',
     url='http://www.openlabs.co.in/',
-    package_dir={'trytond.modules.nereid_project': '.'},
+    package_dir={'trytond.modules.%s' % MODULE: '.'},
     packages=[
-        'trytond.modules.nereid_project',
-        'trytond.modules.nereid_project.tests'
+        'trytond.modules.%s' % MODULE,
+        'trytond.modules.%s.tests' % MODULE,
     ],
     package_data={
-        'trytond.modules.nereid_project': info.get('xml', [])
+        'trytond.modules.%s' % MODULE: info.get('xml', [])
         + info.get('translation', []) + ['tryton.cfg', 'view/*.xml']
         + list(get_files("templates/"))
         + list(get_files("static/")),
@@ -146,9 +163,12 @@ setup(
     zip_safe=False,
     entry_points="""
     [trytond.modules]
-    nereid_project = trytond.modules.nereid_project
-    """,
+    %s = trytond.modules.%s
+    """ % (MODULE, MODULE),
     test_suite='tests',
     test_loader='trytond.test_loader:Loader',
-    cmdclass={'test_on_postgres': PostgresTest}
+    cmdclass={
+        'test': SQLiteTest,
+        'test_on_postgres': PostgresTest
+    }
 )

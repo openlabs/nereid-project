@@ -97,7 +97,7 @@ class TestCompany(NereidTestCase):
                 'email': 'guest@openlabs.co.in',
                 'password': 'password',
                 'company': company1.id,
-                'permissions': [('set', [admin_permission.id])]
+                'permissions': [('add', [admin_permission.id])]
             }])
 
             # Create user with project admin permission
@@ -117,7 +117,7 @@ class TestCompany(NereidTestCase):
                 'email': 'email@example.com',
                 'password': 'password',
                 'company': company2.id,
-                'permissions': [('set', [admin_permission.id])]
+                'permissions': [('add', [admin_permission.id])]
             }])
 
             self.assertTrue(user1 in company1.project_admins)
@@ -173,7 +173,7 @@ class TestCompany(NereidTestCase):
                 'email': 'guest@openlabs.co.in',
                 'password': 'password',
                 'company': company1.id,
-                'permissions': [('set', [manager_permission.id])]
+                'permissions': [('add', [manager_permission.id])]
             }])
 
             # Create user with project manager permission
@@ -193,7 +193,7 @@ class TestCompany(NereidTestCase):
                 'email': 'email@example.com',
                 'password': 'password',
                 'company': company2.id,
-                'permissions': [('set', [manager_permission.id])]
+                'permissions': [('add', [manager_permission.id])]
             }])
 
             self.assertTrue(user1 in company1.project_managers)

@@ -65,6 +65,8 @@ class NereidUser:
         if request.nereid_user.has_permissions(['project.admin']):
             return True
 
+        project = project.project
+
         assert project.type == 'project'
 
         for member in project.members:

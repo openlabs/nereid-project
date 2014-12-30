@@ -12,7 +12,7 @@
     on <strong><a href="{{ url_for('project.work.render_task', task_id=related_task.id, project_id=related_task.parent.id) }}">{{ related_task.work.name }}</a></strong>
     {% endif %}
     <small class="pull-right">
-      <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(line.create_date) }}">{{ request.nereid_user.aslocaltime(line.create_date) }}</abbr>
+      <abbr class="timeago" title="{{ current_user.aslocaltime(line.create_date) }}">{{ current_user.aslocaltime(line.create_date) }}</abbr>
     </small>
   </div>
 </div>
@@ -28,7 +28,7 @@
     {% if attachment.type == 'data' %}uploaded file{% else %}attached link to{% endif %}
     <strong><a href="{{ link }}" target="_blank">{{ attachment.name }}</a></strong>
     <small class="pull-right">
-      <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(attachment.create_date) }}">{{ request.nereid_user.aslocaltime(attachment.create_date) }}</abbr>
+      <abbr class="timeago" title="{{ current_user.aslocaltime(attachment.create_date) }}">{{ current_user.aslocaltime(attachment.create_date) }}</abbr>
     </small>
   </div>
   {% if 'image' in mimetype and 'dropbox' not in link %}
@@ -80,14 +80,14 @@
         {% endif %}
 
         <small class="pull-right">
-          <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(comment.date) }}">{{ request.nereid_user.aslocaltime(comment.date) }}</abbr>
+          <abbr class="timeago" title="{{ current_user.aslocaltime(comment.date) }}">{{ current_user.aslocaltime(comment.date) }}</abbr>
         </small>
       </div>
     </div>
 
     {% if comment.comment %}
     <div class="row-fluid">
-      {% if request.nereid_user.is_admin_of_project(comment.project) or comment.updated_by == request.nereid_user %}
+      {% if current_user.is_admin_of_project(comment.project) or comment.updated_by == current_user %}
       <a class="btn pull-right btn-edit-comment" displayed-div="#comment-display-{{ comment.id }}"
         textarea="#comment-{{ comment.id }}"
         style="display:none"><i class="icon-edit"></i> Edit</a>
@@ -120,7 +120,7 @@
     <strong>{{ commit.nereid_user.display_name }}</strong> pushed to 
     <strong><a href="{{ commit.repository_url }}" target="new">{{ commit.repository }}</a></strong>
     <small class="pull-right">
-      <abbr class="timeago" title="{{ request.nereid_user.aslocaltime(commit.commit_timestamp) }}">{{ request.nereid_user.aslocaltime(commit.commit_timestamp) }}</abbr>
+      <abbr class="timeago" title="{{ current_user.aslocaltime(commit.commit_timestamp) }}">{{ current_user.aslocaltime(commit.commit_timestamp) }}</abbr>
     </small>
     <br/>
     <div class="row-fluid">

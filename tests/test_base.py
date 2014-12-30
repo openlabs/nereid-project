@@ -131,24 +131,15 @@ class TestBase(NereidTestCase):
             'party': party3.id,
         }])
 
-        # Create guest user, and 3 registered user
-        self.guest_user, self.reg_user1 = self.NereidUser.create([{
-            'party': party1.id,
-            'display_name': 'Guest User',
-            'email': 'guest@openlabs.co.in',
-            'password': 'password',
-            'company': self.company.id,
-        }, {
-            'party': party2.id,
-            'display_name': 'Registered User1',
-            'email': 'email@reg_user1.com',
-            'password': 'password',
-            'company': self.company.id,
-            'employee': employee1.id,
-        }])
-
-        self.reg_user2, self.reg_user3 = self.NereidUser.create([
+        self.reg_user1, self.reg_user2, self.reg_user3 = self.NereidUser.create([  # noqa
             {
+                'party': party2.id,
+                'display_name': 'Registered User1',
+                'email': 'email@reg_user1.com',
+                'password': 'password',
+                'company': self.company.id,
+                'employee': employee1.id,
+            }, {
                 'party': party3.id,
                 'display_name': 'Registered User2',
                 'email': 'email@reg_user2.com',
@@ -211,7 +202,6 @@ class TestBase(NereidTestCase):
             'company': self.company.id,
             'application_user': USER,
             'default_locale': self.locale_en_us.id,
-            'guest_user': self.guest_user.id,
         }])
 
         # Nereid Permission
