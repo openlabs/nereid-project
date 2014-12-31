@@ -35,6 +35,13 @@
   <div class="row-fluid" style="padding-bottom:15px">
     <img src="{{ link }}" class="img-rounded"/><br/>
   </div>
+  {% elif 'video' in mimetype and 'dropbox' not in link %}
+  <div class="row-fluid" style="padding-bottom:15px">
+    <!-- 16:9 aspect ratio -->
+    <div class="embed-responsive embed-responsive-16by9">
+      <video id="attachment-{{ attachment.id }}" src="{{ link }}" controls></video>
+    </div>
+  </div>
   {% endif %}
 </div>
 {% endmacro %}
