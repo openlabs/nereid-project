@@ -24,4 +24,4 @@ RUN rm /etc/trytond.conf
 
 EXPOSE 	8000 9000
 CMD ["-b", "0.0.0.0:9000", "-", "-k", "gevent", "-w", "4", "application:app"]
-ENTRYPOINT ["/usr/local/bin/gunicorn"]
+ENTRYPOINT ["gunicorn"]
