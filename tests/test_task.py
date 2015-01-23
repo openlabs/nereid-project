@@ -799,7 +799,7 @@ class TestTask(TestBase):
             with app.test_client() as c:
 
                 member, = ProjectMember.search([
-                    ('user.email', '=', 'email@reg_user1.com'),
+                    ('user.email', '=', 'email@reguser1.com'),
                     ('project', '=', self.project1.id),
                 ])
                 member.role = 'admin'

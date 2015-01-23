@@ -135,21 +135,21 @@ class TestBase(NereidTestCase):
             {
                 'party': party2.id,
                 'display_name': 'Registered User1',
-                'email': 'email@reg_user1.com',
+                'email': 'email@reguser1.com',
                 'password': 'password',
                 'company': self.company.id,
                 'employee': employee1.id,
             }, {
                 'party': party3.id,
                 'display_name': 'Registered User2',
-                'email': 'email@reg_user2.com',
+                'email': 'email@reguser2.com',
                 'password': 'password',
                 'company': self.company.id,
                 'employee': employee2.id,
             }, {
                 'party': party4.id,
                 'display_name': 'Registered User3',
-                'email': 'email@reg_user3.com',
+                'email': 'email@reguser3.com',
                 'password': 'password',
                 'company': self.company.id,
             }
