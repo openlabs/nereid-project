@@ -2,14 +2,14 @@
 """
     timesheet
 
-    :copyright: (c) 2012-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2012-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 from nereid import url_for
 from trytond.model import ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
-from trytond.config import CONFIG
+from trytond import backend
 
 __all__ = ['TimesheetEmployeeDay', 'TimesheetLine']
 __metaclass__ = PoolMeta
@@ -38,10 +38,10 @@ class TimesheetEmployeeDay(ModelView):
                 'FROM "timesheet_line" ' \
                 'GROUP BY timesheet_line.date, timesheet_line.employee;'
 
-        if CONFIG['db_type'] == 'postgresql':
+        if backend.name() == 'postgresql':
             Transaction().cursor.execute('CREATE OR REPLACE VIEW ' + query)
 
-        elif CONFIG['db_type'] == 'sqlite':
+        elif backend.name() == 'sqlite':
             Transaction().cursor.execute('CREATE VIEW IF NOT EXISTS ' + query)
 
 
