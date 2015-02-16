@@ -2,13 +2,13 @@
 """
     utils
 
-    :copyright: (c) 2012-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2012-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 import warnings
 
 from trytond.pool import Pool
-from trytond.config import CONFIG
+from trytond.config import config
 from nereid import request, render_email
 from nereid.signals import registration
 
@@ -74,14 +74,15 @@ def invitation_new_user_handler(nereid_user_id):
         if m.user.email and m.role == 'admin'
     ]
 
+    sender = config.get('email', 'from')
+
     email_message = render_email(
         text_template='project/emails/invite_2_project_accepted_text.html',
         subject=subject, to=', '.join(receivers),
-        from_email=CONFIG['smtp_from'], invitation=invitation
+        from_email=sender, invitation=invitation
     )
     EmailQueue.queue_mail(
-        CONFIG['smtp_from'], receivers,
-        email_message.as_string()
+        sender, receivers, email_message.as_string()
     )
 
     Project.write(

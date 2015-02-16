@@ -4,19 +4,18 @@
 
     TestProject
 
-    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 import smtplib
-
-from trytond.config import CONFIG
-CONFIG.options['data_path'] = '.'
-CONFIG['smtp_from'] = 'test@openlabs.co.in'
 from minimock import Mock
 
 import trytond.tests.test_tryton
 from trytond.tests.test_tryton import POOL, USER
 from nereid.testing import NereidTestCase
+from trytond.config import config
+config.set('database', 'path', '.')
+config.set('email', 'from', 'test@openlabs.co.in')
 
 smtplib.SMTP = Mock('smtplib.SMTP')
 smtplib.SMTP.mock_returns = Mock('smtp_connection')
@@ -44,7 +43,6 @@ class TestBase(NereidTestCase):
         self.Language = POOL.get('ir.lang')
         self.Website = POOL.get('nereid.website')
         self.NereidUser = POOL.get('nereid.user')
-        self.URLMap = POOL.get('nereid.url_map')
         self.Party = POOL.get('party.party')
         self.User = POOL.get('res.user')
         self.Action = POOL.get('ir.action')
@@ -239,9 +237,9 @@ class TestBase(NereidTestCase):
             }
         )
 
-        config = self.Configuration(1)
-        config.git_webhook_secret = 'somesecret'
-        config.save()
+        project_config = self.Configuration(1)
+        project_config.git_webhook_secret = 'somesecret'
+        project_config.save()
 
     def create_defaults_for_project(self):
         '''

@@ -19,7 +19,7 @@ from trytond.model import ModelSQL, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
-from trytond.config import CONFIG
+from trytond.config import config
 from trytond import backend
 
 
@@ -359,8 +359,10 @@ class Task:
         if not receivers:
             return
 
+        sender = config.get('email', 'from')
+
         message = render_email(
-            from_email=CONFIG['smtp_from'],
+            from_email=sender,
             to=', '.join(receivers),
             subject=subject,
             text_template='project/emails/project_text_content.jinja',
@@ -371,8 +373,7 @@ class Task:
 
         # Send mail.
         EmailQueue.queue_mail(
-            CONFIG['smtp_from'], receivers,
-            message.as_string()
+            sender, receivers, message.as_string()
         )
 
     @classmethod
