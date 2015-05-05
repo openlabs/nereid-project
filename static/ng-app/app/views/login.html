@@ -1,0 +1,25 @@
+<div class="login-page">
+  <div class="login-container" layout="row" layout-align="center center">
+    <div layout="column" flex-gt-sm="40" flex-sm="100">
+      <div layout="row" class="login-form-logo" layout-align="center center">
+        <img src="images/logo.png"/>
+      </div>
+      <md-whiteframe class="md-whiteframe-z1" layout-fill>
+        <form name="loginForm" ng-submit="submit(loginForm)">
+          <md-input-container>
+            <label for="email">Email</label>
+            <input name="username" ng-model="user.email" type="email" required>
+          </md-input-container>
+          <md-input-container>
+            <label for="password">Password</label>
+            <input name="password" ng-model="user.password" type="password" required>
+          </md-input-container>
+          <md-button id="login-submit" class="md-raised md-primary md-hue-2" layout-fill>
+            Log In
+          </md-button>
+        </form>
+        <md-progress-linear ng-if="loggingIn" md-mode="indeterminate"></md-progress-linear>
+      </md-whiteframe>
+    </div>
+  </div>
+</div>
