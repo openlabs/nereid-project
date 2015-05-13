@@ -4,7 +4,7 @@
 
     Extend the project to allow users
 
-    :copyright: (c) 2012-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2012-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 import os
@@ -36,7 +36,7 @@ from trytond.model import ModelView, ModelSQL, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
-from trytond.config import CONFIG
+from trytond.config import config
 from trytond import backend
 
 from utils import request_wants_json
@@ -240,18 +240,19 @@ class ProjectInvitation(ModelSQL, ModelView):
             )
             return redirect(request.referrer)
 
+        sender = config.get('email', 'from')
+
         if request.method == 'POST':
             subject = '[%s] You have been re-invited to join the project' \
                 % self.project.rec_name
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
                 subject=subject, to=self.email,
-                from_email=CONFIG['smtp_from'], project=self.project,
+                from_email=sender, project=self.project,
                 invitation=self
             )
             EmailQueue.queue_mail(
-                CONFIG['smtp_from'], self.email,
-                email_message.as_string()
+                sender, self.email, email_message.as_string()
             )
 
             if request.is_xhr:
@@ -648,6 +649,8 @@ class Project:
 
         subject = '[%s] You have been invited to join the project' \
             % project.rec_name
+
+        sender = config.get('email', 'from')
         if existing_user:
             # If participant already existed
             if existing_user[0] in [m.user for m in project.members]:
@@ -658,7 +661,7 @@ class Project:
             email_message = render_email(
                 text_template="project/emails/"
                 "inform_addition_2_project_text.html",
-                subject=subject, to=email, from_email=CONFIG['smtp_from'],
+                subject=subject, to=email, from_email=sender,
                 project=project, user=existing_user[0]
             )
             cls.write(
@@ -684,14 +687,13 @@ class Project:
             }])
             email_message = render_email(
                 text_template='project/emails/invite_2_project_text.html',
-                subject=subject, to=email, from_email=CONFIG['smtp_from'],
+                subject=subject, to=email, from_email=sender,
                 project=project, invitation=new_invite
             )
             flash_message = "%s has been invited to the project" % email
 
         EmailQueue.queue_mail(
-            CONFIG['smtp_from'], email,
-            email_message.as_string()
+            sender, email, email_message.as_string()
         )
 
         if request.is_xhr:
@@ -1678,6 +1680,8 @@ class ProjectHistory(ModelSQL, ModelView):
             filter(lambda member: member.user.email, self.project.members)
         )
 
+        sender = config.get('email', 'from')
+
         if self.updated_by.email in receivers:
             receivers.remove(self.updated_by.email)
 
@@ -1685,7 +1689,7 @@ class ProjectHistory(ModelSQL, ModelView):
             return
 
         message = render_email(
-            from_email=CONFIG['smtp_from'],
+            from_email=sender,
             to=', '.join(receivers),
             subject=subject,
             text_template='project/emails/text_content.jinja',
@@ -1698,7 +1702,7 @@ class ProjectHistory(ModelSQL, ModelView):
 
         # Send mail.
         EmailQueue.queue_mail(
-            CONFIG['smtp_from'], receivers,
+            sender, receivers,
             message.as_string()
         )
 

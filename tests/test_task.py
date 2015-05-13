@@ -4,21 +4,20 @@
 
     TestTask
 
-    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 import unittest
 import json
 import smtplib
 
-from trytond.config import CONFIG
-CONFIG['smtp_from'] = 'test@openlabs.co.in'
-CONFIG['data_path'] = '.'
 from minimock import Mock
-
 from trytond.tests.test_tryton import POOL, DB_NAME, USER, CONTEXT
 from trytond.transaction import Transaction
 from test_base import TestBase
+from trytond.config import config
+config.set('database', 'path', '/tmp')
+config.set('email', 'from', 'test@openlabs.co.in')
 
 smtplib.SMTP = Mock('smtplib.SMTP')
 smtplib.SMTP.mock_returns = Mock('smtp_connection')
@@ -799,7 +798,7 @@ class TestTask(TestBase):
             with app.test_client() as c:
 
                 member, = ProjectMember.search([
-                    ('user.email', '=', 'email@reg_user1.com'),
+                    ('user.email', '=', 'email@reguser1.com'),
                     ('project', '=', self.project1.id),
                 ])
                 member.role = 'admin'

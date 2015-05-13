@@ -1,0 +1,26 @@
+{
+  "app": {
+    "background": {
+      "scripts": [
+        "background.js"
+      ]
+    }
+  }, 
+  "author": "Openlabs", 
+  "description": "Nereid Project", 
+  "icons": {
+    "128": "images/icon_128x128.png", 
+    "16": "images/icon_16x16.png", 
+    "48": "images/icon_48x48.png"
+  }, 
+  "manifest_version": 2, 
+  "name": "Nereid Project", 
+  "offline_enabled": false, 
+  "permissions": [
+    "notifications", 
+    "contextMenus", 
+    "http://*.openlabs.co.in"
+  ], 
+  "short_name": "Nereid Project", 
+  "version": "0.0.1"
+}

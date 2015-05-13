@@ -4,7 +4,7 @@
 
     TestCompany
 
-    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 import unittest
@@ -19,8 +19,6 @@ class TestCompany(NereidTestCase):
     '''
     Test Company
     '''
-    # pylint: disable-msg=C0103
-    # pylint False trigger Using Invalid name
 
     def setUp(self):
         """
@@ -34,7 +32,6 @@ class TestCompany(NereidTestCase):
         self.Company = POOL.get('company.company')
         self.Party = POOL.get('party.party')
         self.Employee = POOL.get('company.employee')
-        self.URLMap = POOL.get('nereid.url_map')
         self.Language = POOL.get('ir.lang')
         self.Website = POOL.get('nereid.website')
         self.Locale = POOL.get('nereid.website.locale')

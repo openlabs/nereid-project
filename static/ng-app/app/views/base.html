@@ -1,0 +1,42 @@
+<md-toolbar layout="row">
+  <span class="md-toolbar-tools" layout="row" layout-align="space-between center">
+    <md-button ng-click="toggleLeft()" aria-label="Menu toggle" hide-gt-md flex="10">
+      <i class="mdi mdi-menu button-icon-font"></i>
+    </md-button>
+
+    <span flex="15" flex-sm="30" class="header-logo">
+      <img src="images/logo.png"/>
+    </span>
+
+    <md-button aria-label="Back" ng-click="showGlobalSearch=false">
+      <i class="mdi mdi-arrow-left button-icon-font" ng-if="showGlobalSearch" ></i>
+    </md-button>
+
+    <!-- TODO: Make search work -->
+    <md-autocomplete ng-if="showGlobalSearch" layout-margin flex
+      md-no-cache="false"
+      md-search-text="searchText"
+      md-items="item in []"
+      md-item-text="searchText"
+      md-delay="300"
+      md-selected-item="selectedSearchItem"
+      md-selected-item-change="searchItemClicked(item)"
+      placeholder="Search">
+      <span md-highlight-text="searchText"></span>
+    </md-autocomplete>
+
+    <span flex ng-if="!showGlobalSearch"></span>
+
+    <md-button aria-label="search" ng-click="showGlobalSearch = !showGlobalSearch">
+      <i class="mdi mdi-magnify button-icon-font"></i>
+    </md-button>
+
+    <md-button aria-label="Menu">
+      <i class="mdi mdi-dots-vertical button-icon-font"></i>
+    </md-button>
+  </span>
+</md-toolbar>
+
+<section layout="row" flex>
+  <md-sidenav class="md-sidenav-left md-whiteframe-z2" md-component-id="left" md-is-locked-open="$mdMedia('gt-md')">
+</section>

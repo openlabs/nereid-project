@@ -1,0 +1,58 @@
+body {
+  font-size: .9em;
+}
+
+md-sidenav.md-locked-open {
+  width: 220px;
+  min-width: 220px;
+}
+
+.custom-ripple[md-ink-ripple] {
+  position: relative;
+}
+
+.button-icon-font {
+  font-size: 25px;
+}
+
+/*
+ * Login
+ */
+.login-page {
+  background: #C8C8C8;
+  height: 100vh;
+}
+
+.login-page > div {
+    height: 90vh;
+}
+
+.login-page button {
+  height: 42px;
+}
+
+.login-page md-whiteframe {
+  background: white;
+  border-radius: 4px;
+  padding: 48px 67px 36px 67px;
+}
+
+.login-form-logo {
+  height: 100px;
+}
+
+.login-form-logo img {
+  width: 200px;
+  margin-bottom: 32px;
+}
+/* Login */
+
+.md-button.md-fab.md-fab-bottom-right {
+  font-size: 1.8em;
+  position: fixed;
+}
+
+.header-logo > img {
+  height: 75px;
+  margin-bottom: -11px;
+}

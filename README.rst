@@ -1,11 +1,21 @@
 Nereid Project
 ===============
 
-.. image:: https://travis-ci.org/openlabs/nereid-project.png?branch=develop
+.. image:: https://travis-ci.org/openlabs/nereid-project.svg?branch=develop
     :target: https://travis-ci.org/openlabs/nereid-project
+    :alt: Build Status
+.. image:: https://pypip.in/download/trytond_nereid-project/badge.svg
+    :target:  https://pypi.python.org/pypi/trytond_nereid-project/
+    :alt: Downloads
+.. image:: https://pypip.in/version/trytond_nereid-project/badge.svg
+    :target: https://pypi.python.org/pypi/trytond_nereid-project/
+    :alt: Latest Version
+.. image:: https://pypip.in/status/trytond_nereid-project/badge.svg
+    :target: https://pypi.python.org/pypi/trytond_nereid-project/
+    :alt: Development Status
+.. image:: https://coveralls.io/repos/openlabs/nereid-project/badge.svg?branch=develop 
+    :target: https://coveralls.io/r/openlabs/nereid-project?branch=develop 
 
-.. image:: https://coveralls.io/repos/openlabs/nereid-project/badge.png?branch=develop
-    :target: https://coveralls.io/r/openlabs/nereid-project
 
 A web based project management system built on the Tryton framework and
 nereid.
@@ -30,14 +40,14 @@ Tryton.
 
 
 Installation
-------------
+============
 
 .. code:: sh
 
     $ pip install trytond_nereid_project
 
 To install from source
-``````````````````````
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: sh
 
