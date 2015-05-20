@@ -3,7 +3,8 @@
 angular.module('nereidProjectApp', [
   'ui.router',
   'ngMaterial',
-  'openlabs.angular-nereid-auth'
+  'openlabs.angular-nereid-auth',
+  'cfp.hotkeys'
   ])
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider
