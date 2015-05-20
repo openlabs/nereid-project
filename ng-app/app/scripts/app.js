@@ -44,7 +44,6 @@ angular.module('nereidProjectApp', [
       .primaryPalette('grey');
   })
   .run(['$rootScope', '$state', 'nereidAuth', function ($rootScope, $state, nereidAuth) {
-    nereidAuth.setapiBasePath('/api');
     nereidAuth.refreshUserInfo(); // XXX: why?
 
     $rootScope.$on('$stateChangeSuccess', function(event, toState) {
