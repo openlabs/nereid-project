@@ -73,6 +73,9 @@ md-sidenav {
   margin-top: 10px;
   text-align: center;
   line-height: 40px;
+  text-decoration: none;
+  color: #bdbbbb;
+  display: block;
 }
 
 .menu-item:first-child {
@@ -80,6 +83,13 @@ md-sidenav {
 }
 
 .menu-item:hover {
+  cursor: pointer;
+  background: #3C4651;
+  color: #fff;
+  border-left: 7px solid #03A9F4;
+}
+
+.menu-item.active {
   cursor: pointer;
   background: #3C4651;
   color: #fff;

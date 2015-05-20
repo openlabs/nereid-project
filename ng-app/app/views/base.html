@@ -41,30 +41,36 @@
 <section layout="row" flex>
   <md-sidenav class="md-sidenav-left md-whiteframe-z2" md-component-id="left" md-is-locked-open="$mdMedia('gt-md')">
     <div class="menu">
-      <div class="menu-item">
+      <a class="menu-item">
         <i class="mdi mdi-swap-vertical"></i>
         <div>Recent Activity</div>
-      </div>
-      <div class="menu-item">
+      </a>
+      <a class="menu-item" ui-sref="base.tasks()" ui-sref-active="active">
         <i class="mdi mdi-view-list"></i>
         <div>Tasks</div>
-      </div>
-      <div class="menu-item">
+      </a>
+      <a class="menu-item">
         <i class="mdi mdi-file-cloud"></i>
         <div>Files</div>
-      </div>
-      <div class="menu-item">
+      </a>
+      <a class="menu-item">
         <i class="mdi mdi-timetable"></i>
         <div>Time Sheets</div>
-      </div>
-      <div class="menu-item">
+      </a>
+      <a class="menu-item">
         <i class="mdi mdi-account-multiple-outline"></i>
         <div>People &amp; Permissions</div>
-      </div>
-      <div class="menu-item">
+      </a>
+      <a class="menu-item">
         <i class="mdi mdi-tag-text-outline"></i>
         <div>Tags</div>
-      </div>
+      </a>
     </div>
   </md-sidenav>
+
+  <md-content flex>
+    <!-- ui-view for main interface -->
+    <div ui-view="main-view"></div>
+  </md-content>
+
 </section>
