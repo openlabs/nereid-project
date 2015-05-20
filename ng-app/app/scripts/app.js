@@ -35,6 +35,7 @@ angular.module('nereidProjectApp', [
         views: {
           'main-view': {
             templateUrl: 'views/projects.html',
+            controller: 'ProjectsCtrl'
           }
         }
       })
@@ -43,8 +44,7 @@ angular.module('nereidProjectApp', [
         url: 'projects/{projectId:int}',
         views: {
           'main-view': {
-            templateUrl: 'views/project.html',
-            controller: 'ProjectCtrl'
+            templateUrl: 'views/project.html'
           }
         }
       })
