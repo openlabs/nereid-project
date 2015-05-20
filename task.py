@@ -319,11 +319,37 @@ class Task:
                 'message': 'Task creation has been failed',
             }), 400
 
-        else:
-            # TODO: Return pagination instead.
-            return jsonify(
-                tasks=[task.serialize() for task in project.children]
+        page = request.args.get('page', 1, int)
+        filter_domain = [
+            ('type', '=', 'task'),
+            ('parent', '=', project.id),
+        ]
+
+        query = request.args.get('q', None)
+        if query:
+            # This search is probably the suckiest search in the
+            # history of mankind in terms of scalability and utility
+            # TODO: Figure out something better
+            filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
+
+        tag = request.args.get('tag', None, int)
+        if tag:
+            filter_domain.append(('tags', '=', tag))
+
+        if request.args.get('user') == 'no one':
+            filter_domain.append(('assigned_to', '=', None))
+        elif request.args.get('user', None, int):
+            filter_domain.append(
+                ('assigned_to', '=', request.args.get('user', None, int))
             )
+
+        state = request.args.get('state', None)
+        if state and state in ('opened', 'done'):
+            filter_domain.append(('state', '=', state))
+
+        tasks = Pagination(Task, filter_domain, page, 20)
+
+        return jsonify(tasks.serialize(purpose='listing'))
 
     @login_required
     @route('/task-<int:active_id>/-edit', methods=['POST'])
@@ -425,93 +451,6 @@ class Task:
                 return jsonify({'message': "Successfully unwatched"}), 200
 
         return jsonify({'message': "Invalid action"}), 400
-
-    @classmethod
-    @route('/project-<int:project_id>/task-list')
-    @login_required
-    def render_task_list(cls, project_id):
-        """
-        Renders a project's task list page
-        """
-        project = cls.get_project(project_id)
-        state = request.args.get('state', None)
-        page = request.args.get('page', 1, int)
-
-        filter_domain = [
-            ('type', '=', 'task'),
-            ('parent', '=', project.id),
-        ]
-
-        query = request.args.get('q', None)
-        if query:
-            # This search is probably the suckiest search in the
-            # history of mankind in terms of scalability and utility
-            # TODO: Figure out something better
-            filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
-
-        tag = request.args.get('tag', None, int)
-        if tag:
-            filter_domain.append(('tags', '=', tag))
-
-        if request.args.get('user') == 'no one':
-            filter_domain.append(('assigned_to', '=', None))
-        elif request.args.get('user', None, int):
-            filter_domain.append(
-                ('assigned_to', '=', request.args.get('user', None, int))
-            )
-
-        counts = {}
-        counts['opened_tasks_count'] = cls.search(
-            filter_domain + [('state', '=', 'opened')], count=True
-        )
-        counts['done_tasks_count'] = cls.search(
-            filter_domain + [('state', '=', 'done')], count=True
-        )
-        counts['all_tasks_count'] = cls.search(
-            filter_domain, count=True
-        )
-
-        if state and state in ('opened', 'done'):
-            filter_domain.append(('state', '=', state))
-
-        counts['backlog'] = cls.search(
-            filter_domain + [('progress_state', '=', 'Backlog')], count=True
-        )
-        counts['planning'] = cls.search(
-            filter_domain + [('progress_state', '=', 'Planning')], count=True
-        )
-        counts['in_progress'] = cls.search(
-            filter_domain + [('progress_state', '=', 'In Progress')], count=True
-        )
-        counts['review'] = cls.search(
-            filter_domain + [('progress_state', '=', 'Review')], count=True
-        )
-
-        if request.is_xhr:
-            tasks = cls.search(filter_domain)
-            return jsonify({
-                'items': map(lambda task: task.serialize('listing'), tasks),
-                'domain': filter_domain,
-            })
-
-        if state and state == 'opened':
-            # Group and return tasks for regular web viewing
-            tasks_by_state = defaultdict(list)
-            for task in cls.search(filter_domain):
-                tasks_by_state[task.progress_state].append(task)
-            return render_template(
-                'project/task-list-kanban.jinja',
-                active_type_name='render_task_list', counts=counts,
-                state_filter=state, tasks_by_state=tasks_by_state,
-                states=PROGRESS_STATES[:-1], project=project
-            )
-
-        tasks = Pagination(cls, filter_domain, page, 20)
-        return render_template(
-            'project/task-list.jinja', project=project,
-            active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks=tasks
-        )
 
     @classmethod
     @route('/my-tasks')
