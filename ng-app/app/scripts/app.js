@@ -25,7 +25,8 @@ angular.module('nereidProjectApp', [
 
       .state('base', {
         url: '/',
-        templateUrl: 'views/base.html'
+        templateUrl: 'views/base.html',
+        controller: 'BaseCtrl'
       });
 
       $mdThemingProvider.theme('default')

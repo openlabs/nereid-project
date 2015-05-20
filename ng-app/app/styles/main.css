@@ -8,8 +8,10 @@ md-sidenav.md-locked-open {
 }
 
 md-sidenav {
-  background: #3F3F3F;
+  background: #2B323A;
   color: #bdbbbb;
+  min-width: initial !important;
+  width: 164px !important;
 }
 
 .custom-ripple[md-ink-ripple] {
@@ -79,8 +81,9 @@ md-sidenav {
 
 .menu-item:hover {
   cursor: pointer;
-  background: #333;
+  background: #3C4651;
   color: #fff;
+  border-left: 7px solid #03A9F4;
 }
 
 .menu-item > .mdi {
