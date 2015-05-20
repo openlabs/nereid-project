@@ -2,7 +2,10 @@
 
 angular.module('nereidProjectApp')
 .controller('AllTasksCtrl', [
-    function() {
-      // TODO:
+    '$scope',
+    'Task',
+    function($scope, Task) {
+      $scope.loadTasks = function() {
+      };
     }
   ]);
