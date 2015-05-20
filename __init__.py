@@ -32,6 +32,7 @@ def register():
         Company,
         CompanyProjectAdmins,
         TaskUsers,
+        Iteration,
         ProjectWorkMember,
         ProjectInvitation,
         TimesheetEmployeeDay,
@@ -47,7 +48,6 @@ def register():
         NereidUser,
         Attachment,
         Configuration,
-        Iteration,
         IterationTask,
         module='nereid_project', type_='model',
     )
