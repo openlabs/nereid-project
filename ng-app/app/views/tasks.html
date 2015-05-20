@@ -5,12 +5,6 @@
     </md-content>
   </md-tab>
 
-  <md-tab label="Done Tasks" md-on-select="updateRoute('done')">
-    <md-content class="md-padding">
-      <div ui-view="task-tabs"></div>
-    </md-content>
-  </md-tab>
-
   <md-tab label="All Tasks" md-on-select="updateRoute('all')">
     <md-content class="md-padding">
       <div ui-view="task-tabs"></div>
@@ -19,9 +13,10 @@
 
 </md-tabs>
 
-
-<md-button
-  class="md-fab md-accent md-fab-bottom-right"
-  aria-label="New Task" ng-click="createNewTask()">
-  <i class="mdi mdi-plus"></i>
-</md-button>
+<create-task>
+  <md-button
+    class="md-fab md-accent md-fab-bottom-right"
+    aria-label="New Task" ng-click="createNewTask()">
+    <i class="mdi mdi-plus"></i>
+  </md-button>
+</create-task>

@@ -69,20 +69,9 @@ angular.module('nereidProjectApp', [
         }
       })
 
-      .state('base.project.tasks.done', {
-        url: '/done',
-        tabIndex: 1,
-        views: {
-          'task-tabs': {
-            templateUrl: 'views/done-tasks.html',
-            controller: 'DoneTasksCtrl'
-          }
-        }
-      })
-
       .state('base.project.tasks.all', {
         url: '/all',
-        tabIndex: 2,
+        tabIndex: 1,
         views: {
           'task-tabs': {
             templateUrl: 'views/all-tasks.html',

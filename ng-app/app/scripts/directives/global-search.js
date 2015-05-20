@@ -1,3 +1,5 @@
+'use strict';
+
 angular.module('nereidProjectApp')
 .directive('globalSearch', function($timeout, $parse) {
   return {
@@ -13,7 +15,7 @@ angular.module('nereidProjectApp')
       });
 
       // Listen to ESC and hide the global search
-      inputElement.bind("keydown keypress", function (event) {
+      inputElement.bind('keydown keypress', function (event) {
         if(event.which === 27) {
           scope.$parent.$apply(function(scope) {
             scope.showGlobalSearch=false;

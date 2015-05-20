@@ -1,0 +1,34 @@
+<md-dialog aria-label="Create New Task" flex="50">
+  <form>
+    <md-dialog-content class="sticky-container">
+      <md-subheader class="md-sticky-no-effect">Create New Task</md-subheader>
+
+      <form name="createTaskForm" ng-submit="submit()">
+        <div layout="column" layout-padding>
+          <md-input-container>
+            <label>Task Title</label>
+            <input ng-model="user.company">
+          </md-input-container>
+
+          <textarea placeholder="Description" rows="5"></textarea>
+
+          <md-select md-on-open="loadUsers()" ng-model="user">
+            <md-select-label>Unassigned</md-select-label>
+            <md-option ng-value="user" ng-repeat="user in users">{{user.name}}</md-option>
+          </md-select>
+
+        </div>
+      </form>
+
+    </md-dialog-content>
+    <div class="md-actions" layout="row">
+      <span flex></span>
+      <md-button ng-click="hide()" class="md-primary">
+        Cancel
+      </md-button>
+      <md-button ng-click="submit()" class="md-primary">
+        Create Task
+      </md-button>
+    </div>
+  </form>
+</md-dialog>
