@@ -333,6 +333,20 @@ class Project:
         ), 'get_parent_project'
     )
 
+    subtype = fields.Selection([
+        ('feature', 'Feature'),
+        ('bug', 'Bug'),
+        ('question', 'Question'),
+        ('epic', 'Epic'),
+    ], 'Subtype', select=True, states={
+        'invisible': Eval('type') != 'task',
+        'required': Eval('type') == 'task',
+    })
+
+    @staticmethod
+    def default_subtype():
+        return 'feature'
+
     def get_parent_project(self, name):
         """
         Gets the parent of this project
@@ -416,6 +430,7 @@ class Project:
         if self.type == 'task':
             # Computing the effort for project is expensive
             value['hours'] = self.hours
+            value['subtype'] = self.subtype
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
             value['project'] = self and self.id
