@@ -9,9 +9,9 @@
     <label name="end_date" />
     <field name="end_date" />
     <notebook colspan="4">
-        <page string="Items" id="items" col="1">
-            <label name="items"/>
-            <field name="items" />
+        <page string="Tasks" id="tasks" col="1">
+            <label name="tasks"/>
+            <field name="tasks" />
         </page>
     </notebook>
 </form>
