@@ -13,8 +13,8 @@ CWD = os.path.abspath(os.path.dirname(__file__))
 DATABASE_NAME = os.environ.get('TRYTOND_DB_NAME', 'nereid_project')
 SECRET_PATH = os.environ.get('SECRET_PATH', '.secret')
 
-from trytond.config import CONFIG
-CONFIG.update_etc()
+from trytond.config import config
+config.update_etc()
 
 
 APP_CONFIG = dict(
