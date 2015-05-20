@@ -12,7 +12,7 @@ angular.module('nereidProjectApp')
       }
 
       $scope.updateRoute = function(state) {
-        $state.go('base.tasks.' + state);
+        $state.go('base.project.tasks.' + state);
       };
 
     }

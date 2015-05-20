@@ -29,17 +29,35 @@ angular.module('nereidProjectApp', [
         controller: 'BaseCtrl'
       })
 
-      .state('base.tasks', {
-        url: 'tasks',
+      .state('base.projects', {
+        url: 'projects',
         views: {
           'main-view': {
+            templateUrl: 'views/projects.html',
+          }
+        }
+      })
+
+      .state('base.project', {
+        url: 'project/:projectId',
+        views: {
+          'main-view': {
+            templateUrl: 'views/project.html',
+          }
+        }
+      })
+
+      .state('base.project.tasks', {
+        url: '/tasks',
+        views: {
+          'project-nav-view': {
             templateUrl: 'views/tasks.html',
             controller: 'TasksCtrl'
           }
         }
       })
 
-      .state('base.tasks.open', {
+      .state('base.project.tasks.open', {
         url: '/open',
         tabIndex: 0, // Tab index of the md-tab in tasks view
         views: {
@@ -50,7 +68,7 @@ angular.module('nereidProjectApp', [
         }
       })
 
-      .state('base.tasks.done', {
+      .state('base.project.tasks.done', {
         url: '/done',
         tabIndex: 1,
         views: {
@@ -61,7 +79,7 @@ angular.module('nereidProjectApp', [
         }
       })
 
-      .state('base.tasks.all', {
+      .state('base.project.tasks.all', {
         url: '/all',
         tabIndex: 2,
         views: {

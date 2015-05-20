@@ -37,39 +37,9 @@
   </span>
 </md-toolbar>
 
-<section layout="row" flex>
-  <md-sidenav class="md-sidenav-left md-whiteframe-z2" md-component-id="left" md-is-locked-open="$mdMedia('gt-md')">
-    <div class="menu">
-      <a class="menu-item">
-        <i class="mdi mdi-swap-vertical"></i>
-        <div>Recent Activity</div>
-      </a>
-      <a class="menu-item" ui-sref="base.tasks()" ui-sref-active="active">
-        <i class="mdi mdi-view-list"></i>
-        <div>Tasks</div>
-      </a>
-      <a class="menu-item">
-        <i class="mdi mdi-file-cloud"></i>
-        <div>Files</div>
-      </a>
-      <a class="menu-item">
-        <i class="mdi mdi-timetable"></i>
-        <div>Time Sheets</div>
-      </a>
-      <a class="menu-item">
-        <i class="mdi mdi-account-multiple-outline"></i>
-        <div>People &amp; Permissions</div>
-      </a>
-      <a class="menu-item">
-        <i class="mdi mdi-tag-text-outline"></i>
-        <div>Tags</div>
-      </a>
-    </div>
-  </md-sidenav>
-
-  <md-content flex>
-    <!-- ui-view for main interface -->
-    <div ui-view="main-view"></div>
-  </md-content>
+<md-content flex>
+  <!-- ui-view for main interface -->
+  <div ui-view="main-view"></div>
+</md-content>
 
 </section>
