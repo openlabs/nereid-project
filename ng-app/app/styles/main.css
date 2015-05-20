@@ -7,6 +7,11 @@ md-sidenav.md-locked-open {
   min-width: 220px;
 }
 
+md-sidenav {
+  background: #3F3F3F;
+  color: #bdbbbb;
+}
+
 .custom-ripple[md-ink-ripple] {
   position: relative;
 }
@@ -56,3 +61,30 @@ md-sidenav.md-locked-open {
   height: 75px;
   margin-bottom: -11px;
 }
+
+.user-avatar {
+  border-radius: 99%;
+}
+
+/* Menu */
+.menu-item {
+  margin-top: 10px;
+  text-align: center;
+  line-height: 40px;
+}
+
+.menu-item:first-child {
+  margin-top: 0;
+}
+
+.menu-item:hover {
+  cursor: pointer;
+  background: #333;
+  color: #fff;
+}
+
+.menu-item > .mdi {
+  font-size: 2em;
+  margin-left: 4px;
+}
+/* /Menu */
