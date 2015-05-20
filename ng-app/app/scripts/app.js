@@ -27,6 +27,49 @@ angular.module('nereidProjectApp', [
         url: '/',
         templateUrl: 'views/base.html',
         controller: 'BaseCtrl'
+      })
+
+      .state('base.tasks', {
+        url: 'tasks',
+        views: {
+          'main-view': {
+            templateUrl: 'views/tasks.html',
+            controller: 'TasksCtrl'
+          }
+        }
+      })
+
+      .state('base.tasks.open', {
+        url: '/open',
+        tabIndex: 0, // Tab index of the md-tab in tasks view
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/open-tasks.html',
+            controller: 'OpenTasksCtrl'
+          }
+        }
+      })
+
+      .state('base.tasks.done', {
+        url: '/done',
+        tabIndex: 1,
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/done-tasks.html',
+            controller: 'DoneTasksCtrl'
+          }
+        }
+      })
+
+      .state('base.tasks.all', {
+        url: '/all',
+        tabIndex: 2,
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/all-tasks.html',
+            controller: 'AllTasksCtrl'
+          }
+        }
       });
 
       $mdThemingProvider.theme('default')
