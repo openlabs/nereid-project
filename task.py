@@ -395,47 +395,36 @@ class Task:
             sender, receivers, message.as_string()
         )
 
-    @classmethod
-    @route('/task-<int:task_id>/-unwatch', methods=['GET', 'POST'])
+    @route('/tasks/<int:active_id>/watch', methods=['PUT'])
     @login_required
-    def unwatch(cls, task_id):
+    def watch(self):
         """
-        Remove the current user from the participants of the task
-
-        :params task_id: task's id to unwatch.
+        PUT /tasks/:task_id/watch
+        Param {
+            action: watch, unwatch
+        }
         """
-        task = cls.get_task(task_id)
+        task = self.get_task(self.id)
 
-        if current_user in task.participants:
-            cls.write(
-                [task], {
-                    'participants': [('remove', [current_user.id])]
-                }
-            )
-        if request.is_xhr:
-            return jsonify({'success': True})
-        return redirect(request.referrer)
+        if request.values.get('action') == 'watch':
+            if current_user not in task.participants:
+                self.write(
+                    [task], {
+                        'participants': [('add', [current_user.id])]
+                    }
+                )
+                return jsonify({'message': "Successfully watched"}), 200
 
-    @classmethod
-    @route('/task-<int:task_id>/-watch', methods=['GET', 'POST'])
-    @login_required
-    def watch(cls, task_id):
-        """
-        Add the current user from the participants of the task
+        elif request.values.get('action') == 'unwatch':
+            if current_user in task.participants:
+                self.write(
+                    [task], {
+                        'participants': [('remove', [current_user.id])]
+                    }
+                )
+                return jsonify({'message': "Successfully unwatched"}), 200
 
-        :params task_id: task's id to watch.
-        """
-        task = cls.get_task(task_id)
-
-        if current_user not in task.participants:
-            cls.write(
-                [task], {
-                    'participants': [('add', [current_user.id])]
-                }
-            )
-        if request.is_xhr:
-            return jsonify({'success': True})
-        return redirect(request.referrer)
+        return jsonify({'message': "Invalid action"}), 400
 
     @classmethod
     @route('/project-<int:project_id>/task-list')

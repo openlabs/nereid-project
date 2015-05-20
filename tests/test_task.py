@@ -103,29 +103,31 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user2.email, 'password')
 
-                # Unwatching task
-                response = c.post(
-                    '/task-%d/-unwatch' % self.task1.id,
-                    data={},
+                # Watching task
+                response = c.put(
+                    '/tasks/%d/watch' % self.task1.id,
+                    data={
+                        'action': 'watch'
+                    },
                     headers=self.xhr_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
-                self.assertFalse(
+                self.assertTrue(
                     self.reg_user2 in self.task1.participants
                 )
 
-                # Watching task
-                response = c.post(
-                    '/task-%d/-watch' % self.task1.id,
-                    data={},
+                # Unwatching task
+                response = c.put(
+                    '/tasks/%d/watch' % self.task1.id,
+                    data={
+                        'action': 'unwatch'
+                    },
                     headers=self.xhr_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
-                self.assertTrue(
+                self.assertFalse(
                     self.reg_user2 in self.task1.participants
                 )
 
