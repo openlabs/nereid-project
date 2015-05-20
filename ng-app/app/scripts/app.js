@@ -28,16 +28,9 @@ angular.module('nereidProjectApp', [
         templateUrl: 'views/base.html'
       });
 
-      var customGreenMap = $mdThemingProvider.extendPalette('teal', {
-        'contrastDefaultColor': 'light',
-        'contrastDarkColors': ['50'],
-        '50': 'ffffff'
-      });
-      $mdThemingProvider.definePalette('customGreen', customGreenMap);
       $mdThemingProvider.theme('default')
-      .primaryPalette('customGreen', {
-        'default': '500',
-        'hue-1': '50'
+      .primaryPalette('green', {
+        'default': '500'
       })
       .accentPalette('pink');
       $mdThemingProvider.theme('input', 'default')
