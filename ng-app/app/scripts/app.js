@@ -40,10 +40,11 @@ angular.module('nereidProjectApp', [
       })
 
       .state('base.project', {
-        url: 'project/:projectId',
+        url: 'projects/{projectId:int}',
         views: {
           'main-view': {
             templateUrl: 'views/project.html',
+            controller: 'ProjectCtrl'
           }
         }
       })
@@ -54,6 +55,15 @@ angular.module('nereidProjectApp', [
           'project-nav-view': {
             templateUrl: 'views/tasks.html',
             controller: 'TasksCtrl'
+          }
+        }
+      })
+
+      .state('base.project.task', {
+        url: '/tasks/{taskId:int}',
+        views: {
+          'project-nav-view': {
+            templateUrl: 'views/task.html',
           }
         }
       })

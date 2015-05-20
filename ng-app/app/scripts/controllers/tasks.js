@@ -6,6 +6,7 @@ angular.module('nereidProjectApp')
     '$state',
     function($scope, $state) {
       $scope.selectedIndex = $state.current.tabIndex;
+      $scope.projectId = $state.params.projectId;
 
       if(!$scope.selectedIndex) {
         $scope.selectedIndex = 0;

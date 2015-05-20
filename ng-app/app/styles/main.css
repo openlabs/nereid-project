@@ -101,3 +101,7 @@ md-sidenav {
   margin-left: 4px;
 }
 /* /Menu */
+
+md-list-item a {
+  text-decoration: none;
+}
