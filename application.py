@@ -31,6 +31,7 @@ APP_CONFIG = dict(
 
     SECRET_KEY=open(SECRET_PATH).read(),
 
+    WTF_CSRF_ENABLED=False,
 )
 # Create a new application
 app = Nereid(static_folder='%s/static/' % CWD, static_url_path='/static')
