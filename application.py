@@ -5,6 +5,7 @@ import mimetypes
 
 from nereid import Nereid
 from werkzeug.contrib.sessions import FilesystemSessionStore
+from werkzeug.wsgi import SharedDataMiddleware
 from nereid.contrib.locale import Babel
 from nereid.sessions import Session
 from raven.contrib.flask import Sentry
@@ -13,8 +14,8 @@ CWD = os.path.abspath(os.path.dirname(__file__))
 DATABASE_NAME = os.environ.get('TRYTOND_DB_NAME', 'nereid_project')
 SECRET_PATH = os.environ.get('SECRET_PATH', '.secret')
 
-from trytond.config import CONFIG
-CONFIG.update_etc()
+from trytond.config import config
+config.update_etc()
 
 
 APP_CONFIG = dict(
@@ -55,6 +56,10 @@ app.session_interface.session_store = FilesystemSessionStore(
 
 Babel(app)
 sentry = Sentry(app)
+
+app.wsgi_app = SharedDataMiddleware(app.wsgi_app, {
+    '/app': os.path.join(os.path.dirname(__file__), 'ng-app/app')
+})
 
 
 if __name__ == '__main__':
