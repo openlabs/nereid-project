@@ -502,7 +502,7 @@ class Project:
         if user not in map(lambda member: member.user, self.members):
             if silent:
                 return False
-            raise abort(404)
+            raise abort(403)
         return True
 
     def can_write(self, user, silent=False):
@@ -516,7 +516,7 @@ class Project:
         if user not in map(lambda member: member.user, self.members):
             if silent:
                 return False
-            raise abort(404)
+            raise abort(403)
         return True
 
     @classmethod
