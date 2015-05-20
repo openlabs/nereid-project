@@ -21,10 +21,40 @@ from trytond.transaction import Transaction
 from trytond.pyson import Eval
 from trytond.config import config
 from trytond import backend
-
+from flask_wtf import Form
+from wtforms import TextField, SelectField, \
+    DateTimeField, IntegerField, SelectMultipleField, validators
 
 __all__ = ['TaskUsers', 'Task']
 __metaclass__ = PoolMeta
+
+
+class CreateTaskForm(Form):
+    """Form for creating task.
+    """
+    project = IntegerField('Project', [validators.DataRequired()])
+    name = TextField('Name', [validators.DataRequired()])
+    description = TextField('Description')
+    subtype = SelectField('SubType', choices=[])
+    assign_to = IntegerField('Assign To')
+    constraint_start_time = DateTimeField('Constraint Start Time')
+    constraint_finish_time = DateTimeField('Constraint Finish Time')
+    tags = SelectMultipleField('Tags', choices=[], coerce=int)
+
+    def __init__(self, *args, **kwargs):
+        super(CreateTaskForm, self).__init__(*args, **kwargs)
+
+        Work = Pool().get('project.work')
+
+        # Fill subtype choices
+        self.subtype.choices = Work.subtype.selection
+
+        # Fill tags choices
+        if self.project.data:
+            project = Work(self.project.data)
+            self.tags.choices = [
+                (tag.id, tag.name) for tag in project.tags_for_projects
+            ]
 
 
 calendar.setfirstweekday(calendar.SUNDAY)
@@ -202,7 +232,7 @@ class Task:
         if not tasks:
             raise abort(404)
 
-        if not tasks[0].parent.can_write(request.nereid_user, silent=True):
+        if not tasks[0].parent.can_write(current_user, silent=True):
             # If the user is not allowed to access this project then dont let
             raise abort(403)
 
@@ -224,7 +254,7 @@ class Task:
         return tasks
 
     @login_required
-    @route('/project-<int:active_id>/task/-new', methods=['GET', 'POST'])
+    @route('/projects/<int:active_id>/tasks/', methods=['GET', 'POST'])
     def create_task(self):
         """Create a new task for the specified project
 
@@ -233,78 +263,67 @@ class Task:
         NereidUser = Pool().get('nereid.user')
         Activity = Pool().get('nereid.activity')
         Work = Pool().get('timesheet.work')
+        Task = Pool().get('project.work')
+
+        # Check if user has write permissions in project.
+        if not self.can_write(current_user, silent=True):
+            return abort(403)
 
         project = self.get_project(self.id)
+        form = CreateTaskForm(project=project.id)
 
-        # Check if user is among the participants
-        self.can_write(request.nereid_user)
+        if form.validate_on_submit():
+            work, = Work.create([{
+                'name': form.name.data,
+                'company': request.nereid_website.company.id
+            }])
+            task = Task()
+            task.parent = self
+            task.work = work
+            task.type = 'task'
+            task.subtype = form.subtype.data
+            task.comment = form.description.data
 
-        if request.method == 'POST':
-            if request.is_xhr and request.json:
-                name = request.json['name']
-            else:
-                name = request.form['name']
-            data = {
-                'parent': self.id,
-                'work': Work.create([{
-                    'name': name,
-                    'company': request.nereid_website.company.id
-                }])[0].id,
-                'type': 'task',
-                'comment': request.form.get('description', None),
-            }
+            if current_user.is_admin_of_project(self) and form.tags.data:
+                task.tags = form.tags.data
 
-            if request.form.getlist('tags', int) and \
-                    request.nereid_user.is_admin_of_project(self):
-                data['tags'] = [('add', request.form.getlist('tags', int))]
+            if form.constraint_start_time.data:
+                task.constraint_start_time = form.constraint_start_time.data
 
-            constraint_start_time = request.form.get(
-                'constraint_start_time', None)
-            constraint_finish_time = request.form.get(
-                'constraint_finish_time', None)
-            if constraint_start_time:
-                data['constraint_start_time'] = datetime.strptime(
-                    constraint_start_time, '%m/%d/%Y')
-            if constraint_finish_time:
-                data['constraint_finish_time'] = datetime.strptime(
-                    constraint_finish_time, '%m/%d/%Y')
+            if form.constraint_finish_time.data:
+                task.constraint_finish_time = form.constraint_finish_time.data
 
-            task, = self.create([data])
+            if form.assign_to.data:
+                assigned_to = NereidUser(form.assign_to.data)
+
+                if self.can_write(assigned_to):
+                    task.assigned_to = assigned_to.id
+
+            task.save()
+
             Activity.create([{
-                'actor': request.nereid_user.id,
+                'actor': current_user.id,
                 'object_': 'project.work, %d' % task.id,
                 'verb': 'created_task',
                 'target': 'project.work, %d' % project.id,
                 'project': project.id,
             }])
 
-            email_receivers = [p.email for p in self.all_participants]
-            if request.form.get('assign_to', None):
-                assignee = NereidUser(request.form.get('assign_to', type=int))
+            task.send_mail([p.email for p in self.all_participants])
 
-                # Check if assignee is among the participants, if not add
-                # it to the participants
-                if self.can_write(assignee):
-                    self.write([task], {
-                        'assigned_to': assignee.id,
-                        'participants': [
-                            ('add', [assignee.id])
-                        ]
-                    })
-                email_receivers = [assignee.email]
-            task.send_mail(email_receivers)
-            if request.is_xhr:
-                return jsonify(task.serialize())
-            flash("Task successfully added to project %s" % self.rec_name)
-            return redirect(
-                url_for(
-                    'project.work.render_task',
-                    project_id=self.id, task_id=task.id
-                )
+            return jsonify(task.serialize()), 201
+
+        elif form.errors:
+            return jsonify({
+                'errors': form.errors,
+                'message': 'Task creation has been failed',
+            }), 400
+
+        else:
+            # TODO: Return pagination instead.
+            return jsonify(
+                tasks=[task.serialize() for task in project.children]
             )
-
-        flash("Could not create task. Try again.")
-        return redirect(request.referrer)
 
     @login_required
     @route('/task-<int:active_id>/-edit', methods=['POST'])
@@ -324,7 +343,7 @@ class Task:
             'comment': request.form.get('comment')
         })
         Activity.create([{
-            'actor': request.nereid_user.id,
+            'actor': current_user.id,
             'object_': 'project.work, %d' % task.id,
             'verb': 'edited_task',
             'target': 'project.work, %d' % task.parent.id,
@@ -368,7 +387,7 @@ class Task:
             text_template='project/emails/project_text_content.jinja',
             html_template='project/emails/project_html_content.jinja',
             task=self,
-            updated_by=request.nereid_user.display_name
+            updated_by=current_user.display_name
         )
 
         # Send mail.
@@ -387,10 +406,10 @@ class Task:
         """
         task = cls.get_task(task_id)
 
-        if request.nereid_user in task.participants:
+        if current_user in task.participants:
             cls.write(
                 [task], {
-                    'participants': [('remove', [request.nereid_user.id])]
+                    'participants': [('remove', [current_user.id])]
                 }
             )
         if request.is_xhr:
@@ -408,10 +427,10 @@ class Task:
         """
         task = cls.get_task(task_id)
 
-        if request.nereid_user not in task.participants:
+        if current_user not in task.participants:
             cls.write(
                 [task], {
-                    'participants': [('add', [request.nereid_user.id])]
+                    'participants': [('add', [current_user.id])]
                 }
             )
         if request.is_xhr:
@@ -519,9 +538,9 @@ class Task:
         ]
         if request.args.get('watched'):
             # Show all tasks watched, not assigned
-            filter_domain.append(('participants', '=', request.nereid_user.id))
+            filter_domain.append(('participants', '=', current_user.id))
         else:
-            filter_domain.append(('assigned_to', '=', request.nereid_user.id))
+            filter_domain.append(('assigned_to', '=', current_user.id))
         query = request.args.get('q', None)
         if query:
             # This search is probably the suckiest search in the
@@ -636,7 +655,7 @@ class Task:
 
         history_data = {
             'project': task.id,
-            'updated_by': request.nereid_user.id,
+            'updated_by': current_user.id,
             'comment': request.form['comment']
         }
 
@@ -685,16 +704,16 @@ class Task:
             # Just comment, no update to task
             comment, = History.create([history_data])
         Activity.create([{
-            'actor': request.nereid_user.id,
+            'actor': current_user.id,
             'object_': 'project.work.history, %d' % comment.id,
             'verb': 'updated_task',
             'target': 'project.work, %d' % task.id,
             'project': task.parent.id,
         }])
 
-        if request.nereid_user.id not in current_participant_ids:
+        if current_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
-            new_participant_ids.add(request.nereid_user.id)
+            new_participant_ids.add(current_user.id)
 
         for nereid_user in request.form.getlist('notify[]', int):
             # Notify more people if there are people
@@ -708,14 +727,14 @@ class Task:
             })
 
         hours = request.form.get('hours', None, type=float)
-        if hours and request.nereid_user.employee:
+        if hours and current_user.employee:
             timesheet_line, = TimesheetLine.create([{
-                'employee': request.nereid_user.employee.id,
+                'employee': current_user.employee.id,
                 'hours': hours,
                 'work': task.work.id
             }])
             Activity.create([{
-                'actor': request.nereid_user.id,
+                'actor': current_user.id,
                 'object_': 'timesheet.line, %d' % timesheet_line.id,
                 'verb': 'reported_time',
                 'target': 'project.work, %d' % task.id,
@@ -754,7 +773,7 @@ class Task:
             [task], {'tags': [('add', [tag_id])]}
         )
         Activity.create([{
-            'actor': request.nereid_user.id,
+            'actor': current_user.id,
             'object_': 'project.work.tag, %d' % tag_id,
             'verb': 'added_tag_to_task',
             'target': 'project.work, %d' % task.id,
@@ -787,7 +806,7 @@ class Task:
             [task], {'tags': [('remove', [tag_id])]}
         )
         Activity.create([{
-            'actor': request.nereid_user.id,
+            'actor': current_user.id,
             'object_': 'project.work, %d' % task.id,
             'verb': 'removed_tag_from_task',
             'target': 'project.work, %d' % task.parent.id,
@@ -812,7 +831,7 @@ class Task:
         """
         TimesheetLine = Pool().get('timesheet.line')
 
-        if not request.nereid_user.employee:
+        if not current_user.employee:
             flash("Only employees can mark time on tasks!")
             return redirect(request.referrer)
 
@@ -820,7 +839,7 @@ class Task:
 
         with Transaction().set_user(0):
             TimesheetLine.create([{
-                'employee': request.nereid_user.employee.id,
+                'employee': current_user.employee.id,
                 'hours': request.form['hours'],
                 'work': task.work.id,
             }])
@@ -854,7 +873,7 @@ class Task:
             })
             task.history[-1].send_mail()
             Activity.create([{
-                'actor': request.nereid_user.id,
+                'actor': current_user.id,
                 'object_': 'project.work, %d' % task.id,
                 'verb': 'assigned_task_to',
                 'target': 'nereid.user, %d' % new_assignee.id,
@@ -919,7 +938,7 @@ class Task:
 
         cls.write([task], data)
         Activity.create([{
-            'actor': request.nereid_user.id,
+            'actor': current_user.id,
             'object_': 'project.work, %d' % task.id,
             'verb': 'changed_date',
             'project': task.parent.id,
@@ -949,7 +968,7 @@ class Task:
         task = cls.get_task(task_id)
 
         # Check if user is among the project admins
-        if not request.nereid_user.is_admin_of_project(task.parent):
+        if not current_user.is_admin_of_project(task.parent):
             flash(
                 "Sorry! You are not allowed to delete tasks. \
                 Contact your project admin for the same."
@@ -977,7 +996,7 @@ class Task:
 
         :param task_id: ID of the task.
         """
-        if not request.nereid_user.employee:
+        if not current_user.employee:
             flash("Sorry! You are not allowed to change estimate hours.")
             return redirect(request.referrer)
 

@@ -28,13 +28,7 @@ class TestTask(TestBase):
     Test Task
     '''
 
-    def get_template_source(self, name):
-        """
-        Return templates.
-        """
-        return self.templates.get(name)
-
-    def test_0010_create_task(self):
+    def test_0010_create_and_list_task(self):
         """
         Test create task by logged in user
         """
@@ -48,24 +42,25 @@ class TestTask(TestBase):
 
                 # Create Task
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     data={
                         'name': 'Test Task',
                         'description': 'task_desc',
+                        'subtype': 'feature',
                     }
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
 
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Task successfully added to project ABC' in
-                    response.data
+                # Get Task
+                response = c.get(
+                    '/projects/%d/tasks/' % self.project1.id,
                 )
+                self.assertEqual(response.status_code, 200)
 
-                task, = self.Project.search([
-                    ('type', '=', 'task'),
-                    ('rec_name', '=', 'Test Task')
-                ])
+                task_data = json.loads(response.data)
+                self.assertEqual(len(task_data), 1)
+
+                task = self.Project(task_data['tasks'][0]['id'])
 
                 self.assertEqual(task.state, 'opened')
                 self.assertEqual(task.progress_state, 'Backlog')
@@ -763,10 +758,11 @@ class TestTask(TestBase):
 
                 # Create Task
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     data={
                         'name': 'Task with multiple tags',
                         'description': 'Multi selection tags field',
+                        'subtype': 'feature',
                         'tags': [
                             self.tag1.id,
                             self.tag2.id,
@@ -774,7 +770,7 @@ class TestTask(TestBase):
                         ],
                     }
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
                 # One task created
                 self.assertEqual(
                     len(self.Project.search([('type', '=', 'task')])),
@@ -814,10 +810,11 @@ class TestTask(TestBase):
 
                 # Create Task
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     data={
                         'name': 'Task 2 with multiple tags',
                         'description': 'Multi selection tags field',
+                        'subtype': 'feature',
                         'tags': [
                             self.tag1.id,
                             self.tag2.id,
@@ -825,7 +822,7 @@ class TestTask(TestBase):
                         ],
                     }
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
                 # One task created
                 self.assertEqual(
                     len(self.Project.search([('type', '=', 'task')])),
@@ -863,20 +860,15 @@ class TestTask(TestBase):
                 self.assertEqual(response.location, 'http://localhost/')
 
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     data={
                         'name': 'Test Task 1',
                         'description': 'task_desc',
+                        'subtype': 'feature',
                         'assign_to': self.reg_user1.id,
                     }
                 )
-                self.assertEqual(response.status_code, 302)
-
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Task successfully added to project ABC' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 201)
 
             # Nereid User-1 creates a task and assign it to other
             # participant of the project
@@ -887,20 +879,15 @@ class TestTask(TestBase):
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     data={
                         'name': 'Test Task 2',
                         'description': 'task_desc',
                         'assign_to': self.reg_user2.id,
+                        'subtype': 'feature',
                     }
                 )
-                self.assertEqual(response.status_code, 302)
-
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Task successfully added to project ABC' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 201)
 
             # Nereid User-1 creates a task and assign it to non
             # participant user
@@ -911,14 +898,15 @@ class TestTask(TestBase):
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     data={
                         'name': 'Test Task 3',
                         'description': 'task_desc',
+                        'subtype': 'feature',
                         'assign_to': self.reg_user3.id,
                     }
                 )
-                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.status_code, 403)
 
             task, = self.Project.search([
                 ('type', '=', 'task'), ('work.name', '=', 'Test Task 1')
