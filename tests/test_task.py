@@ -40,6 +40,13 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
+                self.assertEqual(
+                    self.Project.search([
+                        ('type', '=', 'task'),
+                        ('parent', '=', self.project1.id)
+                    ], count=True), 3
+                )
+
                 # Create Task
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
@@ -58,12 +65,7 @@ class TestTask(TestBase):
                 self.assertEqual(response.status_code, 200)
 
                 task_data = json.loads(response.data)
-                self.assertEqual(len(task_data), 1)
-
-                task = self.Project(task_data['tasks'][0]['id'])
-
-                self.assertEqual(task.state, 'opened')
-                self.assertEqual(task.progress_state, 'Backlog')
+                self.assertEqual(task_data['count'], 4)
 
     def test_0020_edit_task(self):
         """
@@ -306,7 +308,7 @@ class TestTask(TestBase):
 
                 # Render_task_list for project
                 response = c.get(
-                    '/project-%d/task-list' % self.project1.id,
+                    '/projects/%d/tasks/' % self.project1.id,
                     headers=self.xhr_header,
                 )
 
@@ -329,7 +331,7 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with query 'test'
                 response = c.get(
-                    '/project-%d/task-list?q=test' %
+                    '/projects/%d/tasks/?q=test' %
                     self.project1.id, headers=self.xhr_header,
                 )
 
@@ -340,7 +342,7 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with query 'task3'
                 response = c.get(
-                    '/project-%d/task-list?q=task3' %
+                    '/projects/%d/tasks/?q=task3' %
                     self.project1.id, headers=self.xhr_header,
                 )
 
@@ -363,7 +365,7 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with tag 'tag1'
                 response = c.get(
-                    '/project-%d/task-list?tag=%d' %
+                    '/projects/%d/tasks/?tag=%d' %
                     (self.project1.id, self.tag1.id),
                     headers=self.xhr_header,
                 )
@@ -375,7 +377,7 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with tag 'tag2'
                 response = c.get(
-                    '/project-%d/task-list?tag=%d' %
+                    '/projects/%d/tasks/?tag=%d' %
                     (self.project1.id, self.tag2.id),
                     headers=self.xhr_header,
                 )
