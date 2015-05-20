@@ -9,6 +9,7 @@ angular.module('nereidProjectApp', [
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider
       .when('', '/')
+      .when('/', '/projects')
       .otherwise('/404');
 
     $stateProvider
@@ -44,7 +45,8 @@ angular.module('nereidProjectApp', [
         url: 'projects/{projectId:int}',
         views: {
           'main-view': {
-            templateUrl: 'views/project.html'
+            templateUrl: 'views/project.html',
+            controller: 'ProjectCtrl'
           }
         }
       })
@@ -64,6 +66,7 @@ angular.module('nereidProjectApp', [
         views: {
           'project-nav-view': {
             templateUrl: 'views/task.html',
+            controller: 'TaskCtrl'
           }
         }
       })

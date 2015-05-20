@@ -3,18 +3,26 @@
 angular.module('nereidProjectApp')
   .directive('createTask', [
     '$mdDialog',
-    function ($mdDialog) {
+    'Task',
+    function ($mdDialog, Task) {
       return {
         restrict: 'E',
         transclude: true,
-        scope: {},
+        scope: {
+          getProject: '&project'
+        },
         template: '<ng-transclude ng-click="openNewTaskModal()"></ng-transclude>',
         link: function (scope) {
           scope.openNewTaskModal = function() {
             $mdDialog.show({
               controller: function createTaskCtrl($scope, $mdDialog){
+
+                $scope.project = scope.getProject();
+                $scope.taskObj = {};
+
                 $scope.submit = function() {
-                  // TODO: handle form submit
+                  console.log($scope.taskObj);
+                  Task.create($scope.project.id, $scope.taskObj);
                 };
                 $scope.hide = function() {
                   $mdDialog.cancel();

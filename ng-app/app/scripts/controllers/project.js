@@ -1,25 +1,23 @@
 'use strict';
 
 angular.module('nereidProjectApp')
-.controller('ProjectsCtrl', [
+.controller('ProjectCtrl', [
     '$mdDialog',
     '$scope',
+    '$state',
     'Project',
-    function($mdDialog, $scope, Project) {
+    'Helper',
+    function($mdDialog, $scope, $state, Project, Helper) {
 
-      $scope.loadProjects = function() {
-        console.log('hello');
-        Project.getAll()
+      $scope.projectId = $state.params.projectId;
+
+      $scope.loadProject = function() {
+        Project.get($scope.projectId)
           .success(function(result) {
-            $scope.projects = result;
-            console.log(result);
+            $scope.project = result;
           })
           .error(function(reason) {
-            $mdDialog.alert()
-            .title('Could not fetch projects')
-            .content(reason)
-            .ariaLabel('Could not fetch projects')
-            .ok('Got it!');
+            Helper.showDialog('Could not fetch project', reason);
           });
       };
 

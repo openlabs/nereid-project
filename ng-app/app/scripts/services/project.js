@@ -12,6 +12,10 @@ angular.module('nereidProjectApp')
       return $http.get(nereid.buildUrl('/projects'));
     };
 
+    Project.get = function(projectId) {
+      return $http.get(nereid.buildUrl('/project-' + projectId));
+    };
+
     Project.getTasks = function(projectId) {
       return $http.get(nereid.buildUrl('/projects/' + projectId + '/tasks'));
     };

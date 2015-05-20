@@ -10,11 +10,9 @@ angular.module('nereidProjectApp')
       $scope.loadProjects = function() {
         Project.getAll()
           .success(function(result) {
-            $scope.projects = result;
-            console.log(result);
+            $scope.projects = result.items;
           })
           .error(function(reason) {
-            console.log(reason);
             $mdDialog.alert()
             .title('Could not fetch projects')
             .content(reason)
