@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+
+<tryton>
+    <data>
+        <!-- Project Iteration-->
+        <record model="ir.ui.view" id="iteration_view_form">
+            <field name="model">project.iteration</field>
+            <field name="type">form</field>
+            <field name="name">iteration_form</field>
+        </record>
+        <record model="ir.ui.view" id="iteration_view_tree">
+            <field name="model">project.iteration</field>
+            <field name="type">tree</field>
+            <field name="name">iteration_tree</field>
+        </record>
+
+        <record model="ir.action.act_window" id="act_iteration_form">
+            <field name="name">Iterations</field>
+            <field name="res_model">project.iteration</field>
+        </record>
+
+        <record model="ir.action.act_window.view" id="act_iteration_form_view1">
+            <field name="sequence" eval="10" />
+            <field name="view" ref="iteration_view_tree" />
+            <field name="act_window" ref="act_iteration_form" />
+        </record>
+
+        <record model="ir.action.act_window.view" id="act_work_period_form_view2">
+            <field name="sequence" eval="20" />
+            <field name="view" ref="iteration_view_form" />
+            <field name="act_window" ref="act_iteration_form" />
+        </record>
+
+        <menuitem parent="project.menu_project_tree" action="act_iteration_form"
+            id="menu_iteration" sequence="100" />
+
+        <record id="permission_scrum_master" model="nereid.permission">
+            <field name="name">Scrum Master</field>
+            <field name="value">project.scrum_master</field>
+        </record>
+
+    </data>
+</tryton>

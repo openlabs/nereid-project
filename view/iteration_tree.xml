@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<tree string="Iterations">
+    <field name="name" />
+    <field name="start_date" />
+    <field name="end_date" />
+</tree>

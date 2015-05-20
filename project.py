@@ -332,6 +332,13 @@ class Project:
             }
         ), 'get_parent_project'
     )
+    iteration = fields.Many2One(
+        'project.iteration', 'Iteration',
+    )
+    backlog_iterations = fields.Many2Many(
+        'project.iteration-project.work', 'task', 'iteration',
+        'Backlog Iteration', readonly=True
+    )
 
     subtype = fields.Selection([
         ('feature', 'Feature'),
