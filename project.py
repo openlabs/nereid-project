@@ -382,30 +382,27 @@ class Project:
         ]
 
     @classmethod
-    @route('/projects')
+    @route('/projects/', methods=['GET'])
     @login_required
     def home(cls):
         """
-        Put recent projects into the home
+        GET /projects/ : List all the projects
+
+        :TODO: Implement POST also
         """
         domain = [
             ('type', '=', 'project'),
             ('parent', '=', None),
         ]
 
-        if not request.nereid_user.has_permissions(['project.admin']):
+        if not current_user.has_permissions(['project.admin']):
             # If not project admin, then the project only where user has
             # a membership is shown
             domain.append(('members.user', '=', request.nereid_user.id))
 
-        projects = sorted(cls.search(domain), key=lambda p: p.rec_name)
-
-        if request.is_xhr:
-            return jsonify({
-                'itemCount': len(projects),
-                'items': map(lambda project: project.serialize(), projects),
-            })
-        return render_template('project/home.jinja', projects=projects)
+        page = request.args.get('page', 1, int)
+        projects = Pagination(cls, domain, page, 20)
+        return jsonify(projects.serialize('listing'))
 
     def serialize(self, purpose=None):
         """

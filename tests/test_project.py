@@ -7,7 +7,6 @@
     :copyright: (c) 2013-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
-import urllib
 import unittest
 import json
 import smtplib
@@ -361,19 +360,11 @@ class TestProject(TestBase):
                     c, self.project_admin_user.email, 'password'
                 )
 
-                response = c.get('/projects')
+                response = c.get('/projects/')
                 self.assertEqual(response.status_code, 200)
 
                 # Total project 2 shown to admin
-                self.assertEqual(response.data, '2')
-
-                # Check with website home if it redirects to project home
-                response = c.get('/')
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(
-                    urllib.unquote(response.location),
-                    'http://localhost/projects'
-                )
+                self.assertEqual(json.loads(response.data)['count'], 2)
 
     def test_0060_get_projects_on_home_when_user_is_not_admin(self):
         """
@@ -423,11 +414,11 @@ class TestProject(TestBase):
 
                 # User Login
                 response = self.login(c, self.reg_user3.email, 'password')
-                response = c.get('/projects')
+                response = c.get('/projects/')
 
                 # Total project shown is 1 as nereid user is a participant
                 # for that project only
-                self.assertEqual(response.data, '1')
+                self.assertEqual(json.loads(response.data)['count'], 1)
 
     def test_0070_create_tag(self):
         """
