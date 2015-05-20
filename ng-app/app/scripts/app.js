@@ -29,7 +29,7 @@ angular.module('nereidProjectApp', [
       });
 
       $mdThemingProvider.theme('default')
-      .primaryPalette('green', {
+      .primaryPalette('light-blue', {
         'default': '500'
       })
       .accentPalette('pink');
