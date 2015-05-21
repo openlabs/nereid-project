@@ -200,12 +200,8 @@ class TestProject(TestBase):
                 response = self.login(c, self.reg_user3.email, 'password')
 
                 # Create project when user is not admin
-                response = c.post('/project/-new', data={
+                response = c.post('/projects/', data={
                     'name': 'ABC',
-                    'type': 'project',
-                    'company': self.company.id,
-                    'parent': None,
-                    'state': 'opened',
                 })
 
                 # Permission Denied
@@ -231,29 +227,13 @@ class TestProject(TestBase):
                 projects_before_creation = self.Project.search([], count=True)
 
                 # Create project when nereid user is admin
-                response = c.post('/project/-new', data={
+                response = c.post('/projects/', data={
                     'name': 'ABC',
-                    'type': 'project',
-                    'company': self.company.id,
-                    'parent': None,
-                    'state': 'opened',
                 })
                 project, = self.Project.search([
                     ('work.name', '=', 'ABC')
                 ])
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(
-                    response.location,
-                    'http://localhost/project-%d' % project.id
-                )
-                response = c.get('http://localhost/project-%d' % project.id)
-                self.assertEqual(response.status_code, 200)
-
-                # Check Flash message
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Project successfully created.' in response.data
-                )
+                self.assertEqual(response.status_code, 201)
 
                 # Check projects after creating new project
                 projects_after_creation = self.Project.search([], count=True)
@@ -261,28 +241,6 @@ class TestProject(TestBase):
                 # Number of projects must be increased by 1
                 self.assertEqual(
                     projects_after_creation, projects_before_creation + 1
-                )
-
-                # Create project with get request when nereid user is admin
-                # , it will show flash message, and won't create project
-                response = c.get('/project/-new', data={
-                    'name': 'ABC',
-                    'type': 'project',
-                    'company': self.company.id,
-                    'parent': False,
-                    'state': 'opened',
-                })
-                self.assertEqual(response.status_code, 302)
-
-                # Project is not added so number of projects are same
-                self.assertEqual(
-                    self.Project.search([], count=True),
-                    projects_after_creation
-                )
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Could not create project. Try again.' in
-                    response.data
                 )
 
     def test_0040_render_project(self):
@@ -315,11 +273,8 @@ class TestProject(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
-                response = c.get('/project-%d' % project.id)
+                response = c.get('/projects/%d/' % project.id)
                 self.assertEqual(response.status_code, 200)
-
-                # Checks if renders the same project that is created
-                self.assertEqual(response.data, 'ABC')
 
     def test_0050_get_projects_on_home_when_user_is_admin(self):
         """
@@ -1261,7 +1216,7 @@ class TestProject(TestBase):
                     '/project-%d/-permissions?invitations=%d' %
                     (project.id, invitation.id)
                 )
-                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.status_code, 403)
 
             # Check with project admin
             with app.test_client() as c:

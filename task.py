@@ -352,36 +352,62 @@ class Task:
         return jsonify(tasks.serialize(purpose='listing'))
 
     @login_required
-    @route('/task-<int:active_id>/-edit', methods=['POST'])
-    def edit_task(self):
-        """
-        Edit the task
+    @route(
+        '/projects/<int:project_id>/tasks/<int:active_id>/',
+        methods=['GET', 'POST', 'DELETE']
+    )
+    def render_task(self, project_id):
+        """Render task
         """
         Activity = Pool().get('nereid.activity')
         Work = Pool().get('timesheet.work')
 
+        # TODO: check if task belong to same project.
         task = self.get_task(self.id)
 
-        Work.write([task.work], {
-            'name': request.form.get('name'),
-        })
-        self.write([task], {
-            'comment': request.form.get('comment')
-        })
-        Activity.create([{
-            'actor': current_user.id,
-            'object_': 'project.work, %d' % task.id,
-            'verb': 'edited_task',
-            'target': 'project.work, %d' % task.parent.id,
-            'project': task.parent.id,
-        }])
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-                'name': self.rec_name,
-                'comment': self.comment,
+        if request.method == "POST":
+            Work.write([task.work], {
+                'name': request.form.get('name'),
             })
-        return redirect(request.referrer)
+            self.write([task], {
+                'comment': request.form.get('comment')
+            })
+            Activity.create([{
+                'actor': current_user.id,
+                'object_': 'project.work, %d' % task.id,
+                'verb': 'edited_task',
+                'target': 'project.work, %d' % task.parent.id,
+                'project': task.parent.id,
+            }])
+            return jsonify(message="Task has been edited successfully")
+
+        elif request.method == "DELETE":
+            # Check if user is among the project admins
+            if not current_user.is_admin_of_project(task.parent):
+                abort(403)
+
+            self.active = False
+            self.save()
+
+            return "", 204
+
+        comments = sorted(
+            task.history + task.work.timesheet_lines + task.attachments +
+            task.repo_commits, key=lambda x: x.create_date
+        )
+
+        hours = {}
+        for line in task.work.timesheet_lines:
+            hours[line.employee] = hours.setdefault(line.employee, 0) + \
+                line.hours
+
+        response = task.serialize()
+        with Transaction().set_context(task=self.id):
+            response['comments'] = [
+                comment.serialize('listing') for comment in comments
+            ]
+
+        return jsonify(response)
 
     def send_mail(self, receivers=None):
         """Send mail when task created.
@@ -505,39 +531,6 @@ class Task:
             active_type_name='render_task_list', counts=counts,
             state_filter=state, tasks_by_state=tasks_by_state,
             states=PROGRESS_STATES[:-1]
-        )
-
-    @classmethod
-    @route('/project-<int:project_id>/task-<int:task_id>')
-    @login_required
-    def render_task(cls, task_id, project_id):
-        """
-        Renders the task in a project
-        """
-        task = cls.get_task(task_id)
-
-        comments = sorted(
-            task.history + task.work.timesheet_lines + task.attachments +
-            task.repo_commits, key=lambda x: x.create_date
-        )
-
-        hours = {}
-        for line in task.work.timesheet_lines:
-            hours[line.employee] = hours.setdefault(line.employee, 0) + \
-                line.hours
-
-        if request.is_xhr:
-            response = cls.serialize(task)
-            with Transaction().set_context(task=task_id):
-                response['comments'] = [
-                    comment.serialize('listing') for comment in comments
-                ]
-            return jsonify(response)
-
-        return render_template(
-            'project/task.jinja', task=task,
-            active_type_name='render_task_list', project=task.parent,
-            comments=comments, timesheet_summary=hours
         )
 
     @classmethod
@@ -874,41 +867,6 @@ class Task:
         flash("The constraint dates have been changed for this task.")
         return redirect(request.referrer)
 
-    @classmethod
-    @route('/task-<int:task_id>/-delete', methods=['POST'])
-    @login_required
-    def delete_task(cls, task_id):
-        """
-        Delete the task from project
-
-        Tasks can be deleted only if
-            1. The user is project admin
-            2. The user is an admin member in the project
-
-        :param task_id: Id of the task to be deleted
-        """
-        task = cls.get_task(task_id)
-
-        # Check if user is among the project admins
-        if not current_user.is_admin_of_project(task.parent):
-            flash(
-                "Sorry! You are not allowed to delete tasks. \
-                Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
-
-        cls.write([task], {'active': False})
-
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-            })
-
-        flash("The task has been deleted")
-        return redirect(
-            url_for('project.work.render_project', project_id=task.parent.id)
-        )
-
     @login_required
     @route(
         '/task-<int:active_id>/change-estimated-hours', methods=['GET', 'POST']
@@ -978,6 +936,6 @@ class Task:
         return redirect(
             url_for(
                 'project.work.render_task',
-                project_id=target_project.id, task_id=self.id
+                project_id=target_project.id, active_id=self.id
             )
         )
