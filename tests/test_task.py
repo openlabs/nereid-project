@@ -201,7 +201,7 @@ class TestTask(TestBase):
 
                 # Assign User
                 response = c.post(
-                    '/task-%d/-assign' % self.task1.id,
+                    '/tasks/%d/assign' % self.task1.id,
                     data={
                         'user': self.reg_user2.id,
                     },
@@ -209,16 +209,14 @@ class TestTask(TestBase):
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
-
                 # Change Assigned User
                 response = c.post(
-                    '/task-%d/-assign' % self.task1.id,
+                    '/tasks/%d/assign' % self.task1.id,
                     data={
                         'user': self.reg_user1.id,
                     }
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 200)
 
     def test_0070_state_change(self):
         """
@@ -402,20 +400,13 @@ class TestTask(TestBase):
                 with Transaction().set_context({"company": self.company.id}):
                     # Mark time
                     response = c.post(
-                        '/task-%d/-mark-time' % self.task1.id,
+                        '/tasks/%d/mark-time' % self.task1.id,
                         data={
                             'hours': '8',
                         }
                     )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Time has been marked on task ABC_task' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 200)
 
                 # Logout
                 response = c.get('/logout')
@@ -425,21 +416,13 @@ class TestTask(TestBase):
 
                 # Mark time when user is not employee
                 response = c.post(
-                    '/task-%d/-mark-time' % self.task1.id,
+                    '/tasks/%d/mark-time' % self.task1.id,
                     data={
                         'hours': '8',
                     }
                 )
 
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/logout')
-
-                # Check Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Only employees can mark time on tasks!' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 403)
 
     def test_0130_change_estimated_hours(self):
         """

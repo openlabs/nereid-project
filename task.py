@@ -748,54 +748,53 @@ class Task:
         flash("Tag cannot be removed")
         return redirect(request.referrer)
 
-    @classmethod
-    @route('/task-<int:task_id>/-mark-time', methods=['GET', 'POST'])
+    @route('/tasks/<int:active_id>/mark-time', methods=['POST'])
     @login_required
-    def mark_time(cls, task_id):
+    def mark_time(self):
         """
-        Marks the time against the employee for the task
-
-        :param task_id: ID of task
+        POST /tasks/:id/mark-time
+            Param: hours
         """
         TimesheetLine = Pool().get('timesheet.line')
 
         if not current_user.employee:
-            flash("Only employees can mark time on tasks!")
-            return redirect(request.referrer)
+            abort(403)
 
-        task = cls.get_task(task_id)
+        task = self.get_task(self.id)
 
-        with Transaction().set_user(0):
-            TimesheetLine.create([{
-                'employee': current_user.employee.id,
-                'hours': request.form['hours'],
-                'work': task.work.id,
-            }])
+        if request.values.get('hours'):
+            with Transaction().set_user(0):
+                TimesheetLine.create([{
+                    'employee': current_user.employee.id,
+                    'hours': request.values.get('hours'),
+                    'work': task.work.id,
+                }])
+            return jsonify(message="Time marked successfully")
 
-        flash("Time has been marked on task %s" % task.rec_name)
-        return redirect(request.referrer)
+        return jsonify(message="Invaild time"), 400
 
-    @classmethod
-    @route('/task-<int:task_id>/-assign', methods=['GET', 'POST'])
+    @route('/tasks/<int:active_id>/assign', methods=['POST'])
     @login_required
-    def assign_task(cls, task_id):
+    def assign_task(self):
         """
-        Assign task to a user
-
-        :param task_id: Id of Task
+        POST /tasks/:id/assign
+            Param: user
         """
         NereidUser = Pool().get('nereid.user')
         Activity = Pool().get('nereid.activity')
 
-        task = cls.get_task(task_id)
+        task = self.get_task(self.id)
 
-        new_assignee = NereidUser(int(request.form['user']))
+        if not request.values.get('user'):
+            return jsonify(message="Invalid user"), 400
+
+        new_assignee = NereidUser(request.values.get('user', 'int'))
 
         if task.assigned_to == new_assignee:
-            flash("Task already assigned to %s" % new_assignee.display_name)
-            return redirect(request.referrer)
+            return jsonify(message="Task already assigned to user"), 400
+
         if task.parent.can_write(new_assignee):
-            cls.write([task], {
+            self.write([task], {
                 'assigned_to': new_assignee.id,
                 'participants': [('add', [new_assignee.id])]
             })
@@ -807,14 +806,9 @@ class Task:
                 'target': 'nereid.user, %d' % new_assignee.id,
                 'project': task.parent.id,
             }])
-            if request.is_xhr:
-                return jsonify({
-                    'success': True,
-                })
-            flash("Task assigned to %s" % new_assignee.display_name)
-            return redirect(request.referrer)
-        flash("Only employees can be assigned to tasks.")
-        return redirect(request.referrer)
+            return jsonify(message="Task has been assigned to user"), 200
+
+        abort(403)
 
     @classmethod
     @route('/task-<int:task_id>/-remove-assign', methods=['POST'])
