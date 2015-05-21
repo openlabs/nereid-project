@@ -474,59 +474,46 @@ class Task:
         return jsonify({'message': "Invalid action"}), 400
 
     @classmethod
-    @route('/my-tasks')
+    @route('/users/<int:user_id>/tasks/', methods=['GET'])
     @login_required
-    def my_tasks(cls):
+    def my_tasks(cls, user_id):
         """
+        TODO: Move this to user model and make it instance method.
+
         Renders all tasks of the user in all projects
         """
-        state = request.args.get('state', None)
+        state = request.values.get('state', None)
+
+        # TODO: this method also takes user_id, this will be helpful for
+        # public/private tasks in future.
+        #
+        # Check if user_id is valid!
 
         filter_domain = [
             ('type', '=', 'task'),
         ]
-        if request.args.get('watched'):
+        if request.values.get('watched'):
             # Show all tasks watched, not assigned
             filter_domain.append(('participants', '=', current_user.id))
         else:
             filter_domain.append(('assigned_to', '=', current_user.id))
-        query = request.args.get('q', None)
+        query = request.values.get('q', None)
         if query:
             # This search is probably the suckiest search in the
             # history of mankind in terms of scalability and utility
             # TODO: Figure out something better
             filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
 
-        tag = request.args.get('tag', None, int)
+        tag = request.values.get('tag', None, int)
         if tag:
             filter_domain.append(('tags', '=', tag))
-
-        counts = {}
-        counts['opened_tasks_count'] = cls.search(
-            filter_domain + [('state', '=', 'opened')], count=True
-        )
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
 
         tasks = cls.search(filter_domain, order=[('progress_state', 'ASC')])
 
-        if request.is_xhr:
-            return jsonify({
-                'items': map(lambda task: task.serialize('listing'), tasks),
-                'domain': filter_domain,
-            })
-
-        # Group and return tasks for regular web viewing
-        tasks_by_state = defaultdict(list)
-        for task in tasks:
-            tasks_by_state[task.progress_state].append(task)
-        return render_template(
-            'project/global-task-list.jinja',
-            active_type_name='render_task_list', counts=counts,
-            state_filter=state, tasks_by_state=tasks_by_state,
-            states=PROGRESS_STATES[:-1]
-        )
+        return jsonify(items=[task.serialize('listing') for task in tasks])
 
     @classmethod
     @route('/tasks-by-employee')
