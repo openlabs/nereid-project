@@ -10,7 +10,6 @@ angular.module('nereidProjectApp')
 
       $scope.taskId = $state.params.taskId;
       $scope.projectId = $state.params.projectId;
-
       $scope.commentObj = {};
 
       $scope.states = Task.states;
@@ -19,6 +18,10 @@ angular.module('nereidProjectApp')
         Task.get($scope.projectId, $scope.taskId)
           .success(function(result) {
             $scope.task = result;
+            angular.extend($scope.commentObj, {
+              progress_state: result.progress_state,
+              assigned_to: result.assigned_to
+            });
           })
           .error(function(reason) {
             Helper.showDialog('Could not fetch task', reason);
@@ -26,7 +29,7 @@ angular.module('nereidProjectApp')
       };
 
       $scope.submitComment = function() {
-        Task.addComment($scope.taskId, $scope.commentObj)
+        Task.addComment($scope.projectId, $scope.taskId, $scope.commentObj)
           .success(function(result) {
             $scope.task.comments.push(result.comment);
             $scope.commentObj = {};

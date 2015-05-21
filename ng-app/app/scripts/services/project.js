@@ -28,12 +28,12 @@ angular.module('nereidProjectApp')
     };
 
     Project.get = function(projectId) {
-      return $http.get(nereid.buildUrl('/project-' + projectId));
+      return $http.get(nereid.buildUrl('/projects/' + projectId));
     };
 
     Project.getTasks = function(projectId, filter) {
       filter = filter || {};
-      return $http.get(nereid.buildUrl('/projects/' + projectId + '/tasks'), {params: filter});
+      return $http.get(nereid.buildUrl('/projects/' + projectId + '/tasks/'), {params: filter});
     };
 
     return Project;

@@ -92,6 +92,17 @@ angular.module('nereidProjectApp', [
             controller: 'AllTasksCtrl'
           }
         }
+      })
+
+      .state('base.project.tasks.my', {
+        url: '/my',
+        tabIndex: 2,
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/my-tasks.html',
+            controller: 'MyTasksCtrl'
+          }
+        }
       });
 
       $mdThemingProvider.theme('default')

@@ -4,9 +4,11 @@ angular.module('nereidProjectApp')
 .controller('TasksCtrl', [
     '$scope',
     '$state',
-    function($scope, $state) {
+    'Task',
+    function($scope, $state, Task) {
       $scope.selectedIndex = $state.current.tabIndex;
       $scope.projectId = $state.params.projectId;
+      $scope.progressStates = Task.progressStates;
 
       if(!$scope.selectedIndex) {
         $scope.selectedIndex = 0;

@@ -1,20 +1,20 @@
 'use strict';
 
 angular.module('nereidProjectApp')
-.controller('AllTasksCtrl', [
+.controller('MyTasksCtrl', [
     '$mdDialog',
     '$scope',
-    'Project',
+    'Task',
     'Helper',
-    function($mdDialog, $scope, Project, Helper) {
+    function($mdDialog, $scope, Task, Helper) {
 
-      $scope.loadTasks = function(projectId) {
-        Project.getTasks(projectId)
+      $scope.loadMyTasks = function() {
+        Task.getMyTasks()
           .success(function(result) {
             $scope.tasks = result.items;
           })
           .error(function(reason) {
-            Helper.showDialog('Could not fetch tasks', reason);
+            Helper.showDialog('Could not fetch your tasks', reason);
           });
       };
 

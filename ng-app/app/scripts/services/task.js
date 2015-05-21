@@ -4,20 +4,26 @@ angular.module('nereidProjectApp')
   .factory('Task', [
     '$http',
     'nereid',
-    function($http, nereid) {
+    'nereidAuth',
+    function($http, nereid, nereidAuth) {
 
     var Task = this;
 
     Task.get = function(projectId, taskId) {
-      return $http.get(nereid.buildUrl('/project-' + projectId + '/task-' + taskId));
+      return $http.get(nereid.buildUrl('/projects/' + projectId + '/tasks/' + taskId + '/'));
     };
 
-    Task.addComment = function(taskId, commentObj) {
-      return $http.post(nereid.buildUrl('/task-' + taskId + '/-update'), commentObj);
+    Task.getMyTasks = function() {
+      var userId = nereidAuth.user().id;
+      return $http.get(nereid.buildUrl('/users/' + userId + '/tasks' + '/'));
+    };
+
+    Task.addComment = function(projectId, taskId, commentObj) {
+      return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks/' + taskId + '/updates/'), {params: commentObj});
     };
 
     Task.create = function(projectId, taskObj) {
-      return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks'), taskObj);
+      return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks/'), taskObj);
     };
 
     Task.states = [

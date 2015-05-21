@@ -11,6 +11,12 @@
     </md-content>
   </md-tab>
 
+  <md-tab label="My Tasks" md-on-select="updateRoute('my')">
+    <md-content class="md-padding">
+      <div ui-view="task-tabs"></div>
+    </md-content>
+  </md-tab>
+
 </md-tabs>
 
 <create-task project="project" ng-if="project">
