@@ -460,7 +460,8 @@ class TestTask(TestBase):
 
                 # Check my tasks
                 response = c.get(
-                    '/my-tasks', headers=self.xhr_header
+                    '/users/%d/tasks/' % self.reg_user1.id,
+                    headers=self.xhr_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 1
@@ -468,8 +469,9 @@ class TestTask(TestBase):
 
                 # Check my tasks with tag1
                 response = c.get(
-                    '/my-tasks?tag=%d' % self.tag1.id,
-                    headers=self.xhr_header
+                    '/users/%d/tasks/?tag=%d' % (
+                        self.reg_user1.id, self.tag1.id
+                    ), headers=self.xhr_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 0
@@ -477,8 +479,9 @@ class TestTask(TestBase):
 
                 # Check my tasks with tag2
                 response = c.get(
-                    '/my-tasks?tag=%d' % self.tag2.id,
-                    headers=self.xhr_header
+                    '/users/%d/tasks/?tag=%d' % (
+                        self.reg_user1.id, self.tag2.id
+                    ), headers=self.xhr_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 1

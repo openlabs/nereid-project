@@ -100,3 +100,5 @@ API Reference
 /projects/``:id``/tasks/``:id``/files/``:id``
   - *GET*: return with file download url which it time sensitive
   - *DELETE*: delete the file
+/users/``:id``/tasks/
+  - *GET*: return current tasks of user
