@@ -401,7 +401,8 @@ class Project:
             domain.append(('members.user', '=', request.nereid_user.id))
 
         page = request.args.get('page', 1, int)
-        projects = Pagination(cls, domain, page, 20)
+        per_page = min(request.args.get('per_page', 50, int), 50)
+        projects = Pagination(cls, domain, page, per_page)
         return jsonify(projects.serialize('listing'))
 
     def serialize(self, purpose=None):
