@@ -396,11 +396,6 @@ class Task:
             task.repo_commits, key=lambda x: x.create_date
         )
 
-        hours = {}
-        for line in task.work.timesheet_lines:
-            hours[line.employee] = hours.setdefault(line.employee, 0) + \
-                line.hours
-
         response = task.serialize()
         with Transaction().set_context(task=self.id):
             response['comments'] = [
@@ -559,50 +554,62 @@ class Task:
             states=PROGRESS_STATES[:-1],
         )
 
-    @classmethod
-    @route('/task-<int:task_id>/-update', methods=['GET', 'POST'])
+    @route(
+        '/projects/<int:project_id>/tasks/<int:active_id>/updates/',
+        methods=['GET', 'POST']
+    )
     @login_required
-    def update_task(cls, task_id):
+    def update_task(self, project_id):
         """
         Accepts a POST request against a task_id and updates the ticket
 
-        :param task_id: The ID of the task which needs to be updated
         """
         History = Pool().get('project.work.history')
         TimesheetLine = Pool().get('timesheet.line')
         Activity = Pool().get('nereid.activity')
 
-        task = cls.get_task(task_id)
+        task = self.get_task(self.id)
+
+        if request.method == "GET":
+            comments = sorted(
+                task.history + task.work.timesheet_lines + task.attachments +
+                task.repo_commits, key=lambda x: x.create_date
+            )
+            return jsonify(
+                items=[comment.serialize('listing') for comment in comments]
+            )
 
         history_data = {
             'project': task.id,
             'updated_by': current_user.id,
-            'comment': request.form['comment']
+            'comment': request.values.get('comment'),
         }
 
         updatable_attrs = ['progress_state']
         new_participant_ids = set()
         current_participant_ids = [p.id for p in task.participants]
-        post_attrs = [request.form.get(attr, None) for attr in updatable_attrs]
+        post_attrs = [
+            request.values.get(attr, None) for attr in updatable_attrs
+        ]
         if any(post_attrs):
             # Combined update of task and history since there is some value
             # posted in addition to the comment
             task_changes = {}
             for attr in updatable_attrs:
-                if getattr(task, attr) != request.form.get(attr, None):
-                    task_changes[attr] = request.form[attr]
+                if getattr(task, attr) != request.values.get(attr, None):
+                    task_changes[attr] = request.values.get(attr)
 
             if task_changes.get('progress_state') == 'Done':
                 task_changes['state'] = 'done'
             else:
                 task_changes['state'] = 'opened'
 
-            new_assignee_id = request.form.get('assigned_to', None, int)
+            new_assignee_id = request.values.get('assigned_to', None, int)
             if new_assignee_id is not None:
                 if (new_assignee_id and
                         (not task.assigned_to or
                             new_assignee_id != task.assigned_to.id)) \
-                        or (request.form.get('assigned_to', None) == ""):
+                        or (request.values.get('assigned_to', None) == ""):
                         # Clear the user
                     history_data['previous_assigned_to'] = \
                         task.assigned_to and task.assigned_to.id or None
@@ -613,7 +620,7 @@ class Task:
                         new_participant_ids.add(new_assignee_id)
             if task_changes:
                 # Only write change if anything has really changed
-                cls.write([task], task_changes)
+                self.write([task], task_changes)
                 comment = task.history[-1]
                 History.write([comment], history_data)
             else:
@@ -636,18 +643,18 @@ class Task:
             # Add the user to the participants if not already in the list
             new_participant_ids.add(current_user.id)
 
-        for nereid_user in request.form.getlist('notify[]', int):
+        for nereid_user in request.values.getlist('notify[]', int):
             # Notify more people if there are people
             # who havent been added as participants
             if nereid_user not in current_participant_ids:
                 new_participant_ids.add(nereid_user)
 
         if new_participant_ids:
-            cls.write([task], {
+            self.write([task], {
                 'participants': [('add', list(new_participant_ids))]
             })
 
-        hours = request.form.get('hours', None, type=float)
+        hours = request.values.get('hours', None, type=float)
         if hours and current_user.employee:
             timesheet_line, = TimesheetLine.create([{
                 'employee': current_user.employee.id,
@@ -665,17 +672,7 @@ class Task:
         # Send the email since all thats required is done
         comment.send_mail()
 
-        if request.is_xhr:
-            html = render_template(
-                'project/comment.jinja', comment=comment)
-            return jsonify({
-                'success': True,
-                'html': unicode(html),
-                'state': task.state,
-                'progress_state': task.progress_state,
-                'comment': comment.serialize(),
-            })
-        return redirect(request.referrer)
+        return jsonify(message="Task has been updated successfully"), 201
 
     @classmethod
     @route('/task-<int:task_id>/tag-<int:tag_id>/-add', methods=['GET', 'post'])
