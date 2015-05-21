@@ -143,26 +143,14 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
-                # Add Comment without xhr
                 response = c.post(
-                    '/task-%d/-update' % self.task1.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        self.task1.parent.id, self.task1.id,
+                    ), data={
                         'comment': 'comment1',
-                    }
+                    }, headers=self.xhr_header,
                 )
-                self.assertEqual(response.status_code, 302)
-
-                # Add Comment with XHR
-                response = c.post(
-                    '/task-%d/-update' % self.task1.id,
-                    data={
-                        'comment': 'comment2',
-                    },
-                    headers=self.xhr_header,
-                )
-                self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(response.status_code, 201)
 
     def test_0050_clear_assigned_user(self):
         """
@@ -227,16 +215,25 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
+                response = c.post(
+                    '/projects/%d/tasks/%d/updates/' % (
+                        self.task1.parent.id, self.task1.id,
+                    ), data={
+                        'comment': 'comment1',
+                    }, headers=self.xhr_header,
+                )
+
                 # Update with state change
                 response = c.post(
-                    '/task-%d/-update' % self.task1.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        self.task1.parent.id, self.task1.id,
+                    ), data={
                         'progress_state': 'Planning',
                         'state': 'opened',
                         'comment': 'comment1',
                     }
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
 
     def test_0080_add_remove_tag(self):
         """
@@ -899,15 +896,16 @@ class TestTask(TestBase):
                 response = self.login(c, self.reg_user2.email, 'password')
 
                 response = c.post(
-                    '/task-%d/-update' % task.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        task.parent.id, task.id,
+                    ), data={
                         'comment': 'comment1',
                         'assigned_to': self.reg_user2.id,
                         'progress_state': 'In Progress',
                     },
                     headers=self.xhr_header,
                 )
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 201)
 
             # Nereid User-2 updates the task and assigned to other
             # participant of the project
@@ -919,15 +917,16 @@ class TestTask(TestBase):
                 self.assertEqual(response.status_code, 302)
 
                 response = c.post(
-                    '/task-%d/-update' % task.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        task.parent.id, task.id,
+                    ), data={
                         'comment': 'comment1',
                         'assigned_to': self.reg_user1.id,
                         'progress_state': 'In Progress',
                     },
                     headers=self.xhr_header,
                 )
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 201)
 
     def test_0230_move_task(self):
         """
