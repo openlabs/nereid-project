@@ -382,14 +382,42 @@ class Project:
         ]
 
     @classmethod
-    @route('/projects/', methods=['GET'])
+    @route('/projects/', methods=['GET', 'POST'])
     @login_required
     def home(cls):
         """
-        GET /projects/ : List all the projects
-
-        :TODO: Implement POST also
+        GET     /projects/
+        POST    /projects/
+            Param: name
         """
+        Activity = Pool().get('nereid.activity')
+        Work = Pool().get('timesheet.work')
+
+        if request.method == 'POST':
+            if not current_user.has_permissions(['project.admin']):
+                abort(403)
+
+            project, = cls.create([{
+                'work': Work.create([{
+                    'name': request.values.get('name'),
+                    'company': request.nereid_website.company.id,
+                }])[0].id,
+                'type': 'project',
+                'members': [
+                    ('create', [{
+                        'user': request.nereid_user.id,
+                        'role': 'admin',
+                    }])
+                ]
+            }])
+            Activity.create([{
+                'actor': request.nereid_user.id,
+                'object_': 'project.work, %d' % project.id,
+                'verb': 'created_project',
+                'project': project.id,
+            }])
+            return jsonify(message="Project successfully created"), 201
+
         domain = [
             ('type', '=', 'project'),
             ('parent', '=', None),
@@ -403,6 +431,7 @@ class Project:
         page = request.args.get('page', 1, int)
         per_page = min(request.args.get('per_page', 50, int), 50)
         projects = Pagination(cls, domain, page, per_page)
+
         return jsonify(projects.serialize('listing'))
 
     def serialize(self, purpose=None):
@@ -444,7 +473,7 @@ class Project:
             value['displayName'] = '#%d' % self.id
             value['url'] = url_for(
                 'project.work.render_task', project_id=self.parent.id,
-                task_id=self.id,
+                active_id=self.id,
             )
         elif purpose == 'activity_stream':
             value['create_date'] = self.create_date.isoformat()
@@ -454,7 +483,7 @@ class Project:
             value['objectType'] = self.__name__
         elif self.type == 'project':
             value['url'] = url_for(
-                'project.work.render_project', project_id=self.id
+                'project.work.render_project', active_id=self.id
             )
         else:
             value['all_participants'] = [
@@ -464,7 +493,7 @@ class Project:
             # TODO: Convert self.parent to self.project
             value['url'] = url_for(
                 'project.work.render_task', project_id=self.parent.id,
-                task_id=self.id,
+                active_id=self.id,
             )
         return value
 
@@ -535,70 +564,33 @@ class Project:
 
         if not projects[0].can_read(request.nereid_user, silent=True):
             # If the user is not allowed to access this project then dont let
-            raise abort(404)
+            raise abort(403)
 
         return projects[0]
 
-    @classmethod
-    @route('/project-<int:project_id>')
+    @route('/projects/<int:active_id>/', methods=['GET', 'POST', 'DELETE'])
     @login_required
-    def render_project(cls, project_id):
+    def render_project(self):
         """
-        Renders a project
-
-        :param project_id: Project Id of project to render.
+        GET: Return serialized project
+        POST: edit project
+        DELETE: delete a project
         """
-        # TODO: Convert to instance method
-        project = cls.get_project(project_id)
-        if request.is_xhr:
-            rv = project.serialize()
-            rv['participants'] = [
-                member.user.serialize('listing') for member in project.members
-            ]
-            return jsonify(rv)
-        return render_template(
-            'project/project.jinja', project=project, active_type_name="recent"
-        )
+        project = self.get_project(self.id)
 
-    @classmethod
-    @route('/project/-new', methods=['GET', 'POST'])
-    @login_required
-    @permissions_required(['project.admin'])
-    def create_project(cls):
-        """Create a new project
+        if request.method == "POST":
+            # TODO: Not implemented yet
+            pass
 
-        POST will create a new project
-        """
-        Activity = Pool().get('nereid.activity')
-        Work = Pool().get('timesheet.work')
+        elif request.method == "DELETE":
+            # TODO: Not implemented yet
+            pass
 
-        if request.method == 'POST':
-            project, = cls.create([{
-                'work': Work.create([{
-                    'name': request.form['name'],
-                    'company': request.nereid_website.company.id,
-                }])[0].id,
-                'type': 'project',
-                'members': [
-                    ('create', [{
-                        'user': request.nereid_user.id,
-                        'role': 'admin',
-                    }])
-                ]
-            }])
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': 'project.work, %d' % project.id,
-                'verb': 'created_project',
-                'project': project.id,
-            }])
-            flash("Project successfully created.")
-            return redirect(
-                url_for('project.work.render_project', project_id=project.id)
-            )
-
-        flash("Could not create project. Try again.")
-        return redirect(request.referrer)
+        rv = project.serialize()
+        rv['participants'] = [
+            member.user.serialize('listing') for member in project.members
+        ]
+        return jsonify(rv)
 
     @classmethod
     @route('/project-<int:project_id>/-permissions')
@@ -1265,7 +1257,7 @@ class Project:
                     'title': task.rec_name,
                     'url': url_for(
                         'project.work.render_task',
-                        project_id=task.parent.id, task_id=task.id),
+                        project_id=task.parent.id, active_id=task.id),
                 }
                 event["start"] = getattr(
                     task, '%s_start_time' % type
@@ -1597,7 +1589,7 @@ class ProjectHistory(ModelSQL, ModelView):
             "create_date": self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.project.parent.id,
-                task_id=self.project.id,
+                active_id=self.project.id,
             ),
             'updatedBy': self.updated_by.serialize('listing'),
             "objectType": self.__name__,

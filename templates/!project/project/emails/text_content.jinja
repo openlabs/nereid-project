@@ -4,7 +4,7 @@ REPLY ABOVE THIS LINE TO POST AN ANSWER
 Task		: {{ history.project.work.name }}
 Assigned To	: {{ history.project.assigned_to and history.project.assigned_to.display_name or '*Unassigned*' }}
 Status		: {{ history.project.progress_state|upper }} [{{ history.project.state|upper }}]
-URL		: {{ url_for('project.work.render_task', task_id=history.project.id, project_id=history.project.parent.id, _external=True) }}
+URL		: {{ url_for('project.work.render_task', active_id=history.project.id, project_id=history.project.parent.id, _external=True) }}
 
 -------------------------------------------------------------------------------
 Update by *{{ history.updated_by.display_name }}* on *{{ history.date|dateformat }}*

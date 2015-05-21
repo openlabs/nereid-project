@@ -81,17 +81,15 @@ class TestTask(TestBase):
 
                 # Edit Task
                 response = c.post(
-                    '/task-%d/-edit' % self.task1.id,
-                    data={
+                    'projects/%d/tasks/%d/' % (
+                        self.task1.parent.id, self.task1.id
+                    ), data={
                         'name': 'ABC_task',
                         'comment': 'task_desc2',
                     },
                     headers=self.xhr_header,
                 )
                 self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
-                self.assertEqual(self.task1.comment, 'task_desc2')
 
     def test_0030_watch_unwatch(self):
         """
@@ -550,12 +548,11 @@ class TestTask(TestBase):
 
                 # Render_task
                 response = c.get(
-                    '/project-%d/task-%d' % (
+                    '/projects/%d/tasks/%d/' % (
                         self.task1.parent.id, self.task1.id
                     )
                 )
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.data, str(self.task1.id))
 
     def test_0170_update_comment(self):
         """
@@ -639,11 +636,12 @@ class TestTask(TestBase):
                     3
                 )
                 # Delete_task
-                response = c.post(
-                    '/task-%d/-delete' % self.task1.id,
-                    headers=self.xhr_header
+                response = c.delete(
+                    '/projects/%d/tasks/%d/' % (
+                        self.task1.parent.id, self.task1.id
+                    ), headers=self.xhr_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 403)
 
                 # Task is not deleted
                 self.assertEqual(
@@ -675,14 +673,12 @@ class TestTask(TestBase):
                     len(self.Project.search([('type', '=', 'task')])),
                     3
                 )
-                # Delete_task
-                response = c.post(
-                    '/task-%d/-delete' % self.task1.id,
-                    headers=self.xhr_header
+                response = c.delete(
+                    '/projects/%d/tasks/%d/' % (
+                        self.task1.parent.id, self.task1.id
+                    ), headers=self.xhr_header
                 )
-                self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(response.status_code, 204)
 
                 # Total tasks before deletion are 3 after deletion 2
                 self.assertEqual(
@@ -705,14 +701,12 @@ class TestTask(TestBase):
                     len(self.Project.search([('type', '=', 'task')])),
                     2
                 )
-                # Delete_task
-                response = c.post(
-                    '/task-%d/-delete' % self.task2.id,
-                    headers=self.xhr_header
+                response = c.delete(
+                    '/projects/%d/tasks/%d/' % (
+                        self.task2.parent.id, self.task2.id
+                    ), headers=self.xhr_header
                 )
-                self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(response.status_code, 204)
 
                 # Total tasks before deletion are 2, after deletion 1
                 self.assertEqual(
