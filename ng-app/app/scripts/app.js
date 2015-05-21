@@ -4,11 +4,13 @@ angular.module('nereidProjectApp', [
   'ui.router',
   'ngMaterial',
   'openlabs.angular-nereid-auth',
-  'cfp.hotkeys'
+  'cfp.hotkeys',
+  'infinite-scroll'
   ])
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider
       .when('', '/')
+      .when('/', '/projects')
       .otherwise('/404');
 
     $stateProvider
@@ -35,6 +37,7 @@ angular.module('nereidProjectApp', [
         views: {
           'main-view': {
             templateUrl: 'views/projects.html',
+            controller: 'ProjectsCtrl'
           }
         }
       })
@@ -64,6 +67,7 @@ angular.module('nereidProjectApp', [
         views: {
           'project-nav-view': {
             templateUrl: 'views/task.html',
+            controller: 'TaskCtrl'
           }
         }
       })

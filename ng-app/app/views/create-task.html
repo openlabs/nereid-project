@@ -7,14 +7,13 @@
         <div layout="column" layout-padding>
           <md-input-container>
             <label>Task Title</label>
-            <input ng-model="user.company">
+            <input ng-model="taskObj.name" required>
           </md-input-container>
 
-          <textarea placeholder="Description" rows="5"></textarea>
+          <textarea placeholder="Description" rows="5" ng-model="taskObj.description"></textarea>
 
-          <md-select md-on-open="loadUsers()" ng-model="user">
-            <md-select-label>Unassigned</md-select-label>
-            <md-option ng-value="user" ng-repeat="user in users">{{user.name}}</md-option>
+          <md-select placeholder="Assign to" ng-model="taskObj.assign_to" arial-label="Assign to">
+            <md-option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</md-option>
           </md-select>
 
         </div>

@@ -1,1 +1,53 @@
-task
+<div layout="column" ng-init="loadTask()">
+  <md-toolbar class="md-hue-2">
+    <div class="md-toolbar-tools">
+      <h2 class="md-flex">{{ task.displayName}} {{ task.name }}</h2>
+    </div>
+  </md-toolbar>
+  <md-content layout-padding>
+
+    <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
+      {{ task.comment }}
+    </md-whiteframe>
+
+    <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
+      <md-list flex>
+        <md-list-item class="md-3-line" ng-repeat="comment in task.comments">
+          <img ng-src="{{ comment.updatedBy.image.url }}" class="md-avatar" alt="{{ comment.updatedBy.displayName }}" />
+          <div class="md-list-item-text">
+            <h4>{{ comment.comment }} </h4>
+            <p></p>
+          </div>
+          <md-divider ng-if="!$last"></md-divider>
+        </md-list-item>
+      </md-list>
+    </md-whiteframe>
+
+    <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
+      <form name="commentForm" ng-submit="submitComment()" layout="column" flex>
+
+        <textarea rows="5" ng-model="commentObj.comment" placeholder="Add your comment" flex required></textarea>
+        <div layout="row">
+          <md-select placeholder="Assign To" ng-model="commentObj.assigned_to" flex="20">
+            <md-option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</md-option>
+          </md-select>
+          <md-select placeholder="State" ng-model="commentObj.state" flex="20">
+            <md-option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</md-option>
+          </md-select>
+          <md-input-container flex>
+            <label>Hours</label>
+            <input ng-model="commentObj.hours">
+          </md-input-container>
+        </div>
+
+        <div class="md-actions" layout="row">
+          <span flex></span>
+          <md-button class="md-primary">
+            Comment
+          </md-button>
+        </div>
+      </form>
+    </md-whiteframe>
+
+  </md-content>
+</div>
