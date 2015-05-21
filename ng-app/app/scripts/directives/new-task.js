@@ -21,7 +21,6 @@ angular.module('nereidProjectApp')
                 $scope.taskObj = {};
 
                 $scope.submit = function() {
-                  console.log($scope.taskObj);
                   Task.create($scope.project.id, $scope.taskObj);
                 };
                 $scope.hide = function() {

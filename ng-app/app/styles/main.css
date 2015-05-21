@@ -109,3 +109,12 @@ md-list-item a {
 .no-padding {
   padding: 0;
 }
+
+.projects-page md-whiteframe {
+  height: 85vh;
+  overflow: scroll;
+}
+
+.pull-right {
+  float: right;
+}

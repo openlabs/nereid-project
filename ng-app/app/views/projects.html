@@ -1,21 +1,30 @@
-<div layout="row" layout-fill ng-init="loadProjects()">
+<div layout="row" layout-fill ng-init="loadProjects()" class="projects-page" infinite-scroll="loadProjects()">
   <md-whiteframe class="md-whiteframe-z1" layout="column" flex="50" layout-margin>
-    <md-subheader class="md-sticky-no-effect">Projects</md-subheader>
-    <md-input-container class="no-padding" flex>
-      <label>Search Project</label>
-      <input ng-model="searchProject">
-    </md-input-container>
+    <md-subheader layout="row" class="md-sticky-no-effect">
+      Projects
+      <md-button ng-click="loadProjects(true)" aria-label="Refresh">
+        <i class="mdi mdi-refresh button-icon-font"></i>
+        <md-tooltip>Refresh</md-tooltip>
+      </md-button>
+    </md-subheader>
       <!--TODO: Add more project fields-->
       <md-list flex>
-        <md-list-item class="md-3-line" ng-repeat="project in projects | filter:searchProject">
+        <md-list-item class="md-3-line" ng-repeat="project in projects">
           <a ui-sref="base.project({projectId: project.id})">
             <div class="md-list-item-text">
               <h4>{{ project.displayName}} {{ project.name }}</h4>
               <p></p>
             </div>
           </a>
-          <md-divider ></md-divider>
-        </md-list-item>
+        </md-list-item> 
+        <div layout="row" layout-align="center center">
+          <md-button class="md-raised md-primary md-hue-3"
+            ng-hide="loadingProjects || (pages==page)"
+            ng-click="loadProjects()">
+              Load More
+          </md-button>
+        </div>
+        <md-progress-linear md-mode="indeterminate" ng-if="loadingProjects"></md-progress-linear>
       </md-list>
   </md-whiteframe>
 

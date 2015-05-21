@@ -5,19 +5,32 @@ angular.module('nereidProjectApp')
     '$mdDialog',
     '$scope',
     'Project',
-    function($mdDialog, $scope, Project) {
+    'Helper',
+    function($mdDialog, $scope, Project, Helper) {
+      $scope.page = 0;
+      $scope.perPage = 50;
+      $scope.projects = [];
 
-      $scope.loadProjects = function() {
-        Project.getAll()
+      $scope.loadProjects = function(refresh) {
+        if(refresh) {
+          $scope.page = 0;
+          $scope.perPage = 50;
+          $scope.projects = [];
+        }
+        if($scope.pages === $scope.page) {
+          return;
+        }
+        $scope.loadingProjects = true;
+        Project.getProjects(++$scope.page, $scope.perPage)
           .success(function(result) {
-            $scope.projects = result.items;
+            $scope.projects = $scope.projects.concat(result.items);
+            $scope.pages = result.pages;
           })
           .error(function(reason) {
-            $mdDialog.alert()
-            .title('Could not fetch projects')
-            .content(reason)
-            .ariaLabel('Could not fetch projects')
-            .ok('Got it!');
+            Helper.showDialog('Could not fetch projects', reason);
+          })
+          .finally(function() {
+            $scope.loadingProjects = false;
           });
       };
 
