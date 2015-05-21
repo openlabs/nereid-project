@@ -1,23 +1,22 @@
 <md-tabs md-dynamic-height md-border-bottom md-selected="selectedIndex">
   <md-tab label="Open Tasks" md-on-select="updateRoute('open')">
     <md-content class="md-padding">
-      <div ui-view="task-tabs"></div>
     </md-content>
   </md-tab>
 
   <md-tab label="All Tasks" md-on-select="updateRoute('all')">
     <md-content class="md-padding">
-      <div ui-view="task-tabs"></div>
     </md-content>
   </md-tab>
 
   <md-tab label="My Tasks" md-on-select="updateRoute('my')">
     <md-content class="md-padding">
-      <div ui-view="task-tabs"></div>
     </md-content>
   </md-tab>
 
 </md-tabs>
+
+<div ui-view="task-tabs"></div>
 
 <create-task project="project" ng-if="project">
   <md-button

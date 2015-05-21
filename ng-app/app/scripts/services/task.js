@@ -19,7 +19,7 @@ angular.module('nereidProjectApp')
     };
 
     Task.addComment = function(projectId, taskId, commentObj) {
-      return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks/' + taskId + '/updates/'), {params: commentObj});
+      return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks/' + taskId + '/updates/'), commentObj);
     };
 
     Task.create = function(projectId, taskObj) {
@@ -33,6 +33,15 @@ angular.module('nereidProjectApp')
       {value: 'Review', text: 'Review'},
       {value: 'Done', text: 'Done'}
     ];
+
+    Task.subTypes = [
+      {value: 'feature', text: 'Feature'},
+      {value: 'bug', text: 'Bug'},
+      {value: 'question', text: 'Question'},
+      {value: 'epic', text: 'Epic'},
+    ];
+
+
     Task.progressStates = [
       'Backlog', 'Planning', 'In Progress', 'Review'
     ];
