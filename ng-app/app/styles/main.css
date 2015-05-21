@@ -118,3 +118,7 @@ md-list-item a {
 .pull-right {
   float: right;
 }
+.jump-dialog-help {
+  color: #7F7F83;
+  padding-bottom: 20px;
+}

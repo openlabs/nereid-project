@@ -1,0 +1,25 @@
+<md-dialog ng-init="loadProjects()" flex="33">
+  <md-dialog-content>
+    <div layout="row" layout-align="space-between center" class="jump-dialog-help">
+      <div>Jump to project or #task</div>
+      <div>tab  or  ↑ ↓  to navigate ↵  to select esc  to dismiss</div>
+    </div>
+    <md-autocomplete 
+      md-selected-item="selectedItem"
+      md-autoselect="true"
+      md-search-text="searchText"
+      md-autofocus="true"
+      md-no-cache="false"
+      md-items="project in getMatches(searchText)"
+      md-selected-item-change="goToProject(project)"
+      md-item-text="project.name"
+      placeholder="Search for name">
+      <md-item-template>
+        <span md-highlight-text="searchText">{{project.name}}</span>
+      </md-item-template>
+      <md-not-found>
+        No matches found.
+      </md-not-found>
+    </md-autocomplete>    
+  </md-dialog-content>
+</md-dialog>

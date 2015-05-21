@@ -2,11 +2,13 @@
 
 angular.module('nereidProjectApp')
 .controller('ProjectsCtrl', [
+    '$q',
     '$mdDialog',
     '$scope',
     'Project',
     'Helper',
-    function($mdDialog, $scope, Project, Helper) {
+    '$state',
+    function($q, $mdDialog, $scope, Project, Helper, $state) {
       $scope.page = 0;
       $scope.perPage = 50;
       $scope.projects = [];
@@ -32,6 +34,25 @@ angular.module('nereidProjectApp')
           .finally(function() {
             $scope.loadingProjects = false;
           });
+      };
+
+      $scope.getMatches = function(searchText) {
+        var deferred = $q.defer();
+
+        var result = [];
+        searchText = searchText.toLowerCase();
+        angular.forEach($scope.projects, function(project){
+          if(project.name.toLowerCase().indexOf(searchText) !== -1){
+            result.push(project);
+          }
+          deferred.resolve(result);
+        });
+
+        return deferred.promise;
+      };
+
+      $scope.goToProject = function(project) {
+        $state.go('base.project', {projectId: project.id});
       };
 
     }
