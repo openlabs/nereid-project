@@ -1,33 +1,43 @@
-<div layout="row" layout-fill ng-init="loadProjects()" class="projects-page" infinite-scroll="loadProjects()">
-  <md-whiteframe class="md-whiteframe-z1" layout="column" flex="50" layout-margin>
-    <md-subheader layout="row" class="md-sticky-no-effect">
-      Projects
-      <md-button ng-click="loadProjects(true)" aria-label="Refresh">
-        <i class="mdi mdi-refresh button-icon-font"></i>
-        <md-tooltip>Refresh</md-tooltip>
-      </md-button>
-    </md-subheader>
-      <!--TODO: Add more project fields-->
-      <md-list flex>
-        <md-list-item class="md-3-line" ng-repeat="project in projects">
-          <a ui-sref="base.project({projectId: project.id})">
-            <div class="md-list-item-text">
-              <h4>{{ project.displayName}} {{ project.name }}</h4>
-              <p></p>
-            </div>
-          </a>
-        </md-list-item> 
-        <div layout="row" layout-align="center center">
-          <md-button class="md-raised md-primary md-hue-3"
-            ng-hide="loadingProjects || (pages==page)"
-            ng-click="loadProjects()">
-              Load More
-          </md-button>
-        </div>
-        <md-progress-linear md-mode="indeterminate" ng-if="loadingProjects"></md-progress-linear>
-      </md-list>
-  </md-whiteframe>
+<div layout="column" layout-fill ng-init="loadProjects()" class="projects-page" infinite-scroll="loadProjects()">
+    <md-toolbar md-scroll-shrink class="md-hue-2">
+      <div class="md-toolbar-tools">
+        <h3>
+          <span>Projects</span>
+        </h3>
+        <span flex></span>
+        <md-button ng-click="loadProjects(true)" aria-label="Refresh">
+          <i class="mdi mdi-refresh button-icon-font"></i>
+          <md-tooltip>Refresh</md-tooltip>
+        </md-button>
+      </div>
+    </md-toolbar>
 
-  <md-whiteframe class="md-whiteframe-z1" layout flex="50" layout-margin>
-  </md-whiteframe>
+    <md-content flex layout="row" layout-sm="column" layout-wrap layout-align="space-around center">
+      <md-card ng-repeat="project in projects" flex="30" flex-sm="100">
+        <md-card-content layout="row" layout-align="start start">
+          <div flex layout="column">
+            <p class="md-headline">{{ project.displayName}} {{ project.name }}</p>
+            <p>Project Description</p>
+          </div>
+          <img src="https://avatars0.githubusercontent.com/u/777983?v=3&s=80"/>
+        </md-card-content>
+        <md-divider flex></md-divider>
+        <div class="md-actions" layout="row" layout-align="start center">
+          <md-button class="md-primary md-flat"
+            ui-sref="base.project.tasks({projectId: project.id})">Tasks</md-button>
+          <md-button class="md-primary md-flat"
+            ui-sref="base.project({projectId: project.id})">Recent Activity</md-button>
+        </div>
+      </md-card>
+
+      <div layout="row" layout-align="start center">
+        <md-button class="md-primary "
+          ng-hide="loadingProjects || (pages==page)"
+          ng-click="loadProjects()">
+            Load More
+        </md-button>
+      </div>
+      <md-progress-linear md-mode="indeterminate" ng-if="loadingProjects"></md-progress-linear>
+    </md-content>
+
 </div>
