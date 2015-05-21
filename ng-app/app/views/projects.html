@@ -16,10 +16,17 @@
       <md-card ng-repeat="project in projects" flex="30" flex-sm="100">
         <md-card-content layout="row" layout-align="start start">
           <div flex layout="column">
-            <p class="md-headline">{{ project.displayName}} {{ project.name }}</p>
+            <p class="md-headline">
+              <a  ui-sref="base.project({projectId: project.id})"
+                  class="project-link">
+                {{ project.displayName}} {{ project.name }}
+              </a>
+            </p>
             <p>Project Description</p>
           </div>
-          <img src="https://avatars0.githubusercontent.com/u/777983?v=3&s=80"/>
+          <a  ui-sref="base.project({projectId: project.id})">
+            <img src="https://avatars0.githubusercontent.com/u/777983?v=3&s=80"/>
+          </a>
         </md-card-content>
         <md-divider flex></md-divider>
         <div class="md-actions" layout="row" layout-align="start center">
