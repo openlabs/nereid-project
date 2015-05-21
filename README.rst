@@ -54,3 +54,49 @@ To install from source
     $ git clone git://github.com/openlabs/nereid-project.git
     $ cd nereid-project
     $ python setup.py install
+
+API Reference
+=============
+
+/projects/
+  - *GET*: Get all projects paginated response
+  - *POST*: Create new project
+  - *DELETE*: N/A
+/projects/``:id``/
+  - *GET*: Return serialized project
+  - *POST*: edit project
+  - *DELETE*: delete a project
+/projects/``:id``/tasks/
+  - *GET*: Return tasks list of project
+  - *POST*: Create a task in project
+  - *DELETE*: N/A
+/projects/``:id``/tasks/``:id``/
+  - *GET*: return serialized task
+  - *POST*: edit task
+  - *DELETE*: delete a task
+/projects/``:id``/tasks/``:id``/move
+  - *POST*: to move task to diff project.
+/projects/``:id``/tasks/``:id``/watch
+  - *POST*: action=watch
+/projects/``:id``/tasks/``:id``/unwatch
+  - *POST*: action=unwatch
+/projects/``:id``/tasks/``:id``/updates/
+  - *GET*: return consolidated updates of a task
+/projects/``:id``/tasks/``:id``/comments/
+  - *GET*: return the comments (only) of a task
+  - *POST*: create a new comment
+/projects/``:id``/tasks/``:id``/comments/``:id``
+  - *POST*: update a new comment (own or admin)
+  - *DELETE*: delete comment (own or admin)
+/projects/``:id``/tasks/``:id``/timesheet
+  - *GET*: return the timesheet entry (only) of a task
+  - *POST*: create a new timesheet entry
+/projects/``:id``/tasks/``:id``/timesheet/``:id``
+  - *POST*: update own timesheet entry not more than 2 days old
+  - *DELETE*: delete own timesheet entry, not more than 2 days old. Admin can delete any entry
+/projects/``:id``/tasks/``:id``/files/
+  - *GET*: return all files of task
+  - *POST*: upload a new file
+/projects/``:id``/tasks/``:id``/files/``:id``
+  - *GET*: return with file download url which it time sensitive
+  - *DELETE*: delete the file
