@@ -27,6 +27,9 @@ angular.module('nereidProjectApp')
       {value: 'Review', text: 'Review'},
       {value: 'Done', text: 'Done'}
     ];
+    Task.progressStates = [
+      'Backlog', 'Planning', 'In Progress', 'Review'
+    ];
 
     return Task;
   }
