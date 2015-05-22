@@ -167,6 +167,14 @@ class Task:
         }
     )
 
+    owner = fields.Many2One(
+        'nereid.user', 'Task Owner', depends=['all_participants'],
+        domain=[('id', 'in', Eval('all_participants'))],
+        states={
+            'invisible': Eval('type') != 'task',
+        }
+    )
+
     description_markup = fields.Selection([
         (None, 'Plain text'),
         ('rst', 'reStructuredText'),
