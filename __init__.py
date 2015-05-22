@@ -21,7 +21,7 @@ from company import Company, CompanyProjectAdmins
 from user import NereidUser
 from configuration import Configuration
 from task import TaskUsers, Task
-from iteration import Iteration, IterationTask
+from iteration import Iteration, IterationBacklog
 
 
 def register():
@@ -48,6 +48,6 @@ def register():
         NereidUser,
         Attachment,
         Configuration,
-        IterationTask,
+        IterationBacklog,
         module='nereid_project', type_='model',
     )
