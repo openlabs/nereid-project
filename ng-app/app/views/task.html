@@ -28,10 +28,11 @@
 
         <textarea rows="5" ng-model="commentObj.comment" placeholder="Add your comment" flex required></textarea>
         <div layout="row">
+          <!--md-select seems to be broken in the currrent angular material build, so using basic HTML select-->
           <md-select placeholder="Assign To" ng-model="commentObj.assigned_to" flex="20">
             <md-option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</md-option>
           </md-select>
-          <md-select placeholder="State" ng-model="commentObj.state" flex="20">
+          <md-select placeholder="State" ng-model="commentObj.progress_state" flex="20">
             <md-option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</md-option>
           </md-select>
           <md-input-container flex>

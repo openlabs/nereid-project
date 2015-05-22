@@ -5,10 +5,7 @@ angular.module('nereidProjectApp')
     '$scope',
     'Project',
     'Helper',
-    'Task',
-    function($scope, Project, Helper, Task) {
-
-      $scope.progressStates = Task.progressStates;
+    function($scope, Project, Helper) {
 
       $scope.getOpenTasks = function(projectId) {
         var filter = {
