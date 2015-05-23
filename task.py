@@ -375,10 +375,10 @@ class Task:
 
         if request.method == "POST":
             Work.write([task.work], {
-                'name': request.form.get('name'),
+                'name': request.json.get('name'),
             })
             self.write([task], {
-                'comment': request.form.get('comment')
+                'comment': request.json.get('comment')
             })
             Activity.create([{
                 'actor': current_user.id,
@@ -461,7 +461,7 @@ class Task:
         """
         task = self.get_task(self.id)
 
-        if request.values.get('action') == 'watch':
+        if request.json.get('action') == 'watch':
             if current_user not in task.participants:
                 self.write(
                     [task], {
@@ -470,7 +470,7 @@ class Task:
                 )
                 return jsonify({'message': "Successfully watched"}), 200
 
-        elif request.values.get('action') == 'unwatch':
+        elif request.json.get('action') == 'unwatch':
             if current_user in task.participants:
                 self.write(
                     [task], {
@@ -490,7 +490,7 @@ class Task:
 
         Renders all tasks of the user in all projects
         """
-        state = request.values.get('state', None)
+        state = request.args.get('state', None)
 
         # TODO: this method also takes user_id, this will be helpful for
         # public/private tasks in future.
@@ -500,19 +500,19 @@ class Task:
         filter_domain = [
             ('type', '=', 'task'),
         ]
-        if request.values.get('watched'):
+        if request.args.get('watched'):
             # Show all tasks watched, not assigned
             filter_domain.append(('participants', '=', current_user.id))
         else:
             filter_domain.append(('assigned_to', '=', current_user.id))
-        query = request.values.get('q', None)
+        query = request.args.get('q', None)
         if query:
             # This search is probably the suckiest search in the
             # history of mankind in terms of scalability and utility
             # TODO: Figure out something better
             filter_domain.append(('work.name', 'ilike', '%%%s%%' % query))
 
-        tag = request.values.get('tag', None, int)
+        tag = request.args.get('tag', None, int)
         if tag:
             filter_domain.append(('tags', '=', tag))
 
@@ -577,34 +577,34 @@ class Task:
         history_data = {
             'project': task.id,
             'updated_by': current_user.id,
-            'comment': request.values.get('comment'),
+            'comment': request.json.get('comment'),
         }
 
         updatable_attrs = ['progress_state']
         new_participant_ids = set()
         current_participant_ids = [p.id for p in task.participants]
         post_attrs = [
-            request.values.get(attr, None) for attr in updatable_attrs
+            request.json.get(attr, None) for attr in updatable_attrs
         ]
         if any(post_attrs):
             # Combined update of task and history since there is some value
             # posted in addition to the comment
             task_changes = {}
             for attr in updatable_attrs:
-                if getattr(task, attr) != request.values.get(attr, None):
-                    task_changes[attr] = request.values.get(attr)
+                if getattr(task, attr) != request.json.get(attr, None):
+                    task_changes[attr] = request.json.get(attr)
 
             if task_changes.get('progress_state') == 'Done':
                 task_changes['state'] = 'done'
             else:
                 task_changes['state'] = 'opened'
 
-            new_assignee_id = request.values.get('assigned_to', None, int)
+            new_assignee_id = int(request.json.get('assigned_to', 0)) or None
             if new_assignee_id is not None:
                 if (new_assignee_id and
                         (not task.assigned_to or
                             new_assignee_id != task.assigned_to.id)) \
-                        or (request.values.get('assigned_to', None) == ""):
+                        or (request.json.get('assigned_to', None) == ""):
                         # Clear the user
                     history_data['previous_assigned_to'] = \
                         task.assigned_to and task.assigned_to.id or None
@@ -638,7 +638,7 @@ class Task:
             # Add the user to the participants if not already in the list
             new_participant_ids.add(current_user.id)
 
-        for nereid_user in request.values.getlist('notify[]', int):
+        for nereid_user in request.json.get('notify', []):
             # Notify more people if there are people
             # who havent been added as participants
             if nereid_user not in current_participant_ids:
@@ -649,7 +649,7 @@ class Task:
                 'participants': [('add', list(new_participant_ids))]
             })
 
-        hours = request.values.get('hours', None, type=float)
+        hours = float(request.json.get('hours', 0)) or None
         if hours and current_user.employee:
             timesheet_line, = TimesheetLine.create([{
                 'employee': current_user.employee.id,
@@ -694,15 +694,13 @@ class Task:
         }])
 
         if request.method == 'POST':
-            flash('Tag added to task %s' % task.rec_name)
-            return redirect(request.referrer)
+            return jsonify(message='Tag added to task %s' % task.rec_name)
 
-        flash("Tag cannot be added")
-        return redirect(request.referrer)
+        return jsonify(message="Tag cannot be added")
 
     @classmethod
     @route(
-        '/task-<int:task_id>/tag-<int:tag_id>/-remove', methods=['GET', 'POST']
+        '/task-<int:task_id>/tag-<int:tag_id>/-remove', methods=['POST']
     )
     @login_required
     def remove_tag(cls, task_id, tag_id):
@@ -726,12 +724,7 @@ class Task:
             'project': task.parent.id,
         }])
 
-        if request.method == 'POST':
-            flash('Tag removed from task %s' % task.rec_name)
-            return redirect(request.referrer)
-
-        flash("Tag cannot be removed")
-        return redirect(request.referrer)
+        return jsonify(message='Tag removed from task %s' % task.rec_name)
 
     @route('/tasks/<int:active_id>/mark-time', methods=['POST'])
     @login_required
@@ -747,11 +740,11 @@ class Task:
 
         task = self.get_task(self.id)
 
-        if request.values.get('hours'):
+        if request.json.get('hours'):
             with Transaction().set_user(0):
                 TimesheetLine.create([{
                     'employee': current_user.employee.id,
-                    'hours': request.values.get('hours'),
+                    'hours': request.json.get('hours'),
                     'work': task.work.id,
                 }])
             return jsonify(message="Time marked successfully")
@@ -770,10 +763,10 @@ class Task:
 
         task = self.get_task(self.id)
 
-        if not request.values.get('user'):
+        if not request.json.get('user'):
             return jsonify(message="Invalid user"), 400
 
-        new_assignee = NereidUser(request.values.get('user', 'int'))
+        new_assignee = NereidUser(int(request.json.get('user')))
 
         if task.assigned_to == new_assignee:
             return jsonify(message="Task already assigned to user"), 400
@@ -809,13 +802,9 @@ class Task:
             'assigned_to': None
         })
 
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-            })
-
-        flash("Removed the assigned user from task")
-        return redirect(request.referrer)
+        return jsonify({
+            "message": "Removed the assigned user from task",
+        })
 
     @classmethod
     @route('/task-<int:task_id>/change_constraint_dates', methods=['POST'])
@@ -833,8 +822,8 @@ class Task:
             'constraint_finish_time': False
         }
 
-        constraint_start = request.form.get('constraint_start_time', None)
-        constraint_finish = request.form.get('constraint_finish_time', None)
+        constraint_start = request.json.get('constraint_start_time', None)
+        constraint_finish = request.json.get('constraint_finish_time', None)
 
         if constraint_start:
             data['constraint_start_time'] = datetime.strptime(
@@ -851,13 +840,9 @@ class Task:
             'project': task.parent.id,
         }])
 
-        if request.is_xhr:
-            return jsonify({
-                'success': True,
-            })
-
-        flash("The constraint dates have been changed for this task.")
-        return redirect(request.referrer)
+        return jsonify({
+            'message': "The constraint dates have been changed for this task.",
+        })
 
     @login_required
     @route(
@@ -872,9 +857,8 @@ class Task:
             flash("Sorry! You are not allowed to change estimate hours.")
             return redirect(request.referrer)
 
-        estimated_hours = request.form.get(
-            'new_estimated_hours', None, type=float
-        )
+        estimated_hours = float(request.json.get('new_estimated_hours', 0)) \
+            or None
         if estimated_hours:
             self.write([self], {'effort': estimated_hours})
         flash("The estimated hours have been changed for this task.")

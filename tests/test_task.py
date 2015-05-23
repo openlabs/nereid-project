@@ -50,11 +50,11 @@ class TestTask(TestBase):
                 # Create Task
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
-                    data={
+                    data=json.dumps({
                         'name': 'Test Task',
                         'description': 'task_desc',
                         'subtype': 'feature',
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 201)
 
@@ -83,11 +83,11 @@ class TestTask(TestBase):
                 response = c.post(
                     'projects/%d/tasks/%d/' % (
                         self.task1.parent.id, self.task1.id
-                    ), data={
+                    ), data=json.dumps({
                         'name': 'ABC_task',
                         'comment': 'task_desc2',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
@@ -106,10 +106,10 @@ class TestTask(TestBase):
                 # Watching task
                 response = c.put(
                     '/tasks/%d/watch' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'action': 'watch'
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
@@ -120,10 +120,10 @@ class TestTask(TestBase):
                 # Unwatching task
                 response = c.put(
                     '/tasks/%d/watch' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'action': 'unwatch'
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
@@ -146,9 +146,9 @@ class TestTask(TestBase):
                 response = c.post(
                     '/projects/%d/tasks/%d/updates/' % (
                         self.task1.parent.id, self.task1.id,
-                    ), data={
+                    ), data=json.dumps({
                         'comment': 'comment1',
-                    }, headers=self.xhr_header,
+                    }), headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 201)
 
@@ -167,12 +167,12 @@ class TestTask(TestBase):
                 # Clear Assigned User
                 response = c.post(
                     '/task-%d/-remove-assign' % self.task1.id,
-                    data={},
-                    headers=self.xhr_header,
+                    data=json.dumps({}),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertTrue(json.loads(response.data)['message'])
 
     def test_0060_assign_user(self):
         """
@@ -188,19 +188,19 @@ class TestTask(TestBase):
                 # Assign User
                 response = c.post(
                     '/tasks/%d/assign' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'user': self.reg_user2.id,
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
                 # Change Assigned User
                 response = c.post(
                     '/tasks/%d/assign' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'user': self.reg_user1.id,
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 200)
 
@@ -218,20 +218,20 @@ class TestTask(TestBase):
                 response = c.post(
                     '/projects/%d/tasks/%d/updates/' % (
                         self.task1.parent.id, self.task1.id,
-                    ), data={
+                    ), data=json.dumps({
                         'comment': 'comment1',
-                    }, headers=self.xhr_header,
+                    }), headers=self.json_header,
                 )
 
                 # Update with state change
                 response = c.post(
                     '/projects/%d/tasks/%d/updates/' % (
                         self.task1.parent.id, self.task1.id,
-                    ), data={
+                    ), data=json.dumps({
                         'progress_state': 'Planning',
                         'state': 'opened',
                         'comment': 'comment1',
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 201)
 
@@ -249,12 +249,10 @@ class TestTask(TestBase):
                 # add_tag tag1
                 response = c.post(
                     '/task-%d/tag-%d/-add' %
-                    (self.task1.id, self.tag1.id), data={}
+                    (self.task1.id, self.tag1.id), data=json.dumps({}),
+                    headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u'Tag added to task ABC_task' in response.data
                 )
@@ -262,13 +260,11 @@ class TestTask(TestBase):
                 # Add_tag tag2
                 response = c.post(
                     '/task-%d/tag-%d/-add' %
-                    (self.task1.id, self.tag2.id), data={}
+                    (self.task1.id, self.tag2.id), data=json.dumps({}),
+                    headers=self.json_header
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u'Tag added to task ABC_task' in response.data
                 )
@@ -276,13 +272,11 @@ class TestTask(TestBase):
                 # Remove_tag tag1
                 response = c.post(
                     '/task-%d/tag-%d/-remove' %
-                    (self.task1.id, self.tag1.id), data={}
+                    (self.task1.id, self.tag1.id), data=json.dumps({}),
+                    headers=self.json_header
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u'Tag removed from task ABC_task' in response.data
                 )
@@ -302,7 +296,7 @@ class TestTask(TestBase):
                 # Render_task_list for project
                 response = c.get(
                     '/projects/%d/tasks/' % self.project1.id,
-                    headers=self.xhr_header,
+                    headers=self.json_header,
                 )
 
                 # Checking list count
@@ -325,7 +319,7 @@ class TestTask(TestBase):
                 # Render_task_list for project with query 'test'
                 response = c.get(
                     '/projects/%d/tasks/?q=test' %
-                    self.project1.id, headers=self.xhr_header,
+                    self.project1.id, headers=self.json_header,
                 )
 
                 # Checking list count
@@ -336,7 +330,7 @@ class TestTask(TestBase):
                 # Render_task_list for project with query 'task3'
                 response = c.get(
                     '/projects/%d/tasks/?q=task3' %
-                    self.project1.id, headers=self.xhr_header,
+                    self.project1.id, headers=self.json_header,
                 )
 
                 # Checking list count
@@ -360,7 +354,7 @@ class TestTask(TestBase):
                 response = c.get(
                     '/projects/%d/tasks/?tag=%d' %
                     (self.project1.id, self.tag1.id),
-                    headers=self.xhr_header,
+                    headers=self.json_header,
                 )
 
                 # Checking list count
@@ -372,7 +366,7 @@ class TestTask(TestBase):
                 response = c.get(
                     '/projects/%d/tasks/?tag=%d' %
                     (self.project1.id, self.tag2.id),
-                    headers=self.xhr_header,
+                    headers=self.json_header,
                 )
 
                 # Checking list count
@@ -396,9 +390,9 @@ class TestTask(TestBase):
                     # Mark time
                     response = c.post(
                         '/tasks/%d/mark-time' % self.task1.id,
-                        data={
+                        data=json.dumps({
                             'hours': '8',
-                        }
+                        }), headers=self.json_header
                     )
 
                 self.assertEqual(response.status_code, 200)
@@ -412,9 +406,9 @@ class TestTask(TestBase):
                 # Mark time when user is not employee
                 response = c.post(
                     '/tasks/%d/mark-time' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'hours': '8',
-                    }
+                    }), headers=self.json_header
                 )
 
                 self.assertEqual(response.status_code, 403)
@@ -434,9 +428,9 @@ class TestTask(TestBase):
                 # Change estimated hours
                 response = c.post(
                     '/task-%d/change-estimated-hours' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'new_estimated_hours': '15',
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(self.task1.effort, 15)
@@ -461,7 +455,7 @@ class TestTask(TestBase):
                 # Check my tasks
                 response = c.get(
                     '/users/%d/tasks/' % self.reg_user1.id,
-                    headers=self.xhr_header
+                    headers=self.json_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 1
@@ -471,7 +465,7 @@ class TestTask(TestBase):
                 response = c.get(
                     '/users/%d/tasks/?tag=%d' % (
                         self.reg_user1.id, self.tag1.id
-                    ), headers=self.xhr_header
+                    ), headers=self.json_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 0
@@ -481,7 +475,7 @@ class TestTask(TestBase):
                 response = c.get(
                     '/users/%d/tasks/?tag=%d' % (
                         self.reg_user1.id, self.tag2.id
-                    ), headers=self.xhr_header
+                    ), headers=self.json_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 1
@@ -575,12 +569,11 @@ class TestTask(TestBase):
                 # Update_comment
                 response = c.post(
                     '/task-%d/comment-%d/-update' %
-                    (self.task1.id, comment.id), data={'comment': 'comment2'},
-                    headers=self.xhr_header,
+                    (self.task1.id, comment.id),
+                    data=json.dumps({'comment': 'comment2'}),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
                 self.assertEqual(comment.comment, 'comment2')
 
     def test_0180_change_constraint_dates(self):
@@ -598,16 +591,16 @@ class TestTask(TestBase):
                 # Change_constraint_dates
                 response = c.post(
                     '/task-%d/change_constraint_dates' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'constraint_start_time': '06/24/2013',
                         'constraint_finish_time': '06/30/2013',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                # Checking json success
-                self.assertTrue(json.loads(response.data)['success'])
+                # Checking json message
+                self.assertTrue(json.loads(response.data)['message'])
 
     def test_0190_delete_task(self):
         """
@@ -639,7 +632,7 @@ class TestTask(TestBase):
                 response = c.delete(
                     '/projects/%d/tasks/%d/' % (
                         self.task1.parent.id, self.task1.id
-                    ), headers=self.xhr_header
+                    ), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 403)
 
@@ -676,7 +669,7 @@ class TestTask(TestBase):
                 response = c.delete(
                     '/projects/%d/tasks/%d/' % (
                         self.task1.parent.id, self.task1.id
-                    ), headers=self.xhr_header
+                    ), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 204)
 
@@ -704,7 +697,7 @@ class TestTask(TestBase):
                 response = c.delete(
                     '/projects/%d/tasks/%d/' % (
                         self.task2.parent.id, self.task2.id
-                    ), headers=self.xhr_header
+                    ), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 204)
 
@@ -740,7 +733,7 @@ class TestTask(TestBase):
                 # Create Task
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
-                    data={
+                    data=json.dumps({
                         'name': 'Task with multiple tags',
                         'description': 'Multi selection tags field',
                         'subtype': 'feature',
@@ -749,7 +742,7 @@ class TestTask(TestBase):
                             self.tag2.id,
                             self.tag3.id,
                         ],
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 201)
                 # One task created
@@ -792,7 +785,7 @@ class TestTask(TestBase):
                 # Create Task
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
-                    data={
+                    data=json.dumps({
                         'name': 'Task 2 with multiple tags',
                         'description': 'Multi selection tags field',
                         'subtype': 'feature',
@@ -801,7 +794,7 @@ class TestTask(TestBase):
                             self.tag2.id,
                             self.tag3.id,
                         ],
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 201)
                 # One task created
@@ -842,12 +835,12 @@ class TestTask(TestBase):
 
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
-                    data={
+                    data=json.dumps({
                         'name': 'Test Task 1',
                         'description': 'task_desc',
                         'subtype': 'feature',
                         'assign_to': self.reg_user1.id,
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 201)
 
@@ -861,12 +854,12 @@ class TestTask(TestBase):
                 self.assertEqual(response.status_code, 302)
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
-                    data={
+                    data=json.dumps({
                         'name': 'Test Task 2',
                         'description': 'task_desc',
                         'assign_to': self.reg_user2.id,
                         'subtype': 'feature',
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 201)
 
@@ -880,12 +873,12 @@ class TestTask(TestBase):
                 self.assertEqual(response.status_code, 302)
                 response = c.post(
                     '/projects/%d/tasks/' % self.project1.id,
-                    data={
+                    data=json.dumps({
                         'name': 'Test Task 3',
                         'description': 'task_desc',
                         'subtype': 'feature',
                         'assign_to': self.reg_user3.id,
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 403)
 
@@ -901,12 +894,12 @@ class TestTask(TestBase):
                 response = c.post(
                     '/projects/%d/tasks/%d/updates/' % (
                         task.parent.id, task.id,
-                    ), data={
+                    ), data=json.dumps({
                         'comment': 'comment1',
                         'assigned_to': self.reg_user2.id,
                         'progress_state': 'In Progress',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 201)
 
@@ -922,12 +915,12 @@ class TestTask(TestBase):
                 response = c.post(
                     '/projects/%d/tasks/%d/updates/' % (
                         task.parent.id, task.id,
-                    ), data={
+                    ), data=json.dumps({
                         'comment': 'comment1',
                         'assigned_to': self.reg_user1.id,
                         'progress_state': 'In Progress',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 201)
 

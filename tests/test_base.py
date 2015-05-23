@@ -55,6 +55,9 @@ class TestBase(NereidTestCase):
         self.TaskUsers = POOL.get('project.work-nereid.user')
         self.Activity = POOL.get('nereid.activity')
         self.Locale = POOL.get('nereid.website.locale')
+        self.json_header = [
+            ('content-type', 'application/json'),
+        ]
         self.xhr_header = [
             ('X-Requested-With', 'XMLHttpRequest'),
         ]

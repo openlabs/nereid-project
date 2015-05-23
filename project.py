@@ -198,32 +198,21 @@ class ProjectInvitation(ModelSQL, ModelView):
             return self.nereid_user.create_date
 
     @login_required
-    @route('/invitation-<int:active_id>/-remove', methods=['GET', 'POST'])
+    @route('/invitation-<int:active_id>/-remove', methods=['POST'])
     def remove_invite(self):
         """
         Remove the invite to a participant from project
         """
         # Check if user is among the project admins
         if not request.nereid_user.is_admin_of_project(self.project):
-            flash(
-                "Sorry! You are not allowed to remove invited users." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
+            abort(403)
 
-        if request.method == 'POST':
-            self.delete([self])
+        self.delete([self])
 
-            if request.is_xhr:
-                return jsonify({
-                    'success': True,
-                })
-
-            flash(
-                "Invitation to the user has been voided."
+        return jsonify({
+            "message": "Invitation to the user has been voided."
                 "The user can no longer join the project unless reinvited"
-            )
-        return redirect(request.referrer)
+        })
 
     @login_required
     @route('/invitation-<int:active_id>/-resend', methods=['GET', 'POST'])
@@ -718,7 +707,7 @@ class Project:
     @login_required
     @route(
         '/project-<int:active_id>/participant-<int:participant_id>/-remove',
-        methods=['GET', 'POST']
+        methods=['POST']
     )
     def remove_participant(self, participant_id):
         """
@@ -729,61 +718,53 @@ class Project:
 
         # Check if user is admin member of the project
         if not request.nereid_user.is_admin_of_project(self):
-            flash(
-                "Sorry! You are not allowed to remove participants." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
+            abort(403)
 
         task_ids_to_update = []
 
-        if request.method == 'POST' and request.is_xhr:
-            task_ids_to_update.extend([child.id for child in self.children])
-            # If this participant is assigned to any task in this project,
-            # that user cannot be removed as tryton's domain does not permit
-            # this.
-            # So removing assigned user from those tasks as well.
-            # TODO: Find a better way to do it, this is memory intensive
-            assigned_to_participant = self.search([
-                ('id', 'in', task_ids_to_update),
-                ('assigned_to', '=', participant_id)
-            ])
-            self.write(assigned_to_participant, {
-                'assigned_to': None,
-            })
-            self.write(
-                map(
-                    lambda rec_id: self.__class__(rec_id),
-                    task_ids_to_update
-                ), {'participants': [('remove', [participant_id])]}
-            )
+        task_ids_to_update.extend([child.id for child in self.children])
+        # If this participant is assigned to any task in this project,
+        # that user cannot be removed as tryton's domain does not permit
+        # this.
+        # So removing assigned user from those tasks as well.
+        # TODO: Find a better way to do it, this is memory intensive
+        assigned_to_participant = self.search([
+            ('id', 'in', task_ids_to_update),
+            ('assigned_to', '=', participant_id)
+        ])
+        self.write(assigned_to_participant, {
+            'assigned_to': None,
+        })
+        self.write(
+            map(
+                lambda rec_id: self.__class__(rec_id),
+                task_ids_to_update
+            ), {'participants': [('remove', [participant_id])]}
+        )
 
-            project_member, = ProjectMember.search([
-                ('project', '=', self.id),
-                ('user', '=', participant_id),
-            ])
-            self.write([self], {
-                'members': [('delete', [project_member.id])]
-            })
+        project_member, = ProjectMember.search([
+            ('project', '=', self.id),
+            ('user', '=', participant_id),
+        ])
+        self.write([self], {
+            'members': [('delete', [project_member.id])]
+        })
 
-            # FIXME: I think object_ in activity should be
-            # project.work-nereid.user models record.
-            object_ = 'nereid.user, %d' % participant_id
+        # FIXME: I think object_ in activity should be
+        # project.work-nereid.user models record.
+        object_ = 'nereid.user, %d' % participant_id
 
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': object_,
-                'target': 'project.work, %d' % self.id,
-                'verb': 'removed_participant',
-                'project': self.id,
-            }])
+        Activity.create([{
+            'actor': request.nereid_user.id,
+            'object_': object_,
+            'target': 'project.work, %d' % self.id,
+            'verb': 'removed_participant',
+            'project': self.id,
+        }])
 
-            return jsonify({
-                'success': True,
-            })
-
-        flash("Could not remove participant! Try again.")
-        return redirect(request.referrer)
+        return jsonify({
+            'success': True,
+        })
 
     @classmethod
     @route('/project-<int:project_id>/-files', methods=['GET', 'POST'])
@@ -1637,7 +1618,7 @@ class ProjectHistory(ModelSQL, ModelView):
     @login_required
     @route(
         '/task-<int:task_id>/comment-<int:active_id>/-update',
-        methods=['GET', 'POST']
+        methods=['POST']
     )
     def update_comment(self, task_id):
         """
@@ -1654,18 +1635,15 @@ class ProjectHistory(ModelSQL, ModelView):
         # Allow only admins and author of this comment to edit it
         if request.nereid_user.is_admin_of_project(task.parent) or \
                 self.updated_by == request.nereid_user:
-            self.write([self], {'comment': request.form['comment']})
+            self.write([self], {'comment': request.json['comment']})
         else:
             abort(403)
 
-        if request.is_xhr:
-            html = render_template('project/comment.jinja', comment=self)
-            return jsonify({
-                'success': True,
-                'html': unicode(html),
-                'state': task.state,
-            })
-        return redirect(request.referrer)
+        html = render_template('project/comment.jinja', comment=self)
+        return jsonify({
+            'html': unicode(html),
+            'state': task.state,
+        })
 
     def send_mail(self):
         """
