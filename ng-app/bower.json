@@ -9,7 +9,7 @@
     "angular": "~1.3.0",
     "ui-router": "~0.2.12",
     "angular-material": "~0.9.0",
-    "mdi": "~0.8.82-alpha",
+    "mdi": "~1.0.0",
     "angular-mocks": "~1.3.13",
     "angular-hotkeys": "chieffancypants/angular-hotkeys#~1.4.5",
     "angular-nereid": "~1.1.0",

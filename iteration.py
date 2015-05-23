@@ -156,6 +156,7 @@ class Iteration(ModelSQL, ModelView):
         Serialize Iteration
         """
         res = {
+            'id': self.id,
             'name': self.name,
             'start_date': self.start_date.isoformat(),
             'end_date': self.end_date.isoformat(),

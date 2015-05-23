@@ -37,9 +37,11 @@
   </span>
 </md-toolbar>
 
-<md-content flex>
-  <!-- ui-view for main interface -->
-  <div ui-view="main-view"></div>
-</md-content>
+<div layout="row" layout-fill>
+  <div ui-view="sidenav"></div>
 
-</section>
+  <md-content flex>
+    <!-- ui-view for main interface -->
+    <div ui-view="main-view"></div>
+  </md-content>
+</div>

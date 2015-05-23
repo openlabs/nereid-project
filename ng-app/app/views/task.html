@@ -1,9 +1,15 @@
 <div layout="column" ng-init="loadTask()">
   <md-toolbar class="md-hue-2">
     <div class="md-toolbar-tools">
-      <h2 class="md-flex">{{ task.displayName}} {{ task.name }}</h2>
+      <a aria-label="search" ui-sref="base.project.tasks()" flex="5">
+        <i class="mdi mdi-arrow-left button-icon-font"></i>
+      </a>
+      <div class="md-toolbar-tools">
+        <h2 class="md-flex">{{ task.displayName}} {{ task.name }}</h2>
+      </div>
     </div>
   </md-toolbar>
+
   <md-content layout-padding>
 
     <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
