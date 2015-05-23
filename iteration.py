@@ -93,8 +93,25 @@ class Iteration(ModelSQL, ModelView):
     )
 
     def get_count(self, name):
-        # TODO: Not implemented yet.
-        return 0
+        """Get task count based on task state.
+        """
+        def _get_count(state):
+            return len(
+                filter(lambda task: task.progress_state == state), self.tasks
+            )
+
+        if name == 'count_backlog':
+            return _get_count('Backlog')
+        elif name == 'count_planning':
+            return _get_count('Planning')
+        elif name == 'count_in_progress':
+            return _get_count('In Progress')
+        elif name == 'count_review':
+            return _get_count('Review')
+        elif name == 'count_done':
+            return len(filter(lambda task: task.state == 'done'), self.tasks)
+        elif name == 'count_tasks':
+            return len(self.tasks + self.backlog_tasks)
 
     def get_url(self, name):
         """
@@ -142,6 +159,12 @@ class Iteration(ModelSQL, ModelView):
             'name': self.name,
             'start_date': self.start_date.isoformat(),
             'end_date': self.end_date.isoformat(),
+            'count_tasks': self.count_tasks,
+            'count_backlog': self.count_backlog,
+            'count_planning': self.count_planning,
+            'count_in_progress': self.count_in_progress,
+            'count_review': self.count_review,
+            'count_done': self.count_done,
         }
         if purpose == "full":
             res.update({
@@ -183,7 +206,13 @@ class Iteration(ModelSQL, ModelView):
         """
         if request.method == 'GET':
             page = request.args.get('page', 1, int)
-            iterations = Pagination(cls, [], page, 10)
+            state = request.args.get('state')
+
+            filter_domain = []
+            if state:
+                filter_domain.append(('state', '=', state))
+
+            iterations = Pagination(cls, filter_domain, page, 10)
             return jsonify(iterations.serialize())
 
         if not current_user.has_permissions(['project.scrum_master']):
@@ -199,7 +228,7 @@ class Iteration(ModelSQL, ModelView):
             }])
             return jsonify({
                 'url': iteration.url,
-            })
+            }), 201
 
     @route(
         "/iterations/<int:active_id>", methods=["GET", "POST", "PUT", "DELETE"]
