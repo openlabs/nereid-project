@@ -18,8 +18,9 @@ from trytond.pool import PoolMeta
 from nereid.ctx import has_request_context
 from nereid.contrib.pagination import Pagination
 
+from task import PROGRESS_STATES
 
-__all__ = ['Iteration', 'IterationTask']
+__all__ = ['Iteration', 'IterationBacklog']
 __metaclass__ = PoolMeta
 
 
@@ -67,11 +68,33 @@ class Iteration(ModelSQL, ModelView):
         ],
         depends=['company'],
     )
-    backlog_tasks = fields.Many2Many(
-        'project.iteration-project.work', 'iteration', 'task', 'Backlog Tasks',
+    backlog_tasks = fields.One2Many(
+        'project.iteration.backlog', 'iteration', 'Backlog Tasks',
         readonly=True
     )
     url = fields.Function(fields.Char('URL'), 'get_url')
+
+    # Function fields to return status
+    count_tasks = fields.Function(fields.Integer("Total Tasks"), 'get_count')
+    count_backlog = fields.Function(
+        fields.Integer("Tasks in Backlog"), 'get_count'
+    )
+    count_planning = fields.Function(
+        fields.Integer("Tasks in Planning"), 'get_count'
+    )
+    count_in_progress = fields.Function(
+        fields.Integer("Tasks in Progress"), 'get_count'
+    )
+    count_review = fields.Function(
+        fields.Integer("Tasks in Review"), 'get_count'
+    )
+    count_done = fields.Function(
+        fields.Integer("Done Tasks"), 'get_count'
+    )
+
+    def get_count(self, name):
+        # TODO: Not implemented yet.
+        return 0
 
     def get_url(self, name):
         """
@@ -242,12 +265,27 @@ class Iteration(ModelSQL, ModelView):
         abort(400)
 
 
-class IterationTask(ModelSQL):
-    "Iteration - Task"
-    __name__ = "project.iteration-project.work"
+class IterationBacklog(ModelSQL, ModelView):
+    "Iteration Backlog"
+    __name__ = 'project.iteration.backlog'
+
     iteration = fields.Many2One(
-        'project.iteration', "Iteration", select=True, required=True
+        'project.iteration', 'Iteration', required=True, select=True
     )
     task = fields.Many2One(
-        'project.work', "Task", select=True, required=True
+        'project.work', 'Task', required=True, select=True,
+        domain=[('type', '=', 'task')]
+    )
+    progress_state = fields.Selection(
+        PROGRESS_STATES, 'Progress State', select=True
+    )
+    owner = fields.Many2One(
+        'nereid.user', 'Task Owner', select=True
+    )
+    assigned_to = fields.Many2One(
+        'nereid.user', 'Assigned To', select=True
+    )
+    project = fields.Many2One(
+        'project.work', 'Project', select=True,
+        domain=[('type', '=', 'project')]
     )
