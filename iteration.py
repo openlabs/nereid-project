@@ -97,7 +97,7 @@ class Iteration(ModelSQL, ModelView):
         """
         def _get_count(state):
             return len(
-                filter(lambda task: task.progress_state == state), self.tasks
+                filter(lambda task: task.progress_state == state, self.tasks)
             )
 
         if name == 'count_backlog':
@@ -109,7 +109,7 @@ class Iteration(ModelSQL, ModelView):
         elif name == 'count_review':
             return _get_count('Review')
         elif name == 'count_done':
-            return len(filter(lambda task: task.state == 'done'), self.tasks)
+            return len(filter(lambda task: task.state == 'done', self.tasks))
         elif name == 'count_tasks':
             return len(self.tasks + self.backlog_tasks)
 
