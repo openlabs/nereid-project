@@ -23,12 +23,12 @@ angular.module('nereidProjectApp')
         per_page=20;
       }
       return $http.get(nereid.buildUrl(
-        '/projects?page=' + page + '&per_page=' + per_page
+        '/projects/?page=' + page + '&per_page=' + per_page
       ));
     };
 
     Project.get = function(projectId) {
-      return $http.get(nereid.buildUrl('/projects/' + projectId));
+      return $http.get(nereid.buildUrl('/projects/' + projectId + '/'));
     };
 
     Project.getTasks = function(projectId, filter) {
