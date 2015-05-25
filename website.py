@@ -6,7 +6,7 @@
     :license: GPLv3, see LICENSE for more details.
 """
 from trytond.pool import PoolMeta
-from nereid import route, login_required, redirect, url_for
+from nereid import route, redirect
 
 __all__ = ['WebSite']
 __metaclass__ = PoolMeta
