@@ -26,7 +26,7 @@
       </div>
     </div>
     <div layout="column" layout-fill>
-      <md-progress-linear class="md-accent" md-mode="determinate" value="25"></md-progress-linear>
+      <md-progress-linear class="md-accent" md-mode="determinate" ng-value="doneTasks.length | percent: iteration.count_tasks"></md-progress-linear>
       <div layout="row" class="progress-state">
         <div layout="column">
           <span>Backlog</span>
@@ -61,8 +61,7 @@
       <md-content layout="column">
         <table class="iteration-table" layout-fill>
           <thead>
-            <th>User</th>
-            <th>Progress</th>
+            <th>{{ groupBy }}</th>
             <th>Backlog</th>
             <th>Planning</th>
             <th>In Progress</th>
@@ -70,8 +69,30 @@
             <th>Done</th>
           </thead>
           <tbody>
-            <tr>
-              <!--TODO fetch from API-->
+            <tr ng-repeat="stat in iterationStats">
+              <td>
+                {{ stat.name }}
+              </td>
+              <td>
+                {{ stat.backlogTasksCount }}
+                <md-progress-linear class="md-accent" md-mode="determinate" ng-value="stat.backlogTasksCount | percent:stat.totalTasks"></md-progress-linear>
+              </td>
+              <td>
+                {{ stat.planningTasksCount }}
+                <md-progress-linear class="md-accent" md-mode="determinate" ng-value="stat.planningTasksCount | percent:stat.totalTasks"></md-progress-linear>
+              </td>
+              <td>
+                {{ stat.inProgressTasksCount }}
+                <md-progress-linear class="md-accent" md-mode="determinate" ng-value="stat.inProgressTasksCount | percent:stat.totalTasks"></md-progress-linear>
+              </td>
+              <td>
+                {{ stat.reviewTasksCount }}
+                <md-progress-linear class="md-accent" md-mode="determinate" ng-value="stat.reviewTasksCount | percent:stat.totalTasks"></md-progress-linear>
+              </td>
+              <td>
+                {{ stat.doneTasksCount }}
+                <md-progress-linear class="md-accent" md-mode="determinate" ng-value="stat.doneTasksCount | percent:stat.totalTasks"></md-progress-linear>
+              </td>
             </tr>
           </tbody>
         </table>

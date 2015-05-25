@@ -18,7 +18,8 @@
     "ng-mfb": "~0.6.0",
     "angular-gravatar": "~0.3.1",
     "angular-marked": "~0.0.14",
-    "highlightjs": "~8.5.0"
+    "highlightjs": "~8.5.0",
+    "angular-filter": "~0.5.4"
   },
   "devDependencies": {},
   "resolutions": {
