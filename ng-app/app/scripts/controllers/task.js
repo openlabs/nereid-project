@@ -31,8 +31,8 @@ angular.module('nereidProjectApp')
       $scope.submitComment = function() {
         Task.addComment($scope.projectId, $scope.taskId, $scope.commentObj)
           .success(function(result) {
-            $scope.task.comments.push(result.comment);
-            $scope.commentObj = {};
+            $scope.task.comments = $scope.task.comments.concat(result.items);
+            $scope.commentObj.comment = null;
           })
           .error(function(reason) {
             Helper.showDialog('Could not add comment', reason);
