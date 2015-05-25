@@ -1,0 +1,18 @@
+<div ng-init="loadTasks(projectId)">
+
+    <!--TODO: Add more task fields-->
+    <md-list>
+      <md-list-item class="md-3-line" ng-repeat="task in tasks">
+        <!--TODO: Server should just return user email and image should be fetched from angular-gravatar.-->
+        <img ng-src="{{ task.assigned_to.image.url}}" class="md-avatar" alt="{{item.who}}" />
+        <a ui-sref="base.project.task({taskId: task.id})">
+          <div class="md-list-item-text">
+            <h4>{{ task.displayName}} {{ task.name }}</h4>
+            <p></p>
+          </div>
+        </a>
+        <md-divider></md-divider>
+      </md-list-item>
+    </md-list>
+
+</div>

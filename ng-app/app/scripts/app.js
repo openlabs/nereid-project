@@ -3,11 +3,14 @@
 angular.module('nereidProjectApp', [
   'ui.router',
   'ngMaterial',
-  'openlabs.angular-nereid-auth'
+  'openlabs.angular-nereid-auth',
+  'cfp.hotkeys',
+  'infinite-scroll'
   ])
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider
       .when('', '/')
+      .when('/', '/projects')
       .otherwise('/404');
 
     $stateProvider
@@ -25,26 +28,124 @@ angular.module('nereidProjectApp', [
 
       .state('base', {
         url: '/',
-        templateUrl: 'views/base.html'
+        templateUrl: 'views/base.html',
+        controller: 'BaseCtrl'
+      })
+
+      .state('base.projects', {
+        url: 'projects',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/projects.html',
+            controller: 'ProjectsCtrl'
+          }
+        }
+      })
+
+      .state('base.project', {
+        url: 'projects/{projectId:int}',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/project-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/project.html',
+            controller: 'ProjectCtrl'
+          }
+        }
+      })
+
+      .state('base.project.tasks', {
+        url: '/tasks',
+        views: {
+          'project-nav-view': {
+            templateUrl: 'views/tasks.html',
+            controller: 'TasksCtrl'
+          }
+        }
+      })
+
+      .state('base.project.task', {
+        url: '/tasks/{taskId:int}',
+        views: {
+          'project-nav-view': {
+            templateUrl: 'views/task.html',
+            controller: 'TaskCtrl'
+          }
+        }
+      })
+
+      .state('base.project.tasks.open', {
+        url: '/open',
+        tabIndex: 0, // Tab index of the md-tab in tasks view
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/open-tasks.html',
+            controller: 'OpenTasksCtrl'
+          }
+        }
+      })
+
+      .state('base.project.tasks.all', {
+        url: '/all',
+        tabIndex: 1,
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/all-tasks.html',
+            controller: 'AllTasksCtrl'
+          }
+        }
+      })
+
+      .state('base.project.tasks.my', {
+        url: '/my',
+        tabIndex: 2,
+        views: {
+          'task-tabs': {
+            templateUrl: 'views/my-tasks.html',
+            controller: 'MyTasksCtrl'
+          }
+        }
+      })
+
+      .state('base.iterations', {
+        url: 'iterations',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/iterations.html',
+            controller: 'IterationsCtrl'
+          }
+        }
+      })
+
+      .state('base.iteration', {
+        url: 'iterations/{iterationId:int}',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/iteration.html',
+            controller: 'IterationCtrl'
+          }
+        }
       });
 
-      var customGreenMap = $mdThemingProvider.extendPalette('teal', {
-        'contrastDefaultColor': 'light',
-        'contrastDarkColors': ['50'],
-        '50': 'ffffff'
-      });
-      $mdThemingProvider.definePalette('customGreen', customGreenMap);
       $mdThemingProvider.theme('default')
-      .primaryPalette('customGreen', {
-        'default': '500',
-        'hue-1': '50'
+      .primaryPalette('light-blue', {
+        'default': '500'
       })
       .accentPalette('pink');
       $mdThemingProvider.theme('input', 'default')
       .primaryPalette('grey');
   })
   .run(['$rootScope', '$state', 'nereidAuth', function ($rootScope, $state, nereidAuth) {
-    nereidAuth.setapiBasePath('/api');
     nereidAuth.refreshUserInfo(); // XXX: why?
 
     $rootScope.$on('$stateChangeSuccess', function(event, toState) {

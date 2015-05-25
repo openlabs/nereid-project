@@ -55,6 +55,9 @@ class TestBase(NereidTestCase):
         self.TaskUsers = POOL.get('project.work-nereid.user')
         self.Activity = POOL.get('nereid.activity')
         self.Locale = POOL.get('nereid.website.locale')
+        self.json_header = [
+            ('content-type', 'application/json'),
+        ]
         self.xhr_header = [
             ('X-Requested-With', 'XMLHttpRequest'),
         ]
@@ -210,6 +213,9 @@ class TestBase(NereidTestCase):
         manager_permission = self.Permission.search([
             ('value', '=', 'project.manager')
         ])
+        scrum_master_permission = self.Permission.search([
+            ('value', '=', 'project.scrum_master')
+        ])
         self.project_admin_user, = self.NereidUser.create([{
             'party': party5.id,
             'display_name': 'Project Admin User',
@@ -225,6 +231,13 @@ class TestBase(NereidTestCase):
             'password': 'password',
             'company': self.company.id,
         }])
+        self.scrum_master_user, = self.NereidUser.create([{
+            'party': party5.id,
+            'display_name': 'Scrum Master User',
+            'email': 'scrum@project.com',
+            'password': 'password',
+            'company': self.company.id,
+        }])
         self.Permission.write(
             admin_permission, {
                 'nereid_users': [('add', [self.project_admin_user.id])]
@@ -234,6 +247,11 @@ class TestBase(NereidTestCase):
         self.Permission.write(
             manager_permission, {
                 'nereid_users': [('add', [self.project_manager_user.id])]
+            }
+        )
+        self.Permission.write(
+            scrum_master_permission, {
+                'nereid_users': [('add', [self.scrum_master_user.id])]
             }
         )
 

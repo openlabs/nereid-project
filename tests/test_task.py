@@ -28,13 +28,7 @@ class TestTask(TestBase):
     Test Task
     '''
 
-    def get_template_source(self, name):
-        """
-        Return templates.
-        """
-        return self.templates.get(name)
-
-    def test_0010_create_task(self):
+    def test_0010_create_and_list_task(self):
         """
         Test create task by logged in user
         """
@@ -46,29 +40,32 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
+                self.assertEqual(
+                    self.Project.search([
+                        ('type', '=', 'task'),
+                        ('parent', '=', self.project1.id)
+                    ], count=True), 3
+                )
+
                 # Create Task
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
-                    data={
+                    '/projects/%d/tasks/' % self.project1.id,
+                    data=json.dumps({
                         'name': 'Test Task',
                         'description': 'task_desc',
-                    }
+                        'subtype': 'feature',
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
 
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Task successfully added to project ABC' in
-                    response.data
+                # Get Task
+                response = c.get(
+                    '/projects/%d/tasks/' % self.project1.id,
                 )
+                self.assertEqual(response.status_code, 200)
 
-                task, = self.Project.search([
-                    ('type', '=', 'task'),
-                    ('rec_name', '=', 'Test Task')
-                ])
-
-                self.assertEqual(task.state, 'opened')
-                self.assertEqual(task.progress_state, 'Backlog')
+                task_data = json.loads(response.data)
+                self.assertEqual(task_data['count'], 4)
 
     def test_0020_edit_task(self):
         """
@@ -84,17 +81,15 @@ class TestTask(TestBase):
 
                 # Edit Task
                 response = c.post(
-                    '/task-%d/-edit' % self.task1.id,
-                    data={
+                    'projects/%d/tasks/%d/' % (
+                        self.task1.parent.id, self.task1.id
+                    ), data=json.dumps({
                         'name': 'ABC_task',
                         'comment': 'task_desc2',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
-                self.assertEqual(self.task1.comment, 'task_desc2')
 
     def test_0030_watch_unwatch(self):
         """
@@ -108,29 +103,31 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user2.email, 'password')
 
-                # Unwatching task
-                response = c.post(
-                    '/task-%d/-unwatch' % self.task1.id,
-                    data={},
-                    headers=self.xhr_header,
+                # Watching task
+                response = c.put(
+                    '/tasks/%d/watch' % self.task1.id,
+                    data=json.dumps({
+                        'action': 'watch'
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
-                self.assertFalse(
+                self.assertTrue(
                     self.reg_user2 in self.task1.participants
                 )
 
-                # Watching task
-                response = c.post(
-                    '/task-%d/-watch' % self.task1.id,
-                    data={},
-                    headers=self.xhr_header,
+                # Unwatching task
+                response = c.put(
+                    '/tasks/%d/watch' % self.task1.id,
+                    data=json.dumps({
+                        'action': 'unwatch'
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
-                self.assertTrue(
+                self.assertFalse(
                     self.reg_user2 in self.task1.participants
                 )
 
@@ -146,26 +143,14 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
-                # Add Comment without xhr
                 response = c.post(
-                    '/task-%d/-update' % self.task1.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        self.task1.parent.id, self.task1.id,
+                    ), data=json.dumps({
                         'comment': 'comment1',
-                    }
+                    }), headers=self.json_header,
                 )
-                self.assertEqual(response.status_code, 302)
-
-                # Add Comment with XHR
-                response = c.post(
-                    '/task-%d/-update' % self.task1.id,
-                    data={
-                        'comment': 'comment2',
-                    },
-                    headers=self.xhr_header,
-                )
-                self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(response.status_code, 201)
 
     def test_0050_clear_assigned_user(self):
         """
@@ -182,12 +167,12 @@ class TestTask(TestBase):
                 # Clear Assigned User
                 response = c.post(
                     '/task-%d/-remove-assign' % self.task1.id,
-                    data={},
-                    headers=self.xhr_header,
+                    data=json.dumps({}),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertTrue(json.loads(response.data)['message'])
 
     def test_0060_assign_user(self):
         """
@@ -202,24 +187,22 @@ class TestTask(TestBase):
 
                 # Assign User
                 response = c.post(
-                    '/task-%d/-assign' % self.task1.id,
-                    data={
+                    '/tasks/%d/assign' % self.task1.id,
+                    data=json.dumps({
                         'user': self.reg_user2.id,
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                self.assertTrue(json.loads(response.data)['success'])
-
                 # Change Assigned User
                 response = c.post(
-                    '/task-%d/-assign' % self.task1.id,
-                    data={
+                    '/tasks/%d/assign' % self.task1.id,
+                    data=json.dumps({
                         'user': self.reg_user1.id,
-                    }
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 200)
 
     def test_0070_state_change(self):
         """
@@ -232,16 +215,25 @@ class TestTask(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
+                response = c.post(
+                    '/projects/%d/tasks/%d/updates/' % (
+                        self.task1.parent.id, self.task1.id,
+                    ), data=json.dumps({
+                        'comment': 'comment1',
+                    }), headers=self.json_header,
+                )
+
                 # Update with state change
                 response = c.post(
-                    '/task-%d/-update' % self.task1.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        self.task1.parent.id, self.task1.id,
+                    ), data=json.dumps({
                         'progress_state': 'Planning',
                         'state': 'opened',
                         'comment': 'comment1',
-                    }
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
 
     def test_0080_add_remove_tag(self):
         """
@@ -257,12 +249,10 @@ class TestTask(TestBase):
                 # add_tag tag1
                 response = c.post(
                     '/task-%d/tag-%d/-add' %
-                    (self.task1.id, self.tag1.id), data={}
+                    (self.task1.id, self.tag1.id), data=json.dumps({}),
+                    headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u'Tag added to task ABC_task' in response.data
                 )
@@ -270,13 +260,11 @@ class TestTask(TestBase):
                 # Add_tag tag2
                 response = c.post(
                     '/task-%d/tag-%d/-add' %
-                    (self.task1.id, self.tag2.id), data={}
+                    (self.task1.id, self.tag2.id), data=json.dumps({}),
+                    headers=self.json_header
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u'Tag added to task ABC_task' in response.data
                 )
@@ -284,13 +272,11 @@ class TestTask(TestBase):
                 # Remove_tag tag1
                 response = c.post(
                     '/task-%d/tag-%d/-remove' %
-                    (self.task1.id, self.tag1.id), data={}
+                    (self.task1.id, self.tag1.id), data=json.dumps({}),
+                    headers=self.json_header
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u'Tag removed from task ABC_task' in response.data
                 )
@@ -309,8 +295,8 @@ class TestTask(TestBase):
 
                 # Render_task_list for project
                 response = c.get(
-                    '/project-%d/task-list' % self.project1.id,
-                    headers=self.xhr_header,
+                    '/projects/%d/tasks/' % self.project1.id,
+                    headers=self.json_header,
                 )
 
                 # Checking list count
@@ -332,8 +318,8 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with query 'test'
                 response = c.get(
-                    '/project-%d/task-list?q=test' %
-                    self.project1.id, headers=self.xhr_header,
+                    '/projects/%d/tasks/?q=test' %
+                    self.project1.id, headers=self.json_header,
                 )
 
                 # Checking list count
@@ -343,8 +329,8 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with query 'task3'
                 response = c.get(
-                    '/project-%d/task-list?q=task3' %
-                    self.project1.id, headers=self.xhr_header,
+                    '/projects/%d/tasks/?q=task3' %
+                    self.project1.id, headers=self.json_header,
                 )
 
                 # Checking list count
@@ -366,9 +352,9 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with tag 'tag1'
                 response = c.get(
-                    '/project-%d/task-list?tag=%d' %
+                    '/projects/%d/tasks/?tag=%d' %
                     (self.project1.id, self.tag1.id),
-                    headers=self.xhr_header,
+                    headers=self.json_header,
                 )
 
                 # Checking list count
@@ -378,9 +364,9 @@ class TestTask(TestBase):
 
                 # Render_task_list for project with tag 'tag2'
                 response = c.get(
-                    '/project-%d/task-list?tag=%d' %
+                    '/projects/%d/tasks/?tag=%d' %
                     (self.project1.id, self.tag2.id),
-                    headers=self.xhr_header,
+                    headers=self.json_header,
                 )
 
                 # Checking list count
@@ -403,20 +389,13 @@ class TestTask(TestBase):
                 with Transaction().set_context({"company": self.company.id}):
                     # Mark time
                     response = c.post(
-                        '/task-%d/-mark-time' % self.task1.id,
-                        data={
+                        '/tasks/%d/mark-time' % self.task1.id,
+                        data=json.dumps({
                             'hours': '8',
-                        }
+                        }), headers=self.json_header
                     )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Check Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Time has been marked on task ABC_task' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 200)
 
                 # Logout
                 response = c.get('/logout')
@@ -426,21 +405,13 @@ class TestTask(TestBase):
 
                 # Mark time when user is not employee
                 response = c.post(
-                    '/task-%d/-mark-time' % self.task1.id,
-                    data={
+                    '/tasks/%d/mark-time' % self.task1.id,
+                    data=json.dumps({
                         'hours': '8',
-                    }
+                    }), headers=self.json_header
                 )
 
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/logout')
-
-                # Check Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Only employees can mark time on tasks!' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 403)
 
     def test_0130_change_estimated_hours(self):
         """
@@ -457,9 +428,9 @@ class TestTask(TestBase):
                 # Change estimated hours
                 response = c.post(
                     '/task-%d/change-estimated-hours' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'new_estimated_hours': '15',
-                    }
+                    }), headers=self.json_header
                 )
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(self.task1.effort, 15)
@@ -483,7 +454,8 @@ class TestTask(TestBase):
 
                 # Check my tasks
                 response = c.get(
-                    '/my-tasks', headers=self.xhr_header
+                    '/users/%d/tasks/' % self.reg_user1.id,
+                    headers=self.json_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 1
@@ -491,8 +463,9 @@ class TestTask(TestBase):
 
                 # Check my tasks with tag1
                 response = c.get(
-                    '/my-tasks?tag=%d' % self.tag1.id,
-                    headers=self.xhr_header
+                    '/users/%d/tasks/?tag=%d' % (
+                        self.reg_user1.id, self.tag1.id
+                    ), headers=self.json_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 0
@@ -500,8 +473,9 @@ class TestTask(TestBase):
 
                 # Check my tasks with tag2
                 response = c.get(
-                    '/my-tasks?tag=%d' % self.tag2.id,
-                    headers=self.xhr_header
+                    '/users/%d/tasks/?tag=%d' % (
+                        self.reg_user1.id, self.tag2.id
+                    ), headers=self.json_header
                 )
                 self.assertEqual(
                     len(json.loads(response.data)['items']), 1
@@ -568,12 +542,11 @@ class TestTask(TestBase):
 
                 # Render_task
                 response = c.get(
-                    '/project-%d/task-%d' % (
+                    '/projects/%d/tasks/%d/' % (
                         self.task1.parent.id, self.task1.id
                     )
                 )
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.data, str(self.task1.id))
 
     def test_0170_update_comment(self):
         """
@@ -596,12 +569,11 @@ class TestTask(TestBase):
                 # Update_comment
                 response = c.post(
                     '/task-%d/comment-%d/-update' %
-                    (self.task1.id, comment.id), data={'comment': 'comment2'},
-                    headers=self.xhr_header,
+                    (self.task1.id, comment.id),
+                    data=json.dumps({'comment': 'comment2'}),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
                 self.assertEqual(comment.comment, 'comment2')
 
     def test_0180_change_constraint_dates(self):
@@ -619,16 +591,16 @@ class TestTask(TestBase):
                 # Change_constraint_dates
                 response = c.post(
                     '/task-%d/change_constraint_dates' % self.task1.id,
-                    data={
+                    data=json.dumps({
                         'constraint_start_time': '06/24/2013',
                         'constraint_finish_time': '06/30/2013',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
                 self.assertEqual(response.status_code, 200)
 
-                # Checking json success
-                self.assertTrue(json.loads(response.data)['success'])
+                # Checking json message
+                self.assertTrue(json.loads(response.data)['message'])
 
     def test_0190_delete_task(self):
         """
@@ -657,11 +629,12 @@ class TestTask(TestBase):
                     3
                 )
                 # Delete_task
-                response = c.post(
-                    '/task-%d/-delete' % self.task1.id,
-                    headers=self.xhr_header
+                response = c.delete(
+                    '/projects/%d/tasks/%d/' % (
+                        self.task1.parent.id, self.task1.id
+                    ), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 403)
 
                 # Task is not deleted
                 self.assertEqual(
@@ -693,14 +666,12 @@ class TestTask(TestBase):
                     len(self.Project.search([('type', '=', 'task')])),
                     3
                 )
-                # Delete_task
-                response = c.post(
-                    '/task-%d/-delete' % self.task1.id,
-                    headers=self.xhr_header
+                response = c.delete(
+                    '/projects/%d/tasks/%d/' % (
+                        self.task1.parent.id, self.task1.id
+                    ), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(response.status_code, 204)
 
                 # Total tasks before deletion are 3 after deletion 2
                 self.assertEqual(
@@ -723,14 +694,12 @@ class TestTask(TestBase):
                     len(self.Project.search([('type', '=', 'task')])),
                     2
                 )
-                # Delete_task
-                response = c.post(
-                    '/task-%d/-delete' % self.task2.id,
-                    headers=self.xhr_header
+                response = c.delete(
+                    '/projects/%d/tasks/%d/' % (
+                        self.task2.parent.id, self.task2.id
+                    ), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 200)
-
-                self.assertTrue(json.loads(response.data)['success'])
+                self.assertEqual(response.status_code, 204)
 
                 # Total tasks before deletion are 2, after deletion 1
                 self.assertEqual(
@@ -763,18 +732,19 @@ class TestTask(TestBase):
 
                 # Create Task
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
-                    data={
+                    '/projects/%d/tasks/' % self.project1.id,
+                    data=json.dumps({
                         'name': 'Task with multiple tags',
                         'description': 'Multi selection tags field',
+                        'subtype': 'feature',
                         'tags': [
                             self.tag1.id,
                             self.tag2.id,
                             self.tag3.id,
                         ],
-                    }
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
                 # One task created
                 self.assertEqual(
                     len(self.Project.search([('type', '=', 'task')])),
@@ -814,18 +784,19 @@ class TestTask(TestBase):
 
                 # Create Task
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
-                    data={
+                    '/projects/%d/tasks/' % self.project1.id,
+                    data=json.dumps({
                         'name': 'Task 2 with multiple tags',
                         'description': 'Multi selection tags field',
+                        'subtype': 'feature',
                         'tags': [
                             self.tag1.id,
                             self.tag2.id,
                             self.tag3.id,
                         ],
-                    }
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 201)
                 # One task created
                 self.assertEqual(
                     len(self.Project.search([('type', '=', 'task')])),
@@ -863,20 +834,15 @@ class TestTask(TestBase):
                 self.assertEqual(response.location, 'http://localhost/')
 
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
-                    data={
+                    '/projects/%d/tasks/' % self.project1.id,
+                    data=json.dumps({
                         'name': 'Test Task 1',
                         'description': 'task_desc',
+                        'subtype': 'feature',
                         'assign_to': self.reg_user1.id,
-                    }
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
-
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Task successfully added to project ABC' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 201)
 
             # Nereid User-1 creates a task and assign it to other
             # participant of the project
@@ -887,20 +853,15 @@ class TestTask(TestBase):
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
-                    data={
+                    '/projects/%d/tasks/' % self.project1.id,
+                    data=json.dumps({
                         'name': 'Test Task 2',
                         'description': 'task_desc',
                         'assign_to': self.reg_user2.id,
-                    }
+                        'subtype': 'feature',
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 302)
-
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Task successfully added to project ABC' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 201)
 
             # Nereid User-1 creates a task and assign it to non
             # participant user
@@ -911,14 +872,15 @@ class TestTask(TestBase):
                 # Login Success
                 self.assertEqual(response.status_code, 302)
                 response = c.post(
-                    '/project-%d/task/-new' % self.project1.id,
-                    data={
+                    '/projects/%d/tasks/' % self.project1.id,
+                    data=json.dumps({
                         'name': 'Test Task 3',
                         'description': 'task_desc',
+                        'subtype': 'feature',
                         'assign_to': self.reg_user3.id,
-                    }
+                    }), headers=self.json_header
                 )
-                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.status_code, 403)
 
             task, = self.Project.search([
                 ('type', '=', 'task'), ('work.name', '=', 'Test Task 1')
@@ -930,15 +892,16 @@ class TestTask(TestBase):
                 response = self.login(c, self.reg_user2.email, 'password')
 
                 response = c.post(
-                    '/task-%d/-update' % task.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        task.parent.id, task.id,
+                    ), data=json.dumps({
                         'comment': 'comment1',
                         'assigned_to': self.reg_user2.id,
                         'progress_state': 'In Progress',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 201)
 
             # Nereid User-2 updates the task and assigned to other
             # participant of the project
@@ -950,15 +913,16 @@ class TestTask(TestBase):
                 self.assertEqual(response.status_code, 302)
 
                 response = c.post(
-                    '/task-%d/-update' % task.id,
-                    data={
+                    '/projects/%d/tasks/%d/updates/' % (
+                        task.parent.id, task.id,
+                    ), data=json.dumps({
                         'comment': 'comment1',
                         'assigned_to': self.reg_user1.id,
                         'progress_state': 'In Progress',
-                    },
-                    headers=self.xhr_header,
+                    }),
+                    headers=self.json_header,
                 )
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 201)
 
     def test_0230_move_task(self):
         """

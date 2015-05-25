@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+
+<form string="Iteration">
+    <label name="name" />
+    <field name="name" />
+    <newline/>
+    <label name="start_date" />
+    <field name="start_date" />
+    <label name="end_date" />
+    <field name="end_date" />
+    <notebook colspan="4">
+        <page string="Tasks" id="tasks" col="1">
+            <label name="tasks"/>
+            <field name="tasks" />
+        </page>
+    </notebook>
+</form>

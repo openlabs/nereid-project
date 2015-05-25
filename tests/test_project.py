@@ -7,7 +7,6 @@
     :copyright: (c) 2013-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
-import urllib
 import unittest
 import json
 import smtplib
@@ -201,12 +200,8 @@ class TestProject(TestBase):
                 response = self.login(c, self.reg_user3.email, 'password')
 
                 # Create project when user is not admin
-                response = c.post('/project/-new', data={
+                response = c.post('/projects/', data={
                     'name': 'ABC',
-                    'type': 'project',
-                    'company': self.company.id,
-                    'parent': None,
-                    'state': 'opened',
                 })
 
                 # Permission Denied
@@ -232,29 +227,13 @@ class TestProject(TestBase):
                 projects_before_creation = self.Project.search([], count=True)
 
                 # Create project when nereid user is admin
-                response = c.post('/project/-new', data={
+                response = c.post('/projects/', data={
                     'name': 'ABC',
-                    'type': 'project',
-                    'company': self.company.id,
-                    'parent': None,
-                    'state': 'opened',
                 })
                 project, = self.Project.search([
                     ('work.name', '=', 'ABC')
                 ])
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(
-                    response.location,
-                    'http://localhost/project-%d' % project.id
-                )
-                response = c.get('http://localhost/project-%d' % project.id)
-                self.assertEqual(response.status_code, 200)
-
-                # Check Flash message
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Project successfully created.' in response.data
-                )
+                self.assertEqual(response.status_code, 201)
 
                 # Check projects after creating new project
                 projects_after_creation = self.Project.search([], count=True)
@@ -262,28 +241,6 @@ class TestProject(TestBase):
                 # Number of projects must be increased by 1
                 self.assertEqual(
                     projects_after_creation, projects_before_creation + 1
-                )
-
-                # Create project with get request when nereid user is admin
-                # , it will show flash message, and won't create project
-                response = c.get('/project/-new', data={
-                    'name': 'ABC',
-                    'type': 'project',
-                    'company': self.company.id,
-                    'parent': False,
-                    'state': 'opened',
-                })
-                self.assertEqual(response.status_code, 302)
-
-                # Project is not added so number of projects are same
-                self.assertEqual(
-                    self.Project.search([], count=True),
-                    projects_after_creation
-                )
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Could not create project. Try again.' in
-                    response.data
                 )
 
     def test_0040_render_project(self):
@@ -316,11 +273,8 @@ class TestProject(TestBase):
                 # User Login
                 response = self.login(c, self.reg_user1.email, 'password')
 
-                response = c.get('/project-%d' % project.id)
+                response = c.get('/projects/%d/' % project.id)
                 self.assertEqual(response.status_code, 200)
-
-                # Checks if renders the same project that is created
-                self.assertEqual(response.data, 'ABC')
 
     def test_0050_get_projects_on_home_when_user_is_admin(self):
         """
@@ -361,19 +315,11 @@ class TestProject(TestBase):
                     c, self.project_admin_user.email, 'password'
                 )
 
-                response = c.get('/projects')
+                response = c.get('/projects/')
                 self.assertEqual(response.status_code, 200)
 
                 # Total project 2 shown to admin
-                self.assertEqual(response.data, '2')
-
-                # Check with website home if it redirects to project home
-                response = c.get('/')
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(
-                    urllib.unquote(response.location),
-                    'http://localhost/projects'
-                )
+                self.assertEqual(json.loads(response.data)['count'], 2)
 
     def test_0060_get_projects_on_home_when_user_is_not_admin(self):
         """
@@ -423,11 +369,11 @@ class TestProject(TestBase):
 
                 # User Login
                 response = self.login(c, self.reg_user3.email, 'password')
-                response = c.get('/projects')
+                response = c.get('/projects/')
 
                 # Total project shown is 1 as nereid user is a participant
                 # for that project only
-                self.assertEqual(response.data, '1')
+                self.assertEqual(json.loads(response.data)['count'], 1)
 
     def test_0070_create_tag(self):
         """
@@ -1270,7 +1216,7 @@ class TestProject(TestBase):
                     '/project-%d/-permissions?invitations=%d' %
                     (project.id, invitation.id)
                 )
-                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.status_code, 403)
 
             # Check with project admin
             with app.test_client() as c:
@@ -1332,13 +1278,7 @@ class TestProject(TestBase):
                     )
                 )
 
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
-                self.assertTrue(
-                    'Sorry! You are not allowed to remove participants.' +
-                    ' Contact your project admin for the same.' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 403)
                 self.assertTrue(
                     self.reg_user2 in [
                         m.user for m in project.members
@@ -1380,14 +1320,7 @@ class TestProject(TestBase):
                     )
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Checks Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    'Could not remove participant! Try again.'
-                    in response.data
-                )
+                self.assertEqual(response.status_code, 405)
 
             # Check with project admin
             with app.test_client() as c:
@@ -1428,14 +1361,7 @@ class TestProject(TestBase):
                     )
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Checks Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    'Could not remove participant! Try again.'
-                    in response.data
-                )
+                self.assertEqual(response.status_code, 405)
 
     def test_0180_remove_invite(self):
         """
@@ -1490,19 +1416,13 @@ class TestProject(TestBase):
                 response = c.post(
                     '/invitation-%d/-remove' % invitation1.id
                 )
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Sorry! You are not allowed to remove invited ' +
-                    'users. Contact your project admin for the same.' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 403)
 
                 # Checks by get request
                 response = c.get(
                     '/invitation-%d/-remove' % invitation1.id
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 405)
 
             # Check with admin member
             with app.test_client() as c:
@@ -1512,8 +1432,7 @@ class TestProject(TestBase):
                 response = c.post(
                     '/invitation-%d/-remove' % invitation1.id
                 )
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u"Invitation to the user has been voided."
                     "The user can no longer join the project unless reinvited"
@@ -1530,8 +1449,7 @@ class TestProject(TestBase):
                 response = c.post(
                     '/invitation-%d/-remove' % invitation2.id
                 )
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u"Invitation to the user has been voided."
                     "The user can no longer join the project unless reinvited"

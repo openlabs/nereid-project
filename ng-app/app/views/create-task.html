@@ -1,0 +1,36 @@
+<md-dialog aria-label="Create New Task" flex="50">
+  <md-dialog-content class="sticky-container">
+    <md-subheader class="md-sticky-no-effect">Create New Task</md-subheader>
+
+    <form name="createTaskForm" ng-submit="submit(createTaskForm)">
+      <div layout="column" layout-padding>
+        <md-input-container>
+          <label>Task Title</label>
+          <input ng-model="taskObj.name" name="name" required>
+        </md-input-container>
+
+        <textarea placeholder="Description" rows="5" ng-model="taskObj.description"></textarea>
+
+        <div layout="row">
+          <md-select placeholder="Assign to" ng-model="taskObj.assign_to" arial-label="Assign to" flex="50">
+            <md-option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</md-option>
+          </md-select>
+
+          <md-select placeholder="Type" name="subType" ng-model="taskObj.subtype" arial-label="Subtype" flex="50" required>
+            <md-option ng-value="subtype.value" ng-repeat="subtype in subTypes">{{ subtype.text }}</md-option>
+          </md-select>
+        </div>
+      </div>
+    </form>
+
+  </md-dialog-content>
+  <div class="md-actions" layout="row">
+    <span flex></span>
+    <md-button ng-click="hide()" class="md-primary">
+      Cancel
+    </md-button>
+    <md-button ng-click="submit()" class="md-primary">
+      Create Task
+    </md-button>
+  </div>
+</md-dialog>

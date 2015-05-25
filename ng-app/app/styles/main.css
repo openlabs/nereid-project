@@ -7,6 +7,14 @@ md-sidenav.md-locked-open {
   min-width: 220px;
 }
 
+md-sidenav {
+  background: #2B323A;
+  color: #bdbbbb;
+  min-width: initial !important;
+  width: 164px !important;
+  min-height: 100vh !important;
+}
+
 .custom-ripple[md-ink-ripple] {
   position: relative;
 }
@@ -19,7 +27,7 @@ md-sidenav.md-locked-open {
  * Login
  */
 .login-page {
-  background: #C8C8C8;
+  background: #f3f4f6;
   height: 100vh;
 }
 
@@ -56,3 +64,151 @@ md-sidenav.md-locked-open {
   height: 75px;
   margin-bottom: -11px;
 }
+
+.user-avatar {
+  border-radius: 99%;
+}
+
+/* Menu */
+.menu-item {
+  margin-top: 10px;
+  text-align: center;
+  line-height: 40px;
+  text-decoration: none;
+  color: #bdbbbb;
+  display: block;
+}
+
+.menu-item:hover {
+  cursor: pointer;
+  background: #3C4651;
+  color: #fff;
+  border-left: 4px solid #03A9F4;
+}
+
+.menu-item.active {
+  cursor: pointer;
+  background: #3C4651;
+  color: #fff;
+  border-left: 4px solid #03A9F4;
+}
+
+.menu-item > .mdi {
+  font-size: 2em;
+  margin-left: 4px;
+}
+/* /Menu */
+
+md-list-item a {
+  text-decoration: none;
+}
+
+.no-padding {
+  padding: 0;
+}
+
+.projects-page md-whiteframe {
+  height: 85vh;
+  overflow: scroll;
+}
+
+.pull-right {
+  float: right;
+}
+
+.jump-dialog-help {
+  color: #7F7F83;
+  padding-bottom: 20px;
+}
+.project-link {
+  color: #2B323A;
+  text-decoration: none;
+}
+
+/*
+ * Kanban view
+ */
+.kanban-container > div {
+}
+
+.kanban-container .header {
+  background: #E3E3E3;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.kanban-container .task {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  color: #333;
+}
+
+.kanban-container .task:hover {
+  background: #f5f5f5;
+}
+/* /Kanban view */
+
+/*
+ * Iteration
+ */
+.iteration-table {
+  text-align: center;
+  border-collapse:collapse;
+  font-weight: 200;
+  border: 1px solid #e5e5e5;
+}
+
+.iteration-table td, .iteration-table th {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 20px;
+}
+/* /Iteration */
+
+/*
+ * Iteration card view
+ */
+.iteration-progress-card {
+  background: #e5e5e5;
+  min-height: 100px;
+  border-radius: 8px;
+  margin: 25px;
+  text-decoration: none;
+  color: #333;
+}
+
+.iteration-progress-card > .date > * {
+  padding: 4px;
+}
+
+.iteration-progress-card > .date {
+  background: #f5f5f5;
+  text-align: center;
+  border-radius: 8px 0 0 8px;
+  margin: 0;
+}
+
+.iteration-progress-card > .date > .task-count {
+  font-size: 2em;
+}
+
+.iteration-progress-card .progress-state > div {
+  width: 100%;
+  text-align: center;
+  font-size: 1.2em;
+}
+
+.iteration-progress-card .progress-state > div > span:first-child {
+  border-bottom: 1px solid #c2c2c2;
+}
+
+.iteration-progress-card .progress-state > div > span {
+  padding-top: 15px;
+  padding-bottom: 10px;
+  font-weight: 200;
+}
+/* /Iteration card */

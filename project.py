@@ -198,32 +198,21 @@ class ProjectInvitation(ModelSQL, ModelView):
             return self.nereid_user.create_date
 
     @login_required
-    @route('/invitation-<int:active_id>/-remove', methods=['GET', 'POST'])
+    @route('/invitation-<int:active_id>/-remove', methods=['POST'])
     def remove_invite(self):
         """
         Remove the invite to a participant from project
         """
         # Check if user is among the project admins
         if not request.nereid_user.is_admin_of_project(self.project):
-            flash(
-                "Sorry! You are not allowed to remove invited users." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
+            abort(403)
 
-        if request.method == 'POST':
-            self.delete([self])
+        self.delete([self])
 
-            if request.is_xhr:
-                return jsonify({
-                    'success': True,
-                })
-
-            flash(
-                "Invitation to the user has been voided."
+        return jsonify({
+            "message": "Invitation to the user has been voided."
                 "The user can no longer join the project unless reinvited"
-            )
-        return redirect(request.referrer)
+        })
 
     @login_required
     @route('/invitation-<int:active_id>/-resend', methods=['GET', 'POST'])
@@ -332,6 +321,27 @@ class Project:
             }
         ), 'get_parent_project'
     )
+    iteration = fields.Many2One(
+        'project.iteration', 'Iteration',
+    )
+    backlog_iterations = fields.Many2Many(
+        'project.iteration-project.work', 'task', 'iteration',
+        'Backlog Iteration', readonly=True
+    )
+
+    subtype = fields.Selection([
+        ('feature', 'Feature'),
+        ('bug', 'Bug'),
+        ('question', 'Question'),
+        ('epic', 'Epic'),
+    ], 'Subtype', select=True, states={
+        'invisible': Eval('type') != 'task',
+        'required': Eval('type') == 'task',
+    })
+
+    @staticmethod
+    def default_subtype():
+        return 'feature'
 
     def get_parent_project(self, name):
         """
@@ -361,30 +371,57 @@ class Project:
         ]
 
     @classmethod
-    @route('/projects')
+    @route('/projects/', methods=['GET', 'POST'])
     @login_required
     def home(cls):
         """
-        Put recent projects into the home
+        GET     /projects/
+        POST    /projects/
+            Param: name
         """
+        Activity = Pool().get('nereid.activity')
+        Work = Pool().get('timesheet.work')
+
+        if request.method == 'POST':
+            if not current_user.has_permissions(['project.admin']):
+                abort(403)
+
+            project, = cls.create([{
+                'work': Work.create([{
+                    'name': request.values.get('name'),
+                    'company': request.nereid_website.company.id,
+                }])[0].id,
+                'type': 'project',
+                'members': [
+                    ('create', [{
+                        'user': request.nereid_user.id,
+                        'role': 'admin',
+                    }])
+                ]
+            }])
+            Activity.create([{
+                'actor': request.nereid_user.id,
+                'object_': 'project.work, %d' % project.id,
+                'verb': 'created_project',
+                'project': project.id,
+            }])
+            return jsonify(message="Project successfully created"), 201
+
         domain = [
             ('type', '=', 'project'),
             ('parent', '=', None),
         ]
 
-        if not request.nereid_user.has_permissions(['project.admin']):
+        if not current_user.has_permissions(['project.admin']):
             # If not project admin, then the project only where user has
             # a membership is shown
             domain.append(('members.user', '=', request.nereid_user.id))
 
-        projects = sorted(cls.search(domain), key=lambda p: p.rec_name)
+        page = request.args.get('page', 1, int)
+        per_page = min(request.args.get('per_page', 50, int), 50)
+        projects = Pagination(cls, domain, page, per_page)
 
-        if request.is_xhr:
-            return jsonify({
-                'itemCount': len(projects),
-                'items': map(lambda project: project.serialize(), projects),
-            })
-        return render_template('project/home.jinja', projects=projects)
+        return jsonify(projects.serialize('listing'))
 
     def serialize(self, purpose=None):
         """
@@ -407,6 +444,7 @@ class Project:
             'progress_state': self.progress_state,
             'comment': self.comment,
             'create_date': self.create_date.isoformat(),
+            'owner': self.owner,
             'constraint_finish_time': (
                 self.constraint_finish_time and
                 self.constraint_finish_time.isoformat() or None
@@ -416,6 +454,7 @@ class Project:
         if self.type == 'task':
             # Computing the effort for project is expensive
             value['hours'] = self.hours
+            value['subtype'] = self.subtype
             value['effort'] = self.effort
             value['total_effort'] = self.total_effort
             value['project'] = self and self.id
@@ -424,7 +463,7 @@ class Project:
             value['displayName'] = '#%d' % self.id
             value['url'] = url_for(
                 'project.work.render_task', project_id=self.parent.id,
-                task_id=self.id,
+                active_id=self.id,
             )
         elif purpose == 'activity_stream':
             value['create_date'] = self.create_date.isoformat()
@@ -434,7 +473,7 @@ class Project:
             value['objectType'] = self.__name__
         elif self.type == 'project':
             value['url'] = url_for(
-                'project.work.render_project', project_id=self.id
+                'project.work.render_project', active_id=self.id
             )
         else:
             value['all_participants'] = [
@@ -444,7 +483,7 @@ class Project:
             # TODO: Convert self.parent to self.project
             value['url'] = url_for(
                 'project.work.render_task', project_id=self.parent.id,
-                task_id=self.id,
+                active_id=self.id,
             )
         return value
 
@@ -480,7 +519,7 @@ class Project:
         if user not in map(lambda member: member.user, self.members):
             if silent:
                 return False
-            raise abort(404)
+            raise abort(403)
         return True
 
     def can_write(self, user, silent=False):
@@ -494,7 +533,7 @@ class Project:
         if user not in map(lambda member: member.user, self.members):
             if silent:
                 return False
-            raise abort(404)
+            raise abort(403)
         return True
 
     @classmethod
@@ -515,70 +554,33 @@ class Project:
 
         if not projects[0].can_read(request.nereid_user, silent=True):
             # If the user is not allowed to access this project then dont let
-            raise abort(404)
+            raise abort(403)
 
         return projects[0]
 
-    @classmethod
-    @route('/project-<int:project_id>')
+    @route('/projects/<int:active_id>/', methods=['GET', 'POST', 'DELETE'])
     @login_required
-    def render_project(cls, project_id):
+    def render_project(self):
         """
-        Renders a project
-
-        :param project_id: Project Id of project to render.
+        GET: Return serialized project
+        POST: edit project
+        DELETE: delete a project
         """
-        # TODO: Convert to instance method
-        project = cls.get_project(project_id)
-        if request.is_xhr:
-            rv = project.serialize()
-            rv['participants'] = [
-                member.user.serialize('listing') for member in project.members
-            ]
-            return jsonify(rv)
-        return render_template(
-            'project/project.jinja', project=project, active_type_name="recent"
-        )
+        project = self.get_project(self.id)
 
-    @classmethod
-    @route('/project/-new', methods=['GET', 'POST'])
-    @login_required
-    @permissions_required(['project.admin'])
-    def create_project(cls):
-        """Create a new project
+        if request.method == "POST":
+            # TODO: Not implemented yet
+            pass
 
-        POST will create a new project
-        """
-        Activity = Pool().get('nereid.activity')
-        Work = Pool().get('timesheet.work')
+        elif request.method == "DELETE":
+            # TODO: Not implemented yet
+            pass
 
-        if request.method == 'POST':
-            project, = cls.create([{
-                'work': Work.create([{
-                    'name': request.form['name'],
-                    'company': request.nereid_website.company.id,
-                }])[0].id,
-                'type': 'project',
-                'members': [
-                    ('create', [{
-                        'user': request.nereid_user.id,
-                        'role': 'admin',
-                    }])
-                ]
-            }])
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': 'project.work, %d' % project.id,
-                'verb': 'created_project',
-                'project': project.id,
-            }])
-            flash("Project successfully created.")
-            return redirect(
-                url_for('project.work.render_project', project_id=project.id)
-            )
-
-        flash("Could not create project. Try again.")
-        return redirect(request.referrer)
+        rv = project.serialize()
+        rv['participants'] = [
+            member.user.serialize('listing') for member in project.members
+        ]
+        return jsonify(rv)
 
     @classmethod
     @route('/project-<int:project_id>/-permissions')
@@ -706,7 +708,7 @@ class Project:
     @login_required
     @route(
         '/project-<int:active_id>/participant-<int:participant_id>/-remove',
-        methods=['GET', 'POST']
+        methods=['POST']
     )
     def remove_participant(self, participant_id):
         """
@@ -717,61 +719,53 @@ class Project:
 
         # Check if user is admin member of the project
         if not request.nereid_user.is_admin_of_project(self):
-            flash(
-                "Sorry! You are not allowed to remove participants." +
-                " Contact your project admin for the same."
-            )
-            return redirect(request.referrer)
+            abort(403)
 
         task_ids_to_update = []
 
-        if request.method == 'POST' and request.is_xhr:
-            task_ids_to_update.extend([child.id for child in self.children])
-            # If this participant is assigned to any task in this project,
-            # that user cannot be removed as tryton's domain does not permit
-            # this.
-            # So removing assigned user from those tasks as well.
-            # TODO: Find a better way to do it, this is memory intensive
-            assigned_to_participant = self.search([
-                ('id', 'in', task_ids_to_update),
-                ('assigned_to', '=', participant_id)
-            ])
-            self.write(assigned_to_participant, {
-                'assigned_to': None,
-            })
-            self.write(
-                map(
-                    lambda rec_id: self.__class__(rec_id),
-                    task_ids_to_update
-                ), {'participants': [('remove', [participant_id])]}
-            )
+        task_ids_to_update.extend([child.id for child in self.children])
+        # If this participant is assigned to any task in this project,
+        # that user cannot be removed as tryton's domain does not permit
+        # this.
+        # So removing assigned user from those tasks as well.
+        # TODO: Find a better way to do it, this is memory intensive
+        assigned_to_participant = self.search([
+            ('id', 'in', task_ids_to_update),
+            ('assigned_to', '=', participant_id)
+        ])
+        self.write(assigned_to_participant, {
+            'assigned_to': None,
+        })
+        self.write(
+            map(
+                lambda rec_id: self.__class__(rec_id),
+                task_ids_to_update
+            ), {'participants': [('remove', [participant_id])]}
+        )
 
-            project_member, = ProjectMember.search([
-                ('project', '=', self.id),
-                ('user', '=', participant_id),
-            ])
-            self.write([self], {
-                'members': [('delete', [project_member.id])]
-            })
+        project_member, = ProjectMember.search([
+            ('project', '=', self.id),
+            ('user', '=', participant_id),
+        ])
+        self.write([self], {
+            'members': [('delete', [project_member.id])]
+        })
 
-            # FIXME: I think object_ in activity should be
-            # project.work-nereid.user models record.
-            object_ = 'nereid.user, %d' % participant_id
+        # FIXME: I think object_ in activity should be
+        # project.work-nereid.user models record.
+        object_ = 'nereid.user, %d' % participant_id
 
-            Activity.create([{
-                'actor': request.nereid_user.id,
-                'object_': object_,
-                'target': 'project.work, %d' % self.id,
-                'verb': 'removed_participant',
-                'project': self.id,
-            }])
+        Activity.create([{
+            'actor': request.nereid_user.id,
+            'object_': object_,
+            'target': 'project.work, %d' % self.id,
+            'verb': 'removed_participant',
+            'project': self.id,
+        }])
 
-            return jsonify({
-                'success': True,
-            })
-
-        flash("Could not remove participant! Try again.")
-        return redirect(request.referrer)
+        return jsonify({
+            'success': True,
+        })
 
     @classmethod
     @route('/project-<int:project_id>/-files', methods=['GET', 'POST'])
@@ -1245,7 +1239,7 @@ class Project:
                     'title': task.rec_name,
                     'url': url_for(
                         'project.work.render_task',
-                        project_id=task.parent.id, task_id=task.id),
+                        project_id=task.parent.id, active_id=task.id),
                 }
                 event["start"] = getattr(
                     task, '%s_start_time' % type
@@ -1577,7 +1571,7 @@ class ProjectHistory(ModelSQL, ModelView):
             "create_date": self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.project.parent.id,
-                task_id=self.project.id,
+                active_id=self.project.id,
             ),
             'updatedBy': self.updated_by.serialize('listing'),
             "objectType": self.__name__,
@@ -1625,7 +1619,7 @@ class ProjectHistory(ModelSQL, ModelView):
     @login_required
     @route(
         '/task-<int:task_id>/comment-<int:active_id>/-update',
-        methods=['GET', 'POST']
+        methods=['POST']
     )
     def update_comment(self, task_id):
         """
@@ -1642,18 +1636,15 @@ class ProjectHistory(ModelSQL, ModelView):
         # Allow only admins and author of this comment to edit it
         if request.nereid_user.is_admin_of_project(task.parent) or \
                 self.updated_by == request.nereid_user:
-            self.write([self], {'comment': request.form['comment']})
+            self.write([self], {'comment': request.json['comment']})
         else:
             abort(403)
 
-        if request.is_xhr:
-            html = render_template('project/comment.jinja', comment=self)
-            return jsonify({
-                'success': True,
-                'html': unicode(html),
-                'state': task.state,
-            })
-        return redirect(request.referrer)
+        html = render_template('project/comment.jinja', comment=self)
+        return jsonify({
+            'html': unicode(html),
+            'state': task.state,
+        })
 
     def send_mail(self):
         """
