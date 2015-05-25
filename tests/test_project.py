@@ -1278,13 +1278,7 @@ class TestProject(TestBase):
                     )
                 )
 
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
-                self.assertTrue(
-                    'Sorry! You are not allowed to remove participants.' +
-                    ' Contact your project admin for the same.' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 403)
                 self.assertTrue(
                     self.reg_user2 in [
                         m.user for m in project.members
@@ -1326,14 +1320,7 @@ class TestProject(TestBase):
                     )
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Checks Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    'Could not remove participant! Try again.'
-                    in response.data
-                )
+                self.assertEqual(response.status_code, 405)
 
             # Check with project admin
             with app.test_client() as c:
@@ -1374,14 +1361,7 @@ class TestProject(TestBase):
                     )
                 )
 
-                self.assertEqual(response.status_code, 302)
-
-                # Checks Flash Message
-                response = c.get('/login')
-                self.assertTrue(
-                    'Could not remove participant! Try again.'
-                    in response.data
-                )
+                self.assertEqual(response.status_code, 405)
 
     def test_0180_remove_invite(self):
         """
@@ -1436,19 +1416,13 @@ class TestProject(TestBase):
                 response = c.post(
                     '/invitation-%d/-remove' % invitation1.id
                 )
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
-                self.assertTrue(
-                    u'Sorry! You are not allowed to remove invited ' +
-                    'users. Contact your project admin for the same.' in
-                    response.data
-                )
+                self.assertEqual(response.status_code, 403)
 
                 # Checks by get request
                 response = c.get(
                     '/invitation-%d/-remove' % invitation1.id
                 )
-                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.status_code, 405)
 
             # Check with admin member
             with app.test_client() as c:
@@ -1458,8 +1432,7 @@ class TestProject(TestBase):
                 response = c.post(
                     '/invitation-%d/-remove' % invitation1.id
                 )
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u"Invitation to the user has been voided."
                     "The user can no longer join the project unless reinvited"
@@ -1476,8 +1449,7 @@ class TestProject(TestBase):
                 response = c.post(
                     '/invitation-%d/-remove' % invitation2.id
                 )
-                self.assertEqual(response.status_code, 302)
-                response = c.get('/login')
+                self.assertEqual(response.status_code, 200)
                 self.assertTrue(
                     u"Invitation to the user has been voided."
                     "The user can no longer join the project unless reinvited"
