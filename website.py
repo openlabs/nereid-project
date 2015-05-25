@@ -20,9 +20,8 @@ class WebSite:
 
     @classmethod
     @route('/')
-    @login_required
     def home(cls):
         """
         Put recent projects into the home
         """
-        return redirect(url_for('project.work.home'))
+        return redirect('/app/index.html')
