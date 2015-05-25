@@ -5,12 +5,14 @@ angular.module('nereidProjectApp')
     '$scope',
     '$state',
     'nereidAuth',
-    function($scope, $state, nereidAuth) {
+    'Helper',
+    function($scope, $state, nereidAuth, Helper) {
       if (nereidAuth.isLoggedIn()) {
         $state.go('base');
       }
 
       $scope.submit = function(form) {
+        $scope.loggingIn = true;
         if (form.$invalid) {
           return;
         }
@@ -18,8 +20,11 @@ angular.module('nereidProjectApp')
           .success(function(){
             $state.go('base');
           })
-          .error(function(){
-            // TODO: handle error.
+          .error(function(reason){
+            Helper.showToast(reason.message, 5000);
+          })
+          .finally(function () {
+            $scope.loggingIn = false;
           });
       };
     }
