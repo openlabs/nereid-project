@@ -18,12 +18,12 @@ RUN apt-get -y -q install python-dev libpq-dev python-gevent python-psycopg2 gun
 RUN npm install -g bower
 
 # Install angular app
+ADD . /opt/nereid-project/
 WORKDIR /opt/nereid-project/ng-app
 RUN bower install --allow-root
 
 # Setup the module since it is a required for this
 # custom setup
-ADD . /opt/nereid-project/
 WORKDIR /opt/nereid-project/
 RUN pip install -r requirements.txt
 
