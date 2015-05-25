@@ -3,9 +3,10 @@
 angular.module('nereidProjectApp')
   .factory('Task', [
     '$http',
+    '$q',
     'nereid',
     'nereidAuth',
-    function($http, nereid, nereidAuth) {
+    function($http, $q, nereid, nereidAuth) {
 
     var Task = this;
 
@@ -20,6 +21,19 @@ angular.module('nereidProjectApp')
 
     Task.addComment = function(projectId, taskId, commentObj) {
       return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks/' + taskId + '/updates/'), commentObj);
+    };
+
+    Task.getProjectId = function(taskId) {
+      var deferred = $q.defer();
+      $http.get(nereid.buildUrl('/tasks/' + taskId))
+      .success(function(data){
+        deferred.resolve(data.parent);
+      });
+      return deferred.promise;
+    };
+
+    Task.addComment = function(taskId, commentObj) {
+      return $http.post(nereid.buildUrl('/task-' + taskId + '/-update'), commentObj);
     };
 
     Task.create = function(projectId, taskObj) {

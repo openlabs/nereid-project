@@ -8,7 +8,8 @@ angular.module('nereidProjectApp')
     'Project',
     'Helper',
     '$state',
-    function($q, $mdDialog, $scope, Project, Helper, $state) {
+    'Task',
+    function($q, $mdDialog, $scope, Project, Helper, $state, Task) {
       $scope.page = 0;
       $scope.perPage = 50;
       $scope.projects = [];
@@ -38,21 +39,44 @@ angular.module('nereidProjectApp')
 
       $scope.getMatches = function(searchText) {
         var deferred = $q.defer();
+        var taskIdRegex=/^#(\d+)$/;
 
         var result = [];
         searchText = searchText.toLowerCase();
-        angular.forEach($scope.projects, function(project){
-          if(project.name.toLowerCase().indexOf(searchText) !== -1){
-            result.push(project);
-          }
-          deferred.resolve(result);
-        });
+
+        if (taskIdRegex.test(searchText)) {
+          deferred.resolve([{
+            'name': 'Open task with ID: ' + searchText,
+            'taskId': searchText.match(taskIdRegex)[1]
+          }]);
+        } else {
+          angular.forEach($scope.projects, function(project){
+            if(project.name.toLowerCase().indexOf(searchText) !== -1){
+              result.push(project);
+            }
+            deferred.resolve(result);
+          });
+        }
 
         return deferred.promise;
       };
 
-      $scope.goToProject = function(project) {
-        $state.go('base.project', {projectId: project.id});
+      $scope.goToProject = function(selection) {
+        if (selection.taskId) {
+          var taskId = selection.taskId;
+          // If a task ID is defined, this was an attempt to go to that task.
+          Task.getProjectId(taskId)
+          .then(function(projectId) {
+            $state.go('base.project.task', {
+              taskId: taskId,
+              projectId: projectId
+            });
+          });
+        } else {
+          $state.go('base.project', {projectId: selection.id});
+        }
+        // TODO: Close the modal dialog. Closes automatically when moving to
+        // a different page, but will stay open if it is the same route.
       };
 
     }

@@ -262,6 +262,16 @@ class Task:
         return tasks
 
     @login_required
+    @route('/tasks/<int:active_id>', methods=['GET'])
+    def get_basic_data(self):
+        """
+        If the user only has a task ID, then return some basic information
+        to the user.
+        """
+        task = self.get_task(self.id)
+        return jsonify(task.serialize())
+
+    @login_required
     @route('/projects/<int:active_id>/tasks/', methods=['GET', 'POST'])
     def create_task(self):
         """Create a new task for the specified project
