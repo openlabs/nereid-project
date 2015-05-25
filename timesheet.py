@@ -71,7 +71,7 @@ class TimesheetLine:
             'create_date': self.create_date.isoformat(),
             "url": url_for(
                 'project.work.render_task', project_id=self.work.parent.id,
-                task_id=self.work.id,
+                active_id=self.work.id,
             ),
             "objectType": self.__name__,
             "id": self.id,

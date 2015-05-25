@@ -636,6 +636,8 @@ class Task:
         else:
             # Just comment, no update to task
             comment, = History.create([history_data])
+        # `items` to serialize and send to client like comment, state change.
+        items = []
         Activity.create([{
             'actor': current_user.id,
             'object_': 'project.work.history, %d' % comment.id,
@@ -643,6 +645,7 @@ class Task:
             'target': 'project.work, %d' % task.id,
             'project': task.parent.id,
         }])
+        items.append(comment)
 
         if current_user.id not in current_participant_ids:
             # Add the user to the participants if not already in the list
@@ -673,11 +676,14 @@ class Task:
                 'target': 'project.work, %d' % task.id,
                 'project': task.parent.id,
             }])
+            items.append(timesheet_line)
 
         # Send the email since all thats required is done
         comment.send_mail()
 
-        return jsonify(message="Task has been updated successfully"), 201
+        return jsonify(
+            items=[activity.serialize() for activity in items]
+        ), 201
 
     @classmethod
     @route('/task-<int:task_id>/tag-<int:tag_id>/-add', methods=['GET', 'post'])

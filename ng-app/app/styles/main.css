@@ -212,3 +212,9 @@ md-list-item a {
   font-weight: 200;
 }
 /* /Iteration card */
+
+.progress-change > span {
+  background: #C7C7C7;
+  border-radius: 14px;
+  padding: 5px;
+}
