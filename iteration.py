@@ -231,6 +231,44 @@ class Iteration(ModelSQL, ModelView):
             }), 201
 
     @route(
+        "/iterations/<int:active_id>/stats/tasks_by_user", methods=["GET"]
+    )
+    @login_required
+    def tasks_by_user_stat(self):
+        '''
+        GET: Return tasks by user
+        '''
+        res = self.serialize('full')
+
+        tasks_by_user = {}
+        for task in res['tasks']:
+            tasks_by_user.setdefault(task['owner'], []).append(task)
+
+        del res['tasks']
+        res['tasks_by_user'] = tasks_by_user
+
+        return jsonify(res)
+
+    @route(
+        "/iterations/<int:active_id>/stats/tasks_by_project", methods=["GET"]
+    )
+    @login_required
+    def tasks_by_project_stat(self):
+        '''
+        GET: Return tasks by project
+        '''
+        res = self.serialize('full')
+
+        tasks_by_project = {}
+        for task in res['tasks']:
+            tasks_by_project.setdefault(task['project'], []).append(task)
+
+        del res['tasks']
+        res['tasks_by_project'] = tasks_by_project
+
+        return jsonify(res)
+
+    @route(
         "/iterations/<int:active_id>", methods=["GET", "POST", "PUT", "DELETE"]
     )
     @login_required
