@@ -1,0 +1,51 @@
+<div ng-init="loadIterations()">
+
+  <div ui-view="sidenav"></div>
+
+  <md-toolbar md-scroll-shrink class="md-hue-2">
+    <div class="md-toolbar-tools">
+      <h3>
+        <span>Iterations</span>
+      </h3>
+    </div>
+  </md-toolbar>
+
+  <a class="iteration-progress-card" layout="row" layout-margin ng-repeat="iteration in iterations"
+    ui-sref="base.iteration({iterationId: iteration.id})">
+    <div class="date" flex="10" layout-fill>
+      TASKS
+      <div class="task-count">
+        {{ iteration.count_tasks }}
+      </div>
+      <div class="period">
+        {{ iteration.start_date }} - {{ iteration.end_state }}
+      </div>
+    </div>
+    <div layout="column" layout-fill>
+      <md-progress-linear class="md-accent" md-mode="determinate" value="25"></md-progress-linear>
+      <div layout="row" class="progress-state">
+        <div layout="column">
+          <span>Backlog</span>
+          <span>{{ iteration.count_backlog }}</span>
+        </div>
+        <div layout="column">
+          <span>Planning</span>
+          <span>{{ iteration.count_planning }}</span>
+        </div>
+        <div layout="column">
+          <span>In Progress</span>
+          <span>{{ iteration.count_in_progress }}</span>
+        </div>
+        <div layout="column">
+          <span>Review</span>
+          <span>{{ iteration.count_review }}</span>
+        </div>
+        <div layout="column">
+          <span>Done</span>
+          <span>{{ iteration.count_done }}</span>
+        </div>
+      </div>
+    </div>
+  </a>
+
+</div>

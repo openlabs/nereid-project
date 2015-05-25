@@ -20,7 +20,7 @@ angular.module('nereidProjectApp')
             $scope.task = result;
             angular.extend($scope.commentObj, {
               progress_state: result.progress_state,
-              assigned_to: result.assigned_to
+              assigned_to: result.assigned_to && result.assigned_to.id
             });
           })
           .error(function(reason) {

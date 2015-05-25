@@ -35,6 +35,9 @@ angular.module('nereidProjectApp', [
       .state('base.projects', {
         url: 'projects',
         views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
           'main-view': {
             templateUrl: 'views/projects.html',
             controller: 'ProjectsCtrl'
@@ -45,6 +48,9 @@ angular.module('nereidProjectApp', [
       .state('base.project', {
         url: 'projects/{projectId:int}',
         views: {
+          'sidenav': {
+            templateUrl: 'views/project-sidenav.html',
+          },
           'main-view': {
             templateUrl: 'views/project.html',
             controller: 'ProjectCtrl'
@@ -101,6 +107,32 @@ angular.module('nereidProjectApp', [
           'task-tabs': {
             templateUrl: 'views/my-tasks.html',
             controller: 'MyTasksCtrl'
+          }
+        }
+      })
+
+      .state('base.iterations', {
+        url: 'iterations',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/iterations.html',
+            controller: 'IterationsCtrl'
+          }
+        }
+      })
+
+      .state('base.iteration', {
+        url: 'iterations/{iterationId:int}',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/iteration.html',
+            controller: 'IterationCtrl'
           }
         }
       });

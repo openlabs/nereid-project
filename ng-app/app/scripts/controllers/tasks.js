@@ -7,7 +7,6 @@ angular.module('nereidProjectApp')
     'Task',
     function($scope, $state, Task) {
       $scope.selectedIndex = $state.current.tabIndex;
-      window.scope = $scope;
       $scope.projectId = $state.params.projectId;
       $scope.progressStates = Task.progressStates;
 

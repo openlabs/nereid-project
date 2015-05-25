@@ -5,7 +5,8 @@ angular.module('nereidProjectApp')
     '$scope',
     'hotkeys',
     '$mdDialog',
-    function($scope, hotkeys, $mdDialog) {
+    '$mdSidenav',
+    function($scope, hotkeys, $mdDialog, $mdSidenav) {
       //TODO: Handle global search
 
       hotkeys.add({
@@ -30,6 +31,10 @@ angular.module('nereidProjectApp')
         description: 'Jump to projects',
         callback: showJumpDialog
       });
+
+      $scope.toggleLeft = function() {
+        $mdSidenav('left').toggle();
+      };
 
     }
   ]);
