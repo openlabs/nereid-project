@@ -444,7 +444,7 @@ class Project:
             'progress_state': self.progress_state,
             'comment': self.comment,
             'create_date': self.create_date.isoformat(),
-            'owner': self.owner,
+            'owner': self.owner and self.owner.id,
             'constraint_finish_time': (
                 self.constraint_finish_time and
                 self.constraint_finish_time.isoformat() or None
