@@ -32,10 +32,6 @@ angular.module('nereidProjectApp')
       return deferred.promise;
     };
 
-    Task.addComment = function(taskId, commentObj) {
-      return $http.post(nereid.buildUrl('/task-' + taskId + '/-update'), commentObj);
-    };
-
     Task.create = function(projectId, taskObj) {
       return $http.post(nereid.buildUrl('/projects/' + projectId + '/tasks/'), taskObj);
     };
