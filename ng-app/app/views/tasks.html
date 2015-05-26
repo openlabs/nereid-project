@@ -27,9 +27,9 @@
 <div ui-view="task-tabs"></div>
 
 <create-task project="project" ng-if="project">
-  <md-button
-    class="md-fab md-accent md-fab-bottom-right"
-    aria-label="New Task" ng-click="createNewTask()">
-    <i class="mdi mdi-plus"></i>
-  </md-button>
+  <nav mfb-menu position="br" effect="zoomin" label="New Task (n)"
+       active-icon="mdi mdi-close" resting-icon="mdi mdi-plus"
+       toggling-method="hover">
+    <button mfb-button icon="mdi mdi-paperclip" label="File"></button>
+  </nav>
 </create-task>
