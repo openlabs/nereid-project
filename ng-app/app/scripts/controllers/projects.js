@@ -75,8 +75,7 @@ angular.module('nereidProjectApp')
         } else {
           $state.go('base.project', {projectId: selection.id});
         }
-        // TODO: Close the modal dialog. Closes automatically when moving to
-        // a different page, but will stay open if it is the same route.
+        $mdDialog.hide();
       };
 
     }
