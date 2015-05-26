@@ -7,12 +7,10 @@ angular.module('nereidProjectApp')
     'Task',
     'Helper',
     function($mdDialog, $scope, Task, Helper) {
+      $scope.progressStates = Task.progressStates;
 
       $scope.loadMyTasks = function() {
-        var filter = {
-          project: $scope.projectId
-        };
-        Task.getMyTasks(filter)
+        Task.getMyTasks()
           .success(function(result) {
             $scope.tasks = result.items;
           })
