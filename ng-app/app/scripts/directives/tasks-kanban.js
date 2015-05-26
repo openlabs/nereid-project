@@ -28,7 +28,10 @@ angular.module('nereidProjectApp')
           scope.kanbanTasks = scope.tasks;
 
           scope.loadMyTasks = function() {
-            var filter = {};
+            var filter = {
+              state: 'opened',
+              per_page: 200
+            };
             if(scope.projectId) {
               filter.project = scope.projectId;
             }
@@ -43,7 +46,8 @@ angular.module('nereidProjectApp')
 
           scope.loadProjectsOpenTasks = function() {
             var filter = {
-              state: 'opened'
+              state: 'opened',
+              per_page: 200
             };
             Project.getTasks(scope.projectId, filter)
               .success(function(result) {
