@@ -6,7 +6,8 @@ angular.module('nereidProjectApp')
     '$state',
     'Task',
     'Helper',
-    function ($mdDialog, $state, Task, Helper) {
+    'hotkeys',
+    function ($mdDialog, $state, Task, Helper, hotkeys) {
       return {
         restrict: 'E',
         transclude: true,
@@ -14,7 +15,14 @@ angular.module('nereidProjectApp')
           getProject: '&project'
         },
         template: '<ng-transclude ng-click="openNewTaskModal()"></ng-transclude>',
-        link: function (scope) {
+        link: function (scope, element) {
+          hotkeys.add({
+            combo: ['n', 'N'],
+            description: 'Create new task when inside project',
+            callback: function() {
+              scope.openNewTaskModal();
+            }
+          });
           scope.openNewTaskModal = function() {
             $mdDialog.show({
               controller: function createTaskCtrl($scope, $mdDialog){

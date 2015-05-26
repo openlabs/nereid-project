@@ -14,7 +14,8 @@
     "angular-hotkeys": "chieffancypants/angular-hotkeys#~1.4.5",
     "angular-nereid": "~1.1.0",
     "jquery": "~2.1.4",
-    "ngInfiniteScroll": "~1.2.1"
+    "ngInfiniteScroll": "~1.2.1",
+    "ng-mfb": "~0.6.0"
   },
   "devDependencies": {},
   "resolutions": {

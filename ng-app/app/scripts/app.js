@@ -5,7 +5,8 @@ angular.module('nereidProjectApp', [
   'ngMaterial',
   'openlabs.angular-nereid-auth',
   'cfp.hotkeys',
-  'infinite-scroll'
+  'infinite-scroll',
+  'ng-mfb'
   ])
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider
