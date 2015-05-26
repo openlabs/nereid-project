@@ -1,3 +1,11 @@
+<md-toolbar md-scroll-shrink class="md-hue-2">
+  <div class="md-toolbar-tools">
+    <h3>
+      <span>{{ project.name }}</span>
+    </h3>
+  </div>
+</md-toolbar>
+
 <md-tabs md-dynamic-height md-border-bottom md-selected="selectedIndex">
   <md-tab label="Open Tasks" md-on-select="updateRoute('open')">
     <md-content class="md-padding">
