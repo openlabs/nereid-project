@@ -8,6 +8,7 @@
         <h2 class="md-flex">{{ task.displayName}} {{ task.name }}</h2>
       </div>
     </div>
+    <md-progress-linear ng-if="loadingTask" md-mode="indeterminate"></md-progress-linear>
   </md-toolbar>
 
   <md-content layout-padding>
@@ -20,7 +21,7 @@
       <md-list flex>
         <md-list-item class="md-3-line" ng-repeat="comment in task.comments">
 
-          <img ng-src="{{ comment.updatedBy.image.url }}"
+          <img gravatar-src="comment.updatedBy.email"
             class="md-avatar" alt="{{ comment.updatedBy.displayName }}"
             ng-show="comment.objectType == 'project.work.history'"/>
           <div class="md-list-item-text" ng-if="comment.objectType == 'project.work.history'">
@@ -30,8 +31,7 @@
               <span>{{ comment.new_progress_state }}</span>
             </span>
             <span ng-if="comment.new_assignee">Assigend to {{ comment.new_assignee.displayName }}</span>
-            <h4>{{ comment.comment }} </h4>
-            <p></p>
+            <p>{{ comment.comment }}</p>
           </div>
 
           <div ng-if="comment.objectType == 'timesheet.line'">

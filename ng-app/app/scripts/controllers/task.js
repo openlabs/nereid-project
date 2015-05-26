@@ -15,6 +15,7 @@ angular.module('nereidProjectApp')
       $scope.states = Task.states;
 
       $scope.loadTask = function() {
+        $scope.loadingTask = true;
         Task.get($scope.projectId, $scope.taskId)
           .success(function(result) {
             $scope.task = result;
@@ -25,6 +26,9 @@ angular.module('nereidProjectApp')
           })
           .error(function(reason) {
             Helper.showDialog('Could not fetch task', reason);
+          })
+          .finally(function() {
+            $scope.loadingTask = false;
           });
       };
 

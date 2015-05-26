@@ -4,7 +4,7 @@
     <md-list>
       <md-list-item class="md-3-line" ng-repeat="task in tasks">
         <!--TODO: Server should just return user email and image should be fetched from angular-gravatar.-->
-        <img ng-src="{{ task.assigned_to.image.url}}" class="md-avatar" alt="{{item.who}}" />
+        <img gravatar-src="task.assigned_to.email" class="md-avatar" alt="{{item.who}}" />
         <a ui-sref="base.project.task({taskId: task.id})">
           <div class="md-list-item-text">
             <h4>{{ task.displayName}} {{ task.name }}</h4>
@@ -16,3 +16,5 @@
     </md-list>
 
 </div>
+
+<md-progress-linear ng-if="loadingTasks" md-mode="indeterminate"></md-progress-linear>

@@ -8,6 +8,7 @@
         <span>Iterations</span>
       </h3>
     </div>
+    <md-progress-linear ng-if="loadingIterations" md-mode="indeterminate"></md-progress-linear>
   </md-toolbar>
 
   <a class="iteration-progress-card" layout="row" layout-margin ng-repeat="iteration in iterations"

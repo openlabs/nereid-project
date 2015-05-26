@@ -28,6 +28,7 @@ angular.module('nereidProjectApp')
           scope.kanbanTasks = scope.tasks;
 
           scope.loadMyTasks = function() {
+            scope.loadingTasks = true;
             var filter = {
               state: 'opened',
               per_page: 200
@@ -41,10 +42,14 @@ angular.module('nereidProjectApp')
               })
               .error(function(reason) {
                 Helper.showDialog('Could not fetch your tasks', reason);
+              })
+              .finally(function() {
+                scope.loadingTasks = false;
               });
           };
 
           scope.loadProjectsOpenTasks = function() {
+            scope.loadingTasks = true;
             var filter = {
               state: 'opened',
               per_page: 200
@@ -55,6 +60,9 @@ angular.module('nereidProjectApp')
               })
               .error(function(reason) {
                 Helper.showDialog('Could not fetch open tasks', reason);
+              })
+              .finally(function() {
+                scope.loadingTasks = false;
               });
           };
 

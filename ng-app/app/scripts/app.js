@@ -6,7 +6,8 @@ angular.module('nereidProjectApp', [
   'openlabs.angular-nereid-auth',
   'cfp.hotkeys',
   'infinite-scroll',
-  'ng-mfb'
+  'ng-mfb',
+  'ui.gravatar'
   ])
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider
@@ -174,3 +175,18 @@ angular.module('nereidProjectApp', [
       $state.go('login');
     });
   }]);
+
+angular.module('ui.gravatar').config([
+  'gravatarServiceProvider', function(gravatarServiceProvider) {
+    gravatarServiceProvider.defaults = {
+      size : 100,
+      'default': 'mm'  // Mystery man as default for missing avatars
+    };
+
+    // Use https endpoint
+    gravatarServiceProvider.secure = true;
+
+    // Force protocol
+    gravatarServiceProvider.protocol = 'my-protocol';
+  }
+]);
