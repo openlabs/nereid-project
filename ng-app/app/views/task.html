@@ -25,9 +25,9 @@
             ng-show="comment.objectType == 'project.work.history'"/>
           <div class="md-list-item-text" ng-if="comment.objectType == 'project.work.history'">
             <span class="progress-change" ng-if="comment.new_progress_state">
-              <span>{{ comment.new_progress_state }}</span>
-              <i class="mdi mdi-arrow-right-bold"></i>
               <span>{{ comment.previous_progress_state }}</span>
+              <i class="mdi mdi-arrow-right-bold"></i>
+              <span>{{ comment.new_progress_state }}</span>
             </span>
             <span ng-if="comment.new_assignee">Assigend to {{ comment.new_assignee.displayName }}</span>
             <h4>{{ comment.comment }} </h4>
