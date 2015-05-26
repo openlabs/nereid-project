@@ -9,7 +9,10 @@ angular.module('nereidProjectApp')
     function($mdDialog, $scope, Task, Helper) {
 
       $scope.loadMyTasks = function() {
-        Task.getMyTasks()
+        var filter = {
+          project: $scope.projectId
+        };
+        Task.getMyTasks(filter)
           .success(function(result) {
             $scope.tasks = result.items;
           })

@@ -510,6 +510,11 @@ class Task:
         filter_domain = [
             ('type', '=', 'task'),
         ]
+
+        project = request.args.get('project', None, int)
+        if project:
+            # Only show tasks in the specified project
+            filter_domain.append(('parent', '=', project))
         if request.args.get('watched'):
             # Show all tasks watched, not assigned
             filter_domain.append(('participants', '=', current_user.id))

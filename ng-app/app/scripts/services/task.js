@@ -14,9 +14,9 @@ angular.module('nereidProjectApp')
       return $http.get(nereid.buildUrl('/projects/' + projectId + '/tasks/' + taskId + '/'));
     };
 
-    Task.getMyTasks = function() {
+    Task.getMyTasks = function(filter) {
       var userId = nereidAuth.user().id;
-      return $http.get(nereid.buildUrl('/users/' + userId + '/tasks' + '/'));
+      return $http.get(nereid.buildUrl('/users/' + userId + '/tasks' + '/'), {params: filter});
     };
 
     Task.addComment = function(projectId, taskId, commentObj) {
