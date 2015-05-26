@@ -1699,7 +1699,7 @@ class ProjectHistory(ModelSQL, ModelView):
 
     @staticmethod
     def default_comment_markup():
-        return 'rst'
+        return 'markdown'
 
 
 class ProjectWorkCommit(ModelSQL, ModelView):

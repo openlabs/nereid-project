@@ -186,7 +186,7 @@ class Task:
 
     @staticmethod
     def default_description_markup():
-        return 'rst'
+        return 'markdown'
 
     @staticmethod
     def default_progress_state():
