@@ -365,7 +365,10 @@ class Task:
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
 
-        tasks = Pagination(Task, filter_domain, page, 20)
+        per_page = min(request.args.get('per_page', 50, int), 50)
+        tasks = Pagination(
+            Task, filter_domain, page, per_page
+        )
 
         return jsonify(tasks.serialize(purpose='listing'))
 
