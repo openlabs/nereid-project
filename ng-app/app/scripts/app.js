@@ -59,6 +59,18 @@ angular.module('nereidProjectApp', [
         }
       })
 
+      .state('base.myTasks', {
+        url: 'my-tasks',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            template: '<tasks-kanban type="my-tasks"></tasks-kanban>'
+          }
+        }
+      })
+
       .state('base.project.tasks', {
         url: '/tasks',
         views: {
@@ -84,8 +96,7 @@ angular.module('nereidProjectApp', [
         tabIndex: 0, // Tab index of the md-tab in tasks view
         views: {
           'task-tabs': {
-            templateUrl: 'views/open-tasks.html',
-            controller: 'OpenTasksCtrl'
+            template: '<tasks-kanban type="open" project-id="{{ projectId }}"></tasks-kanban>'
           }
         }
       })
@@ -106,8 +117,7 @@ angular.module('nereidProjectApp', [
         tabIndex: 2,
         views: {
           'task-tabs': {
-            templateUrl: 'views/my-tasks.html',
-            controller: 'MyTasksCtrl'
+            template: '<tasks-kanban type="my-tasks" project-id="{{ projectId }}"></tasks-kanban>'
           }
         }
       })

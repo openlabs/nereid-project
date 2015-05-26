@@ -79,18 +79,7 @@
 
     <md-tab label="tasks">
       <md-content class="md-padding">
-        <div class="kanban-container" layout="row">
-          <div flex="22" ng-repeat="progressState in progressStates" layout-margin>
-            <div class="header">
-              {{ progressState }}
-            </div>
-            <div class="tasks">
-              <a ui-sref="base.project.task({taskId: task.id})" class="task" ng-repeat="task in iteration.tasks | filter:{ progress_state: progressState}">
-                {{ task.displayName }} {{ task.name | limitTo: 50 }}
-              </a>
-            </div>
-          </div>
-        </div>
+        <tasks-kanban ng-if="iteration.tasks" tasks="iteration.tasks"></tasks-kanban>
       </md-content>
     </md-tab>
 
