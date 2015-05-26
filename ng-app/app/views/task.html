@@ -54,7 +54,7 @@
           <md-select placeholder="State" ng-model="commentObj.progress_state" flex="20">
             <md-option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</md-option>
           </md-select>
-          <md-input-container flex>
+          <md-input-container ng-if="user.employee" flex>
             <label>Hours</label>
             <input ng-model="commentObj.hours">
           </md-input-container>

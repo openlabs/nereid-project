@@ -6,11 +6,13 @@ angular.module('nereidProjectApp')
     '$state',
     'Task',
     'Helper',
-    function($scope, $state, Task, Helper) {
+    'nereidAuth',
+    function($scope, $state, Task, Helper, nereidAuth) {
 
       $scope.taskId = $state.params.taskId;
       $scope.projectId = $state.params.projectId;
       $scope.commentObj = {};
+      $scope.user = nereidAuth.user();
 
       $scope.states = Task.states;
 
