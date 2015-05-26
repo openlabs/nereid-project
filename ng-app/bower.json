@@ -16,7 +16,8 @@
     "jquery": "~2.1.4",
     "ngInfiniteScroll": "~1.2.1",
     "ng-mfb": "~0.6.0",
-    "angular-gravatar": "~0.3.1"
+    "angular-gravatar": "~0.3.1",
+    "angular-markdown-directive": "~0.3.1"
   },
   "devDependencies": {},
   "resolutions": {

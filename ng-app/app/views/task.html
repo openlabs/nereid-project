@@ -31,7 +31,7 @@
               <span>{{ comment.new_progress_state }}</span>
             </span>
             <span ng-if="comment.new_assignee">Assigend to {{ comment.new_assignee.displayName }}</span>
-            <p>{{ comment.comment }}</p>
+            <p btf-markdown="comment.comment"><p>
           </div>
 
           <div ng-if="comment.objectType == 'timesheet.line'">
