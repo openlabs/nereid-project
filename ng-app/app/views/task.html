@@ -13,7 +13,7 @@
 
   <md-content layout-padding>
 
-    <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin marked="task.comment"></md-whiteframe>
+    <div class="md-whiteframe-z1" layout-padding layout-margin marked="task.comment"></div>
 
     <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
       <md-list flex>
@@ -28,7 +28,7 @@
               <i class="mdi mdi-arrow-right-bold"></i>
               <span>{{ comment.new_progress_state }}</span>
             </span>
-            <span ng-if="comment.new_assignee">Assigend to {{ comment.new_assignee.displayName }}</span>
+            <span ng-if="comment.new_assignee">Assigned to {{ comment.new_assignee.displayName }}</span>
             <p marked="comment.comment"><p>
           </div>
 
