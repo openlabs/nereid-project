@@ -19,8 +19,8 @@
 
     <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
       <md-list flex>
+        <!-- Task comment -->
         <md-list-item class="md-3-line" ng-repeat="comment in task.comments">
-
           <img gravatar-src="comment.updatedBy.email"
             class="md-avatar" alt="{{ comment.updatedBy.displayName }}"
             ng-show="comment.objectType == 'project.work.history'"/>
@@ -31,14 +31,34 @@
               <span>{{ comment.new_progress_state }}</span>
             </span>
             <span ng-if="comment.new_assignee">Assigend to {{ comment.new_assignee.displayName }}</span>
-            <p btf-markdown="comment.comment"><p>
+            <p marked="comment.comment"><p>
           </div>
 
           <div ng-if="comment.objectType == 'timesheet.line'">
             Worked for {{ comment.displayName }}
-            <md-divider ng-if="!$last"></md-divider>
           </div>
+          <md-divider ng-if="comment.objectType == 'project.work.history'"></md-divider>
+        </md-list-item> <!-- /Task com ment -->
+
+        <!-- Draft comment -->
+        <md-list-item ng-if="commentObj.comment" class="unsaved-comment cursor-pointer">
+          <img gravatar-src="user.email" class="md-avatar" alt="{{ user.displayName }}" />
+          <div class="md-list-item-text">
+            <span class="progress-change" ng-if="task.progress_state != commentObj.progress_state">
+              <span>{{ task.progress_state }}</span>
+              <i class="mdi mdi-arrow-right-bold"></i>
+              <span>{{ commentObj.progress_state }}</span>
+            </span>
+            <p marked="commentObj.comment"><p>
+          </div>
+          <md-tooltip>Comment not saved yet. Press 'Comment' To update.</md-tooltip>
         </md-list-item>
+        <div ng-if="commentObj.hours">
+          Worked for {{ commentObj.hours }} hours
+        </div> <!-- /Draft comment -->
+        <md-divider></md-divider>
+        <md-progress-linear ng-if="savingComment" md-mode="indeterminate"></md-progress-linear>
+
       </md-list>
     </md-whiteframe>
 
@@ -56,13 +76,13 @@
           </md-select>
           <md-input-container ng-if="user.employee" flex>
             <label>Hours</label>
-            <input ng-model="commentObj.hours">
+            <input ng-model="commentObj.hours" type="number" step="0.01">
           </md-input-container>
         </div>
 
         <div class="md-actions" layout="row">
           <span flex></span>
-          <md-button class="md-primary">
+          <md-button class="md-primary" ng-disabled="savingComment">
             Comment
           </md-button>
         </div>

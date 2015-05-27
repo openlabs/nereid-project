@@ -8,7 +8,7 @@ angular.module('nereidProjectApp', [
   'infinite-scroll',
   'ng-mfb',
   'ui.gravatar',
-  'btford.markdown'
+  'hc.marked'
   ])
   .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
     $urlRouterProvider

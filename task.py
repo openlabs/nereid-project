@@ -617,7 +617,7 @@ class Task:
             else:
                 task_changes['state'] = 'opened'
 
-            new_assignee_id = int(request.json.get('assigned_to', 0)) or None
+            new_assignee_id = request.json.get('assigned_to', None)
             if new_assignee_id is not None:
                 if (new_assignee_id and
                         (not task.assigned_to or
