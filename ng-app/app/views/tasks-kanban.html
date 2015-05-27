@@ -6,9 +6,15 @@
       {{ progressState }}
     </div>
     <div class="tasks">
-      <a ui-sref="base.project.task({projectId: task.parent, taskId: task.id})" class="task" ng-repeat="task in kanbanTasks | filter:{ progress_state: progressState}">
-        {{ task.displayName }} {{ task.name | limitTo: 50 }}
-      </a>
+      <div layout="column" ng-repeat="task in kanbanTasks | filter:{ progress_state: progressState}">
+        <div class="task" layout-padding>
+          <img gravatar-src="task.assigned_to.email" class="md-avatar" alt="{{ task.assigned_to.displayName }}" />
+          <a ui-sref="base.project.task({projectId: task.parent, taskId: task.id})">
+            {{ task.displayName }} {{ task.name | limitTo: 50 }}
+          </a>
+        </div>
+        <a flex layout-padding ui-sref="base.project({projectId: task.project.id})" class="project">{{ task.project.name }}</a>
+      </div>
     </div>
   </div>
 
