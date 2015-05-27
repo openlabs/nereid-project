@@ -5,16 +5,28 @@
         <i class="mdi mdi-arrow-left button-icon-font"></i>
       </a>
       <div class="md-toolbar-tools">
-        <h2 class="md-flex">{{ task.displayName}} {{ task.name }}</h2>
+        <h2 class="md-flex">{{ task.displayName }} {{ task.name }}</h2>
       </div>
     </div>
     <md-progress-linear ng-if="loadingTask" md-mode="indeterminate"></md-progress-linear>
   </md-toolbar>
 
+  <div layout="row">
+    <md-whiteframe class="md-whiteframe-z1" layout-margin flex>
+      <md-toolbar class="toolbar-height-reset">
+        <div class="md-toolbar-tools md-subhead toolbar-height-reset">
+          <div layout-margin>
+            <img gravatar-src="task.assigned_to.email" gravatar-size="40" class="md-avatar img-circle" alt="{{item.who}}" /> 
+          </div>
+          {{ task.created_by.displayName }}&nbsp;&nbsp; Opened on {{ task.create_date | date:'medium' }}
+          <div flex></div>
+          <i class="mdi mdi-pencil button-icon-font"></i>
+        </div>
+      </md-toolbar>
+      <div layout-padding layout-margin marked="task.comment"></div>
+    </md-whiteframe>
+  </div>
   <md-content layout-padding>
-
-    <div class="md-whiteframe-z1" layout-padding layout-margin marked="task.comment"></div>
-
     <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
       <md-list flex>
         <!-- Task comment -->

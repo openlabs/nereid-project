@@ -250,3 +250,12 @@ md-list-item a {
 .cursor-pointer {
   cursor: pointer;
 }
+.img-circle {
+  border-radius: 50%;
+}
+.custom-toolbar {
+  height: 54px;
+  max-height: 54px;
+  min-height: 54px;
+  background: #64B5F6;
+}
