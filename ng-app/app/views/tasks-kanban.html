@@ -1,3 +1,4 @@
+<md-progress-linear ng-if="loadingTasks" md-mode="indeterminate"></md-progress-linear>
 <div class="kanban-container" layout="row">
 
   <div flex="22" ng-repeat="progressState in progressStates" layout-margin>
@@ -12,5 +13,3 @@
   </div>
 
 </div>
-
-<md-progress-linear ng-if="loadingTasks" md-mode="indeterminate"></md-progress-linear>
