@@ -15,7 +15,7 @@ angular.module('nereidProjectApp')
           getProject: '&project'
         },
         template: '<ng-transclude ng-click="openNewTaskModal()"></ng-transclude>',
-        link: function (scope, element) {
+        link: function (scope) {
           hotkeys.add({
             combo: ['n', 'N'],
             description: 'Create new task when inside project',
@@ -35,7 +35,7 @@ angular.module('nereidProjectApp')
                   Task.create($scope.project.id, $scope.taskObj)
                     .success(function(result) {
                       Helper.showToast('Task ' + result.displayName + ' is created.');
-                      $state.go('base.project.task', {projectId: result.parent, taskId: result.id});
+                      $state.go('base.project.task', {projectId: result.project.id, taskId: result.id});
                       $scope.hide();
                     })
                     .error(function(errors) {

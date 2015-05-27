@@ -456,8 +456,11 @@ class Project:
             value['hours'] = self.hours
             value['subtype'] = self.subtype
             value['effort'] = self.effort
-            value['total_effort'] = self.total_effort
-            value['project'] = self and self.id
+            value['total_effort'] = self.total_effort,
+            value['project'] = self.project and {
+                'id': self.project.id,
+                'name': self.project.rec_name,
+            }
             value['created_by'] = self.created_by and \
                 self.created_by.serialize('listing')
             value['displayName'] = '#%d' % self.id
