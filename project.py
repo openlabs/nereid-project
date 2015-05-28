@@ -1652,8 +1652,7 @@ class ProjectHistory(ModelSQL, ModelView):
     def send_mail(self):
         """
         Send mail to all participants whenever there is any update on
-        project.
-
+        task.
         """
         EmailQueue = Pool().get('email.queue')
 
@@ -1669,18 +1668,15 @@ class ProjectHistory(ModelSQL, ModelView):
             self.project.work.name,
         )
 
-        receivers = map(
-            lambda member: member.user.email,
-            filter(lambda member: member.user.email, self.project.members)
-        )
-
-        sender = config.get('email', 'from')
-
-        if self.updated_by.email in receivers:
-            receivers.remove(self.updated_by.email)
+        receivers = [
+            s.email for s in self.project.participants if s.email and
+            s != self.updated_by
+        ]
 
         if not receivers:
             return
+
+        sender = config.get('email', 'from')
 
         message = render_email(
             from_email=sender,
