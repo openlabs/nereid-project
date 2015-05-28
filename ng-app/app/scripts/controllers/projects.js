@@ -7,9 +7,7 @@ angular.module('nereidProjectApp')
     '$scope',
     'Project',
     'Helper',
-    '$state',
-    'Task',
-    function($q, $mdDialog, $scope, Project, Helper, $state, Task) {
+    function($q, $mdDialog, $scope, Project, Helper) {
       $scope.page = 0;
       $scope.perPage = 50;
       $scope.projects = [];
@@ -62,20 +60,7 @@ angular.module('nereidProjectApp')
       };
 
       $scope.goToProject = function(selection) {
-        if (selection.taskId) {
-          var taskId = selection.taskId;
-          // If a task ID is defined, this was an attempt to go to that task.
-          Task.getProjectId(taskId)
-          .then(function(projectId) {
-            $state.go('base.project.task', {
-              taskId: taskId,
-              projectId: projectId
-            });
-          });
-        } else {
-          $state.go('base.project', {projectId: selection.id});
-        }
-        $mdDialog.hide();
+        Project.go(selection);
       };
 
     }
