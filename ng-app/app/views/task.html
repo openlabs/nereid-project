@@ -32,7 +32,9 @@
   <!-- Comment description -->
   <div layout="column" class="line-vertical">
     <md-whiteframe class="md-whiteframe-z1" layout-margin ng-repeat="comment in task.comments">
-      <i class="mdi mdi-checkbox-multiple-blank-outline button-icon-font"></i>
+      <span>
+      <i class="mdi mdi-checkbox-multiple-blank-outline task-activity-icon button-icon-font"></i>
+      </span>
       <md-toolbar class="comment-container">
         <div class="md-toolbar-tools md-subhead comment-container">
           <div layout-margin>
@@ -63,7 +65,7 @@
   <div ng-if="comment.objectType == 'timesheet.line'">
     Worked for {{ comment.displayName }}
   </div>
-  <!--  /Time taken description -->
+  <!--  /Time taken hours description -->
   <!-- Draft comment -->
   <md-list-item ng-if="commentObj.comment" class="unsaved-comment cursor-pointer">
     <img gravatar-src="user.email" class="md-avatar" alt="{{ user.displayName }}" />
@@ -86,13 +88,13 @@
       <form name="commentForm" ng-submit="submitComment()" layout="column" flex>
         <textarea rows="5" ng-model="commentObj.comment" placeholder="Add your comment" flex required></textarea>
         <div layout="row">
-          <!--md-select seems to be broken in the currrent angular material build, so using basic HTML select-->
-          <md-select placeholder="Assign To" ng-model="commentObj.assigned_to" flex="20">
-            <md-option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</md-option>
-          </md-select>
-          <md-select placeholder="State" ng-model="commentObj.progress_state" flex="20">
-            <md-option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</md-option>
-          </md-select>
+          <!-- FIXME: md-select seems to be broken in the currrent angular material build, so using basic HTML select-->
+          <select placeholder="Assign To" ng-model="commentObj.assigned_to" flex="20">
+            <option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</option>
+          </select>
+          <select placeholder="State" ng-model="commentObj.progress_state" flex="20">
+            <option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</option>
+          </select>
           <md-input-container ng-if="user.employee" flex>
             <label>Hours</label>
             <input ng-model="commentObj.hours" type="number" step="0.01">
