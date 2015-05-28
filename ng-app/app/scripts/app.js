@@ -35,6 +35,14 @@ angular.module('nereidProjectApp', [
         controller: 'BaseCtrl'
       })
 
+      .state('task', {
+        // This state redirects to `base.project.task`
+        url: '/tasks/{taskId:int}',
+        controller: function($state, Project) {
+          Project.go({taskId: $state.params.taskId});
+        }
+      })
+
       .state('base.projects', {
         url: 'projects',
         views: {
