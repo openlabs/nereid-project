@@ -10,7 +10,17 @@ angular.module('nereidProjectApp', [
   'ui.gravatar',
   'hc.marked'
   ])
-  .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider) {
+  .config(function($stateProvider, $urlRouterProvider, $mdThemingProvider, markedProvider) {
+
+    // Show syntax highlighting in markdown `code`
+    markedProvider.setOptions({
+      gfm: true,
+      tables: true,
+      highlight: function (code) {
+        return window.hljs.highlightAuto(code).value;
+      }
+    });
+
     $urlRouterProvider
       .when('', '/')
       .when('/', '/projects')
