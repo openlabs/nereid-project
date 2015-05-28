@@ -230,11 +230,6 @@ md-list-item a {
 }
 /* /Iteration card */
 
-.progress-change > span {
-  background: #C7C7C7;
-  border-radius: 14px;
-  padding: 5px;
-}
 .jump-tips {
   font-size: x-small;
 }
@@ -253,9 +248,16 @@ md-list-item a {
 .img-circle {
   border-radius: 50%;
 }
-.custom-toolbar {
-  height: 54px;
-  max-height: 54px;
-  min-height: 54px;
-  background: #64B5F6;
+.comment-container {
+  height: 44px;
+  max-height: 44px;
+  min-height: 44px;
+  background: #F7F7F7;
+  font-size: 14px;
+}
+.text-black {
+  color: #000;
+}
+.vertical-align-middle {
+  vertical-align: middle;
 }
