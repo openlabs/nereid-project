@@ -12,5 +12,11 @@
       <i class="mdi mdi-view-list"></i>
       <div>My Tasks</div>
     </a>
+    <a class="menu-item"
+        show-if-any-permission="['project.admin', 'project.manager']"
+        ui-sref="base.open_tasks()" ui-sref-active="active">
+      <i class="mdi mdi-calendar-multiple-check"></i>
+      <div>Open Tasks</div>
+    </a>
   </div>
 </md-sidenav>
