@@ -5,64 +5,87 @@
         <i class="mdi mdi-arrow-left button-icon-font"></i>
       </a>
       <div class="md-toolbar-tools">
-        <h2 class="md-flex">{{ task.displayName}} {{ task.name }}</h2>
+        <h2 class="md-flex">{{ task.displayName }} {{ task.name }}</h2>
       </div>
     </div>
     <md-progress-linear ng-if="loadingTask" md-mode="indeterminate"></md-progress-linear>
   </md-toolbar>
-
-  <md-content layout-padding>
-
-    <div class="md-whiteframe-z1" layout-padding layout-margin marked="task.comment"></div>
-
-    <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
-      <md-list flex>
-        <!-- Task comment -->
-        <md-list-item class="md-3-line" ng-repeat="comment in task.comments">
-          <img gravatar-src="comment.updatedBy.email"
-            class="md-avatar" alt="{{ comment.updatedBy.displayName }}"
-            ng-show="comment.objectType == 'project.work.history'"/>
-          <div class="md-list-item-text" ng-if="comment.objectType == 'project.work.history'">
-            <span class="progress-change" ng-if="comment.new_progress_state">
-              <span>{{ comment.previous_progress_state }}</span>
-              <i class="mdi mdi-arrow-right-bold"></i>
-              <span>{{ comment.new_progress_state }}</span>
-            </span>
-            <span ng-if="comment.new_assignee">Assigned to {{ comment.new_assignee.displayName }}</span>
-            <p marked="comment.comment"><p>
+  <!-- Task description -->
+  <div layout="row" class="line-vertical">
+    <md-whiteframe class="md-whiteframe-z1" layout-margin flex>
+      <md-toolbar class="comment-container">
+        <div class="md-toolbar-tools md-subhead comment-container">
+          <div layout-margin>
+            <img gravatar-src="task.created_by.email" gravatar-size="38" class="md-avatar img-circle vertical-align-middle" alt="{{task.created_by.displayName}}" /> 
           </div>
-
-          <div ng-if="comment.objectType == 'timesheet.line'">
-            Worked for {{ comment.displayName }}
+          <div class="text-black toolbar-font">
+            {{ task.created_by.displayName }} Opened on {{ task.create_date | date:'medium' }}
           </div>
-          <md-divider ng-if="comment.objectType == 'project.work.history'"></md-divider>
-        </md-list-item> <!-- /Task com ment -->
-
-        <!-- Draft comment -->
-        <md-list-item ng-if="commentObj.comment" class="unsaved-comment cursor-pointer">
-          <img gravatar-src="user.email" class="md-avatar" alt="{{ user.displayName }}" />
-          <div class="md-list-item-text">
-            <span class="progress-change" ng-if="task.progress_state != commentObj.progress_state">
-              <span>{{ task.progress_state }}</span>
-              <i class="mdi mdi-arrow-right-bold"></i>
-              <span>{{ commentObj.progress_state }}</span>
-            </span>
-            <p marked="commentObj.comment"><p>
-          </div>
-          <md-tooltip>Comment not saved yet. Press 'Comment' To update.</md-tooltip>
-        </md-list-item>
-        <div ng-if="commentObj.hours">
-          Worked for {{ commentObj.hours }} hours
-        </div> <!-- /Draft comment -->
-        <md-divider></md-divider>
-        <md-progress-linear ng-if="savingComment" md-mode="indeterminate"></md-progress-linear>
-
-      </md-list>
+          <span flex></span>
+          <i class="mdi mdi-pencil button-icon-font"></i>
+        </div>
+      </md-toolbar>
+      <div layout-padding layout-margin marked="task.comment"></div>
     </md-whiteframe>
-
+  </div>
+  <!-- /Task description -->
+  <!-- Comment description -->
+  <div layout="column" class="line-vertical">
+    <md-whiteframe class="md-whiteframe-z1" layout-margin ng-repeat="comment in task.comments">
+      <span>
+      <i class="mdi mdi-checkbox-multiple-blank-outline task-activity-icon button-icon-font"></i>
+      </span>
+      <md-toolbar class="comment-container">
+        <div class="md-toolbar-tools md-subhead comment-container">
+          <div layout-margin>
+            <img gravatar-src="comment.updatedBy.email" class="md-avatar img-circle vertical-align-middle" gravatar-size="38" alt="{{ comment.updatedBy.displayName }}"
+              ng-show="comment.objectType == 'project.work.history'"/>
+          </div>
+          <div class="text-black toolbar-font">
+            {{ comment.updatedBy.displayName }} commented on {{ comment.create_date | date:'medium'}}
+          </div>
+           <span flex></span>
+          <span class="progress-change" ng-if="comment.new_progress_state">
+            <span>{{ comment.previous_progress_state }}</span>
+            <i class="mdi mdi-arrow-right-bold"></i>
+            <span>{{ comment.new_progress_state }}</span>
+          </span>
+          <span ng-if="comment.new_assignee">Assigned to {{ comment.new_assignee.displayName }}</span>
+        </div>
+      </md-toolbar>
+      <div layout-padding layout-margin>
+        <div class="text-black" ng-if="comment.objectType == 'project.work.history'">
+          <p marked="comment.comment"><p>
+        </div>
+      </div>
+    </md-whiteframe>
+  </div>
+  <!-- /Comment description -->
+  <!--  Time taken hours description -->
+  <div ng-if="comment.objectType == 'timesheet.line'">
+    Worked for {{ comment.displayName }}
+  </div>
+  <!--  /Time taken hours description -->
+  <!-- Draft comment -->
+  <md-list-item ng-if="commentObj.comment" class="unsaved-comment cursor-pointer">
+    <img gravatar-src="user.email" class="md-avatar" alt="{{ user.displayName }}" />
+    <div class="md-list-item-text">
+      <span class="progress-change" ng-if="task.progress_state != commentObj.progress_state">
+        <span>{{ task.progress_state }}</span>
+          <i class="mdi mdi-arrow-right-bold"></i>
+        <span>{{ commentObj.progress_state }}</span>
+      </span>
+      <p marked="commentObj.comment"><p>
+    </div>
+    <md-tooltip>Comment not saved yet. Press 'Comment' To update.</md-tooltip>
+  </md-list-item>
+  <div ng-if="commentObj.hours">
+    Worked for {{ commentObj.hours }} hours
+  </div> <!-- /Draft comment -->
+  <md-progress-linear ng-if="savingComment" md-mode="indeterminate"></md-progress-linear>
+  <div class="line-vertical">
     <md-whiteframe class="md-whiteframe-z1" layout layout-padding layout-margin>
       <form name="commentForm" ng-submit="submitComment()" layout="column" flex>
-
         <textarea rows="5" ng-model="commentObj.comment" placeholder="Add your comment" flex required></textarea>
         <div layout="row">
           <!-- FIXME: md-select seems to be broken in the currrent angular material build, so using basic HTML select-->
@@ -77,7 +100,6 @@
             <input ng-model="commentObj.hours" type="number" step="0.01">
           </md-input-container>
         </div>
-
         <div class="md-actions" layout="row">
           <span flex></span>
           <md-button class="md-primary" ng-disabled="savingComment">
@@ -86,6 +108,5 @@
         </div>
       </form>
     </md-whiteframe>
-
-  </md-content>
+  </div>
 </div>

@@ -230,11 +230,6 @@ md-list-item a {
 }
 /* /Iteration card */
 
-.progress-change > span {
-  background: #C7C7C7;
-  border-radius: 14px;
-  padding: 5px;
-}
 .jump-tips {
   font-size: x-small;
 }
@@ -249,4 +244,58 @@ md-list-item a {
 
 .cursor-pointer {
   cursor: pointer;
+}
+.img-circle {
+  border-radius: 50%;
+}
+
+.comment-container {
+  height: 44px;
+  max-height: 44px;
+  min-height: 44px;
+  background: #F7F7F7;
+  font-size: 14px;
+}
+
+.text-black {
+  color: #000;
+}
+
+.vertical-align-middle {
+  vertical-align: middle;
+}
+
+.line-vertical:before {
+  display: block;
+  content: "";
+  position: absolute;
+  top: 100px;
+  bottom: 30px;
+  left: 50px;
+  width: 2px;
+  background-color: #B8B6B6;
+  z-index: 0;
+}
+
+.line-vertical .md-whiteframe-z1 {
+  background: #fff;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 30px;
+}
+
+.line-vertical .task-activity-icon {
+  position: absolute;
+  margin-top: -34px;
+  margin-left: 29px;
+  color: #CFC6D5;
+  font-size: 16px;
+  float: left;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  background-color: #f3f3f3;
+  border: 2px solid #fff;
+  border-radius: 50%;
 }
