@@ -481,9 +481,9 @@ class TestTask(TestBase):
                     len(json.loads(response.data)['items']), 1
                 )
 
-    def test_0150_render_tasks_by_employee(self):
+    def test_0150_render_open_tasks(self):
         """
-        Render tasks by employee.
+        Open tasks, by employees, projects and users
         """
         # Project admin user
         with Transaction().start(DB_NAME, USER, CONTEXT):
@@ -497,7 +497,7 @@ class TestTask(TestBase):
                 )
 
                 # Render_tasks_by_employee
-                response = c.get('/tasks-by-employee')
+                response = c.get('/open-tasks')
                 self.assertEqual(response.status_code, 200)
 
         # Project manager user
@@ -512,7 +512,7 @@ class TestTask(TestBase):
                 )
 
                 # Render_tasks_by_employee
-                response = c.get('/tasks-by-employee')
+                response = c.get('/open-tasks')
                 self.assertEqual(response.status_code, 200)
 
         # Neither project admin nor manager
@@ -525,7 +525,7 @@ class TestTask(TestBase):
                 response = self.login(c, self.reg_user1.email, 'password')
 
                 # Render_tasks_by_employee
-                response = c.get('/tasks-by-employee')
+                response = c.get('/open-tasks')
                 self.assertEqual(response.status_code, 403)
 
     def test_0160_render_task(self):

@@ -1,0 +1,35 @@
+<md-toolbar md-scroll-shrink class="md-hue-2">
+  <div class="md-toolbar-tools">
+    <h3>
+      <span>Open Tasks</span>
+    </h3>
+    <span flex></span>
+    <md-select ng-model="groupOption" placeholder="Group By">
+      <md-select-label>Group By: {{ groupOption }}</md-select-label>
+      <md-option ng-value="opt" ng-repeat="opt in groupOptions">{{ opt }}</md-option>
+    </md-select>
+  </div>
+</md-toolbar>
+
+<md-progress-linear ng-if="loadingTasks" md-mode="indeterminate"></md-progress-linear>
+
+<div ng-switch on="groupOption">
+  <div ng-switch-when="Employee">
+    <div ng-repeat="employee in employees">
+      <h4>{{ employee.displayName }}</h4>
+      <tasks-kanban tasks="tasks|filter:{assigned_to: {id: employee.id}}"/>
+    </div>
+  </div>
+  <div ng-switch-when="User">
+    <div ng-repeat="user in users">
+      <h4>{{ user.displayName }}</h4>
+      <tasks-kanban tasks="tasks|filter:{assigned_to: {id: user.id}}"/>
+    </div>
+  </div>
+  <div ng-switch-when="Project">
+    <div ng-repeat="project in projects">
+      <h4>Project: {{ project.name }}</h4>
+      <tasks-kanban tasks="tasks|filter:{project: {id: project.id}}"/>
+    </div>   
+  </div>
+</div>

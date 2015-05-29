@@ -6,11 +6,10 @@
     :license: GPLv3, see LICENSE for more details.
 """
 import calendar
-from collections import defaultdict
 from datetime import datetime
 
 from nereid import (
-    request, abort, render_template, login_required, url_for, redirect,
+    request, abort, login_required, url_for, redirect,
     flash, jsonify, render_email, permissions_required, route, current_user
 )
 from nereid.ctx import has_request_context
@@ -542,29 +541,37 @@ class Task:
         return jsonify(items=[task.serialize('listing') for task in tasks])
 
     @classmethod
-    @route('/tasks-by-employee')
+    @route('/open-tasks')
     @login_required
     @permissions_required(perm_any=['project.admin', 'project.manager'])
-    def render_tasks_by_employee(cls):
+    def render_open_tasks(cls):
         '''
-        Returns rendered task, for employee.
+        Returns all open tasks, employees and projects. This is useful for
+        project admins and managers to splice and view open work from different
+        angles.
         '''
         open_tasks = cls.search([
             ('state', '=', 'opened'),
-            ('assigned_to.employee', '!=', None),
+            ('type', '=', 'task'),
         ], order=[('assigned_to', 'ASC')])
-        tasks_by_employee_by_state = defaultdict(lambda: defaultdict(list))
+
+        users = set([])
+        projects = set([])
         for task in open_tasks:
-            tasks_by_employee_by_state[task.assigned_to][
-                task.progress_state
-            ].append(task)
-        employees = tasks_by_employee_by_state.keys()
-        employees.sort()
-        return render_template(
-            'project/tasks-by-employee.jinja',
-            tasks_by_employee_by_state=tasks_by_employee_by_state,
-            employees=employees,
-            states=PROGRESS_STATES[:-1],
+            if task.assigned_to:
+                users.add(task.assigned_to)
+            projects.add(task.project)
+
+        employees = set([])
+        for user in users:
+            if user is not None and user.employee:
+                employees.add(user)
+
+        return jsonify(
+            tasks=[task.serialize('listing') for task in open_tasks],
+            users=[user.serialize() for user in users],
+            employees=[employee.serialize() for employee in employees],
+            projects=[project.serialize() for project in projects],
         )
 
     @route(

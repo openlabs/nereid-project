@@ -166,6 +166,19 @@ angular.module('nereidProjectApp', [
             controller: 'IterationCtrl'
           }
         }
+      })
+
+      .state('base.open_tasks', {
+        url: 'open-tasks',
+        views: {
+          'sidenav': {
+            templateUrl: 'views/base-sidenav.html',
+          },
+          'main-view': {
+            templateUrl: 'views/open-tasks.html',
+            controller: 'OpenTasksCtrl'
+          }
+        }
       });
 
       $mdThemingProvider.theme('default')
