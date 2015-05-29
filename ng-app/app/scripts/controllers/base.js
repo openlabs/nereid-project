@@ -3,10 +3,11 @@
 angular.module('nereidProjectApp')
 .controller('BaseCtrl', [
     '$scope',
+    '$state',
     'hotkeys',
     '$mdDialog',
     '$mdSidenav',
-    function($scope, hotkeys, $mdDialog, $mdSidenav) {
+    function($scope, $state, hotkeys, $mdDialog, $mdSidenav) {
       //TODO: Handle global search
 
       hotkeys.add({
@@ -30,6 +31,14 @@ angular.module('nereidProjectApp')
         combo: ['ctrl+k', 'command+k'],
         description: 'Jump to projects',
         callback: showJumpDialog
+      });
+
+      hotkeys.add({
+        combo: ['g+m'],
+        description: 'Open my tasks',
+        callback: function() {
+          $state.go('base.myTasks');
+        }
       });
 
       $scope.toggleLeft = function() {
