@@ -15,21 +15,21 @@
 
 <div ng-switch on="groupOption">
   <div ng-switch-when="Employee">
-    <div ng-repeat="employee in employees">
-      <h4>{{ employee.displayName }}</h4>
-      <tasks-kanban tasks="tasks|filter:{assigned_to: {id: employee.id}}"/>
+    <div ng-repeat="employeeTask in taskByEmployee">
+      <h4>{{ employeeTask.name }}</h4>
+      <tasks-kanban tasks="employeeTask.tasks"/>
     </div>
   </div>
   <div ng-switch-when="User">
-    <div ng-repeat="user in users">
-      <h4>{{ user.displayName }}</h4>
-      <tasks-kanban tasks="tasks|filter:{assigned_to: {id: user.id}}"/>
+    <div ng-repeat="userTask in taskByUser">
+      <h4>{{ userTask.name }}</h4>
+      <tasks-kanban tasks="userTask.tasks"/>
     </div>
   </div>
   <div ng-switch-when="Project">
-    <div ng-repeat="project in projects">
-      <h4>Project: {{ project.name }}</h4>
-      <tasks-kanban tasks="tasks|filter:{project: {id: project.id}}"/>
+    <div ng-repeat="projectTask in taskByProject">
+      <h4>Project: {{ projectTask.name }}</h4>
+      <tasks-kanban tasks="projectTask.tasks"/>
     </div>   
   </div>
 </div>
