@@ -240,6 +240,7 @@ md-list-item a {
   border: 1px solid #e5e5e5;
   border-radius: 9px;
   background-color: #F9F9F9;
+  z-index: 1;
 }
 
 .cursor-pointer {
@@ -273,24 +274,13 @@ md-list-item a {
   bottom: 30px;
   left: 50px;
   width: 2px;
-  background-color: #B8B6B6;
+  background-color: #f3f3f3;
   z-index: 0;
 }
 
-.line-vertical .md-whiteframe-z1 {
-  background: #fff;
-  position: relative;
-  z-index: 1;
-  margin-bottom: 30px;
-}
-
 .line-vertical .task-activity-icon {
-  position: absolute;
-  margin-top: -34px;
-  margin-left: 29px;
   color: #CFC6D5;
   font-size: 16px;
-  float: left;
   width: 24px;
   height: 24px;
   line-height: 24px;
@@ -298,4 +288,19 @@ md-list-item a {
   background-color: #f3f3f3;
   border: 2px solid #fff;
   border-radius: 50%;
+  z-index: 1024;
+  position: relative;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+  
+.line-vertical .md-whiteframe-z1 {
+  background: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.activity-box {
+  margin-left: 29px;
+  margin-top: 10px;
 }
