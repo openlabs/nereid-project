@@ -190,7 +190,7 @@ angular.module('nereidProjectApp', [
       .primaryPalette('grey');
   })
   .run(['$rootScope', '$state', 'nereidAuth', 'nereid', function ($rootScope, $state, nereidAuth, nereid) {
-    if (MacGap != undefined) {
+    if (window.MacGap !== undefined) {
       // If this app is loaded from MacGap application
       // first set the ApiBasePath to load data from.
       $.getJSON('../config.json', function(data){
