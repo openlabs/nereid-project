@@ -189,7 +189,16 @@ angular.module('nereidProjectApp', [
       $mdThemingProvider.theme('input', 'default')
       .primaryPalette('grey');
   })
-  .run(['$rootScope', '$state', 'nereidAuth', function ($rootScope, $state, nereidAuth) {
+  .run(['$rootScope', '$state', 'nereidAuth', 'nereid', function ($rootScope, $state, nereidAuth, nereid) {
+    if (MacGap != undefined) {
+      // If this app is loaded from MacGap application
+      // first set the ApiBasePath to load data from.
+      $.getJSON('../config.json', function(data){
+        nereid.setApiBasePath(data['apiBasePath']);
+      });
+      // Maximize mac app to fill the user's screen
+      MacGap.Window.maximize();
+    }
     nereidAuth.refreshUserInfo(); // XXX: why?
 
     $rootScope.$on('$stateChangeSuccess', function(event, toState) {
