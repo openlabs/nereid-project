@@ -1,4 +1,3 @@
-<md-progress-linear ng-if="loadingTasks" md-mode="indeterminate"></md-progress-linear>
 <div class="kanban-container" layout="row">
 
   <div flex="22" ng-repeat="progressState in progressStates" layout-margin>
@@ -6,7 +5,7 @@
       {{ progressState }}
     </div>
     <div class="tasks">
-      <div layout="column" ng-repeat="task in kanbanTasks | filter:{ progress_state: progressState}">
+      <div layout="column" ng-repeat="task in kanbanTasks | filter:{progress_state: progressState}">
         <div class="task" layout-padding>
           <img gravatar-src="task.assigned_to.email" class="md-avatar" alt="{{ task.assigned_to.displayName }}" />
           <a ui-sref="base.project.task({projectId: task.parent, taskId: task.id})">
