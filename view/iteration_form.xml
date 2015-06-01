@@ -1,17 +1,19 @@
 <?xml version="1.0"?>
-
 <form string="Iteration">
     <label name="name" />
     <field name="name" />
-    <newline/>
+    <label name="state"/>
+    <field name="state"/>
     <label name="start_date" />
     <field name="start_date" />
     <label name="end_date" />
     <field name="end_date" />
     <notebook colspan="4">
         <page string="Tasks" id="tasks" col="1">
-            <label name="tasks"/>
             <field name="tasks" />
+        </page>
+        <page string="Backlog Tasks" id="backlog_tasks" col="1">
+            <field name="backlog_tasks" />
         </page>
     </notebook>
 </form>

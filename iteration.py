@@ -14,18 +14,25 @@ from wtforms import IntegerField, SelectField, validators, StringField, \
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.transaction import Transaction
 from trytond.pyson import Eval
-from trytond.pool import PoolMeta
+from trytond.pool import PoolMeta, Pool
+from trytond.wizard import Wizard, StateView, Button, StateAction
 from nereid.ctx import has_request_context
 from nereid.contrib.pagination import Pagination
 
 from task import PROGRESS_STATES
 
-__all__ = ['Iteration', 'IterationBacklog']
+__all__ = [
+    'Iteration', 'IterationBacklog', 'CloseIterationAsk', 'CloseIteration'
+]
 __metaclass__ = PoolMeta
+
+READONLY_IF_CLOSED = {
+    'readonly': Eval('state') == 'closed'
+}
 
 
 class IterationForm(Form):
-    "Iteratino Form"
+    "Iteration Form"
     name = StringField('Name', [validators.DataRequired()])
     start_date = DateField('Start Date', [validators.DataRequired()])
     end_date = DateField('End Date', [validators.DataRequired()])
@@ -46,16 +53,26 @@ class Iteration(ModelSQL, ModelView):
     'Iteration'
     __name__ = 'project.iteration'
 
-    name = fields.Char('Name', required=True)
-    company = fields.Many2One(
-        'company.company', 'Company', select=True, required=True
+    name = fields.Char(
+        'Name', required=True, states=READONLY_IF_CLOSED,
+        depends=['state'],
     )
-    start_date = fields.Date('Start Date', required=True, select=True)
-    end_date = fields.Date('End Date', required=True, select=True)
+    company = fields.Many2One(
+        'company.company', 'Company', select=True, required=True,
+        states=READONLY_IF_CLOSED, depends=['state'],
+    )
+    start_date = fields.Date(
+        'Start Date', required=True, select=True,
+        states=READONLY_IF_CLOSED, depends=['state'],
+    )
+    end_date = fields.Date(
+        'End Date', required=True, select=True,
+        states=READONLY_IF_CLOSED, depends=['state'],
+    )
     state = fields.Selection([
         ('opened', 'Opened'),
         ('closed', 'Closed'),
-    ], 'State', select=True)
+    ], 'State', select=True, readonly=True)
     tasks = fields.One2Many(
         'project.work', 'iteration', 'Tasks',
         domain=[
@@ -64,9 +81,10 @@ class Iteration(ModelSQL, ModelView):
         ],
         add_remove=[
             ('type', '!=', 'project'),
+            ('state', '=', 'opened'),
             ('company', '=', Eval('company')),
         ],
-        depends=['company'],
+        states=READONLY_IF_CLOSED, depends=['company', 'state'],
     )
     backlog_tasks = fields.One2Many(
         'project.iteration.backlog', 'iteration', 'Backlog Tasks',
@@ -331,6 +349,60 @@ class Iteration(ModelSQL, ModelView):
         if request.method == 'PUT':
             return jsonify(errors=update_form.errors), 400
         abort(400)
+
+
+class CloseIterationAsk(ModelView):
+    "Close Iteration Ask"
+    __name__ = "project.iteration.close_iteration.ask"
+
+    iteration = fields.Many2One(
+        'project.iteration', 'Iteration', domain=[
+            ('state', '=', 'opened'),
+        ], help="Transfer opened to task this iteration"
+    )
+
+
+class CloseIteration(Wizard):
+    "Close Iteration"
+    __name__ = "project.iteration.close_iteration"
+    start_state = 'ask'
+
+    ask = StateView(
+        'project.iteration.close_iteration.ask',
+        'nereid_project.close_iteration_ask_view_form', [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'close', 'tryton-ok', default=True),
+        ]
+    )
+    close = StateAction('nereid_project.act_iteration_form')
+
+    def do_close(self, action):
+        Iteration = Pool().get('project.iteration')
+        IterationBacklog = Pool().get('project.iteration.backlog')
+
+        old_iteration = Iteration(Transaction().context['active_id'])
+        new_iteration = self.ask.iteration
+
+        old_iteration.backlog_tasks = []
+        new_iteration.tasks = list(new_iteration.tasks)
+
+        for task in filter(lambda t: t.state == 'opened', old_iteration.tasks):
+            backlog_task = IterationBacklog()
+            backlog_task.task = task
+            backlog_task.progress_state = task.progress_state
+            backlog_task.owner = task.owner
+            backlog_task.assigned_to = task.assigned_to
+            backlog_task.project = task.parent
+
+            old_iteration.backlog_tasks.append(backlog_task)
+            new_iteration.tasks.append(task)
+
+        old_iteration.state = 'closed'
+        old_iteration.save()
+        new_iteration.save()
+
+        action['views'].reverse()
+        return action, {'res_id': [self.ask.iteration.id]}
 
 
 class IterationBacklog(ModelSQL, ModelView):
