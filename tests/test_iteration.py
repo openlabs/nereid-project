@@ -431,6 +431,132 @@ class TestIteration(TestBase):
                         Iteration.search([('id', '=', iteration.id)])
                     )
 
+    def test_0070_test_close_iteration(self):
+        """
+        Test close iteration
+        """
+        Iteration = POOL.get('project.iteration')
+        ModelData = POOL.get('ir.model.data')
+        CloseIteration = POOL.get(
+            'project.iteration.close_iteration', type='wizard'
+        )
+
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_defaults()
+            with Transaction().set_context(company=self.company.id):
+                work1, = self.Work.create([{
+                    'name': 'ABC Project',
+                    'company': self.company.id,
+                }])
+                project, = self.Project.create([{
+                    'work': work1.id,
+                    'type': 'project',
+                    'state': 'opened',
+                    'sequence': 1,
+                }])
+                self.assert_(project)
+
+                work2, = self.Work.create([{
+                    'name': 'User Story',
+                    'company': self.company.id,
+                }])
+
+                task1, = self.Project.create([{
+                    'work': work2.id,
+                    'type': 'task',
+                    'parent': project.id,
+                    'state': 'opened',
+                }])
+                self.assert_(task1)
+
+                work3, = self.Work.create([{
+                    'name': 'User Task',
+                    'company': self.company.id,
+                }])
+
+                task2, = self.Project.create([{
+                    'work': work3.id,
+                    'type': 'task',
+                    'parent': project.id,
+                    'state': 'opened',
+                }])
+                self.assert_(task2)
+
+                work4, = self.Work.create([{
+                    'name': 'User Task',
+                    'company': self.company.id,
+                }])
+
+                task3, = self.Project.create([{
+                    'work': work4.id,
+                    'type': 'task',
+                    'parent': project.id,
+                    'state': 'done',
+                }])
+                self.assert_(task3)
+
+                work5, = self.Work.create([{
+                    'name': 'User Task',
+                    'company': self.company.id,
+                }])
+
+                task4, = self.Project.create([{
+                    'work': work5.id,
+                    'type': 'task',
+                    'parent': project.id,
+                    'state': 'opened',
+                }])
+                self.assert_(task4)
+
+                old_iteration, = Iteration.create([{
+                    'name': 'Iteration1',
+                    'start_date': datetime.date(2011, 2, 3),
+                    'end_date': datetime.date(2011, 2, 5),
+                    'tasks': [('add', [task1.id, task2.id, task3.id])],
+                }])
+                self.assert_(old_iteration)
+
+                # Create a new iteration
+                new_iteration, = Iteration.create([{
+                    'name': 'Iteration2',
+                    'start_date': datetime.date(2011, 2, 6),
+                    'end_date': datetime.date(2011, 2, 9),
+                    'tasks': [('add', [task4.id])],
+                }])
+                self.assert_(new_iteration)
+
+            self.assertEqual(old_iteration.state, 'opened')
+            self.assertEqual(len(old_iteration.tasks), 3)
+            self.assertEqual(len(old_iteration.backlog_tasks), 0)
+
+            self.assertEqual(new_iteration.state, 'opened')
+            self.assertEqual(len(new_iteration.tasks), 1)
+            self.assertEqual(len(new_iteration.backlog_tasks), 0)
+
+            with Transaction().set_context(
+                    company=self.company.id,
+                    active_id=old_iteration.id
+            ):
+                session_id, start_state, _ = CloseIteration.create()
+                close_iteration = CloseIteration(session_id)
+
+                close_iteration.ask.iteration = new_iteration.id
+
+                action_id = ModelData.get_id(
+                    'nereid_project', 'act_iteration_form'
+                )
+                close_iteration.do_close(
+                    POOL.get('ir.action.act_window')(action_id)
+                )
+
+                self.assertEqual(old_iteration.state, 'closed')
+                self.assertEqual(len(old_iteration.tasks), 1)
+                self.assertEqual(len(old_iteration.backlog_tasks), 2)
+
+                self.assertEqual(new_iteration.state, 'opened')
+                self.assertEqual(len(new_iteration.tasks), 3)
+                self.assertEqual(len(new_iteration.backlog_tasks), 0)
+
 
 def suite():
     suite = trytond.tests.test_tryton.suite()

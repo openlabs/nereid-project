@@ -1381,7 +1381,7 @@ class Project:
         return Attachment.create([values])[0]
 
     @classmethod
-    def write(cls, projects, values):
+    def write(cls, projects, values, *args):
         """
         Update write to historize everytime an update is made
 
@@ -1393,7 +1393,7 @@ class Project:
         for project in projects:
             WorkHistory.create_history_line(project, values)
 
-        return super(Project, cls).write(projects, values)
+        return super(Project, cls).write(projects, values, *args)
 
     @login_required
     @route('/project-<int:active_id>/stream')
