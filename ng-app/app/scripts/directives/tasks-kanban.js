@@ -13,7 +13,7 @@ angular.module('nereidProjectApp')
     'Helper',
     'Task',
     'Project',
-    function (Helper, Task, Project) {
+    function (Helper, Task) {
       return {
         restrict: 'E',
         transclude: true,
@@ -25,52 +25,9 @@ angular.module('nereidProjectApp')
         templateUrl: 'views/tasks-kanban.html',
         link: function (scope) {
           scope.progressStates = Task.progressStates;
-          scope.kanbanTasks = scope.tasks;
-
-          scope.loadMyTasks = function() {
-            scope.loadingTasks = true;
-            var filter = {
-              state: 'opened',
-              per_page: 200
-            };
-            if(scope.projectId) {
-              filter.project = scope.projectId;
-            }
-            Task.getMyTasks(filter)
-              .success(function(result) {
-                scope.kanbanTasks = result.items;
-              })
-              .error(function(reason) {
-                Helper.showDialog('Could not fetch your tasks', reason);
-              })
-              .finally(function() {
-                scope.loadingTasks = false;
-              });
-          };
-
-          scope.loadProjectsOpenTasks = function() {
-            scope.loadingTasks = true;
-            var filter = {
-              state: 'opened',
-              per_page: 200
-            };
-            Project.getTasks(scope.projectId, filter)
-              .success(function(result) {
-                scope.kanbanTasks = result.items;
-              })
-              .error(function(reason) {
-                Helper.showDialog('Could not fetch open tasks', reason);
-              })
-              .finally(function() {
-                scope.loadingTasks = false;
-              });
-          };
-
-          if(scope.type === 'my-tasks') {
-            scope.loadMyTasks();
-          } else if(scope.type === 'open') {
-            scope.loadProjectsOpenTasks();
-          }
+          scope.$watch('tasks', function() {
+            scope.kanbanTasks = scope.tasks;
+          });
 
         }
       };
