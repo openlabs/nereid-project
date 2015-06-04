@@ -535,6 +535,9 @@ class Task:
 
         if state and state in ('opened', 'done'):
             filter_domain.append(('state', '=', state))
+        else:
+            # By default display only open tasks
+            filter_domain.append(('state', '=', 'opened'))
 
         tasks = cls.search(filter_domain, order=[('progress_state', 'ASC')])
 
