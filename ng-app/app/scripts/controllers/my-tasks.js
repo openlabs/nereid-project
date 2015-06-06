@@ -4,14 +4,16 @@ angular.module('nereidProjectApp')
 .controller('MyTasksCtrl', [
     '$mdDialog',
     '$scope',
+    'nereidAuth',
     'Task',
     'Helper',
-    function($mdDialog, $scope, Task, Helper) {
+    function($mdDialog, $scope, nereidAuth, Task, Helper) {
       $scope.progressStates = Task.progressStates;
+      $scope.userId = nereidAuth.user().id;
 
       $scope.loadMyTasks = function() {
         $scope.loadingTasks = true;
-        Task.getMyTasks()
+        Task.getMyTasks($scope.userId)
           .success(function(result) {
             $scope.tasks = result.items;
           })
