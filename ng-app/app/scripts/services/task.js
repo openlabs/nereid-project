@@ -5,8 +5,7 @@ angular.module('nereidProjectApp')
     '$http',
     '$q',
     'nereid',
-    'nereidAuth',
-    function($http, $q, nereid, nereidAuth) {
+    function($http, $q, nereid) {
 
     var Task = this;
 
@@ -16,10 +15,9 @@ angular.module('nereidProjectApp')
 
     Task.getOpenTasks = function() {
       return $http.get(nereid.buildUrl('/open-tasks'));
-    }
+    };
 
-    Task.getMyTasks = function(filter) {
-      var userId = nereidAuth.user().id;
+    Task.getMyTasks = function(userId, filter) {
       return $http.get(nereid.buildUrl('/users/' + userId + '/tasks' + '/'), {params: filter});
     };
 
