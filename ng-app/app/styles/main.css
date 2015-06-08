@@ -315,3 +315,7 @@ form[name=commentForm] textarea {
   margin-top:0;
   padding-top: 15px;
 }
+/* To-Do: Fix Dropdown without using height */
+.new-comment-container md-whiteframe{
+  height: 230px;
+}

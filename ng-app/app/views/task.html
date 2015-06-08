@@ -98,13 +98,12 @@
         <form name="commentForm" ng-submit="submitComment()" layout="column" flex>
           <textarea rows="5" ng-model="commentObj.comment" placeholder="Add your comment" flex required layout-padding ></textarea>
           <div layout="row">
-            <!-- FIXME: md-select seems to be broken in the currrent angular material build, so using basic HTML select-->
-            <select placeholder="Assign To" ng-model="commentObj.assigned_to" flex="20">
-              <option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</option>
-            </select>
-            <select placeholder="State" ng-model="commentObj.progress_state" flex="20">
-              <option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</option>
-            </select>
+            <md-select placeholder="Assign To" ng-model="commentObj.assigned_to" flex="20">
+              <md-option ng-value="participant.id" ng-repeat="participant in project.participants">{{ participant.displayName }}</md-option>
+            </md-select>
+            <md-select placeholder="State" ng-model="commentObj.progress_state" flex="20">
+              <md-option ng-value="state.value" ng-repeat="state in states">{{ state.text }}</md-option>
+            </md-select>
             <md-input-container ng-if="user.employee" flex>
               <label>Hours</label>
               <input ng-model="commentObj.hours" type="number" step="0.01">
