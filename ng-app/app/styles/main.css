@@ -304,3 +304,14 @@ md-list-item a {
   margin-left: 29px;
   margin-top: 10px;
 }
+
+form[name=commentForm] textarea {
+  margin-bottom: 15px;
+}
+
+.new-comment-container { 
+  background:#fff;
+  z-index:1;
+  margin-top:0;
+  padding-top: 15px;
+}
