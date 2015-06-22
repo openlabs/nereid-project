@@ -36,9 +36,19 @@
       </md-tooltip>
     </md-button>
 
-    <md-button aria-label="Menu">
-      <i class="mdi mdi-dots-vertical button-icon-font"></i>
-    </md-button>
+    <md-menu>
+      <md-button aria-label="Open user menu" class="md-icon-button" ng-click="$mdOpenMenu()">
+        <i class="mdi mdi-dots-vertical button-icon-font"></i>
+      </md-button>
+      <md-menu-content width="3">
+        <md-menu-item>
+          <md-button ng-click="logout()">
+            <i class="mdi mdi-logout"></i> Logout
+          </md-button>
+        </md-menu-item>
+      </md-menu-content>
+    </md-menu>
+
   </span>
 </md-toolbar>
 

@@ -7,7 +7,8 @@ angular.module('nereidProjectApp')
     'hotkeys',
     '$mdDialog',
     '$mdSidenav',
-    function($scope, $state, hotkeys, $mdDialog, $mdSidenav) {
+    'nereidAuth',
+    function($scope, $state, hotkeys, $mdDialog, $mdSidenav, nereidAuth) {
       //TODO: Handle global search
 
       hotkeys.add({
@@ -43,6 +44,10 @@ angular.module('nereidProjectApp')
 
       $scope.toggleLeft = function() {
         $mdSidenav('left').toggle();
+      };
+
+      $scope.logout = function() {
+        nereidAuth.logoutUser();
       };
 
     }
