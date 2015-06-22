@@ -50,5 +50,9 @@ angular.module('nereidProjectApp')
         nereidAuth.logoutUser();
       };
 
+      $scope.openChangePasswordPage = function() {
+        $state.go('base.changePassword');
+      };
+
     }
   ]);

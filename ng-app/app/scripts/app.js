@@ -54,6 +54,16 @@ angular.module('nereidProjectApp', [
         }
       })
 
+      .state('base.changePassword', {
+        url: 'change-password',
+        views: {
+          'main-view': {
+            templateUrl: 'views/change-password.html',
+            controller: 'ChangePasswordCtrl',
+          }
+        }
+      })
+
       .state('base.projects', {
         url: 'projects',
         views: {
